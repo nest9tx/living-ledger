@@ -72,7 +72,7 @@ export default function CreditsPanel() {
         )}
         {balance === 0 && (
           <p className="mt-3 text-xs text-foreground/50">
-            💡 Requests are free to post. You only need credits to purchase services.
+            💡 Requests are free to post. You only need credits to purchase services. Processing fees are added at checkout.
           </p>
         )}
       </div>

@@ -23,6 +23,7 @@ import {
   handleChargeRefunded,
 } from '@/lib/stripe-helpers';
 import Stripe from 'stripe';
+import supabaseAdmin from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
@@ -50,6 +51,44 @@ export async function POST(req: Request) {
 
     // Handle different event types
     switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const userId = session.metadata?.user_id;
+        const credits = parseInt(session.metadata?.credits || '0', 10);
+        const paymentIntentId = session.payment_intent?.toString() || session.id;
+
+        if (!userId || !credits) {
+          console.error('Missing metadata for credit purchase');
+          break;
+        }
+
+        const { data: existing } = await supabaseAdmin
+          .from('transactions')
+          .select('id')
+          .eq('stripe_payment_intent_id', paymentIntentId)
+          .maybeSingle();
+
+        if (existing?.id) {
+          break;
+        }
+
+        const { error: txError } = await supabaseAdmin
+          .from('transactions')
+          .insert({
+            user_id: userId,
+            amount: credits,
+            description: `Credit purchase (${credits})`,
+            transaction_type: 'purchase',
+            stripe_payment_intent_id: paymentIntentId,
+            can_cashout: false,
+          });
+
+        if (txError) {
+          console.error('Failed to record credit purchase:', txError);
+        }
+
+        break;
+      }
       // Payment successful
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
