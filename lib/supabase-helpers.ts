@@ -112,9 +112,7 @@ export async function fetchRequests() {
          budget_credits,
          created_at, 
          user_id, 
-         category_id, 
-         categories:category_id(name, icon), 
-         profiles:user_id(username)`
+         category_id`
       )
       .order("created_at", { ascending: false });
 
@@ -123,7 +121,25 @@ export async function fetchRequests() {
       throw new Error(error.message || "Failed to fetch requests");
     }
 
-    return data || [];
+    // Fetch related data separately to avoid schema cache issues
+    let enrichedData = data || [];
+    if (enrichedData.length > 0) {
+      const { data: categoryData } = await supabase
+        .from("categories")
+        .select("id, name, icon");
+      
+      const categoryMap = categoryData?.reduce((map, cat) => {
+        map[cat.id] = cat;
+        return map;
+      }, {} as Record<number, any>) || {};
+      
+      enrichedData = enrichedData.map(req => ({
+        ...req,
+        categories: req.category_id ? categoryMap[req.category_id] : null
+      }));
+    }
+
+    return enrichedData;
   } catch (err) {
     console.error("Error in fetchRequests:", err);
     throw err;
@@ -181,9 +197,7 @@ export async function fetchOffers() {
          price_credits,
          created_at, 
          user_id, 
-         category_id, 
-         categories:category_id(name, icon), 
-         profiles:user_id(username)`
+         category_id`
       )
       .order("created_at", { ascending: false });
 
@@ -192,7 +206,25 @@ export async function fetchOffers() {
       throw new Error(error.message || "Failed to fetch offers");
     }
 
-    return data || [];
+    // Fetch related data separately to avoid schema cache issues
+    let enrichedData = data || [];
+    if (enrichedData.length > 0) {
+      const { data: categoryData } = await supabase
+        .from("categories")
+        .select("id, name, icon");
+      
+      const categoryMap = categoryData?.reduce((map, cat) => {
+        map[cat.id] = cat;
+        return map;
+      }, {} as Record<number, any>) || {};
+      
+      enrichedData = enrichedData.map(offer => ({
+        ...offer,
+        categories: offer.category_id ? categoryMap[offer.category_id] : null
+      }));
+    }
+
+    return enrichedData;
   } catch (err) {
     console.error("Error in fetchOffers:", err);
     throw err;
