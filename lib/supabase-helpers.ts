@@ -269,43 +269,81 @@ export async function fetchOffers() {
 
 // Credit balance & transactions
 export async function getUserCredits() {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Not authenticated");
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) throw new Error("Not authenticated");
 
-  // For MVP, store credits in a simple way.
-  // You may want to migrate this to a dedicated credits_balance table later.
-  const { data: transactions, error: txError } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("user_id", user.user.id)
-    .order("created_at", { ascending: false });
+    // Get balance from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("credits_balance")
+      .eq("id", user.user.id)
+      .single();
 
-  if (txError) throw txError;
+    if (profileError) {
+      console.error("Error fetching profile balance:", profileError);
+      throw profileError;
+    }
 
-  const balance = transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0) ?? 0;
-  return { balance, transactions };
+    // Get transaction history
+    const { data: transactions, error: txError } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", user.user.id)
+      .order("created_at", { ascending: false })
+      .limit(50); // Last 50 transactions
+
+    if (txError) {
+      console.error("Error fetching transactions:", txError);
+      throw txError;
+    }
+
+    return { 
+      balance: profile?.credits_balance || 0, 
+      transactions: transactions || [] 
+    };
+  } catch (err) {
+    console.error("Error in getUserCredits:", err);
+    throw err;
+  }
 }
 
 export async function recordTransaction(
   amount: number,
-  description: string
+  description: string,
+  transactionType: string = 'other',
+  relatedOfferId?: number,
+  relatedRequestId?: number
 ) {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Not authenticated");
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) throw new Error("Not authenticated");
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .insert([
-      {
-        user_id: user.user.id,
-        amount,
-        description,
-      },
-    ])
-    .select();
+    const { data, error } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          user_id: user.user.id,
+          amount,
+          description,
+          transaction_type: transactionType,
+          related_offer_id: relatedOfferId,
+          related_request_id: relatedRequestId,
+        },
+      ])
+      .select();
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Error recording transaction:", error);
+      throw error;
+    }
+
+    // Balance is automatically updated by database trigger
+    return data;
+  } catch (err) {
+    console.error("Error in recordTransaction:", err);
+    throw err;
+  }
 }
 
 // Delete functions

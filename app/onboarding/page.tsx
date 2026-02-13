@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
+import { recordTransaction } from "@/lib/supabase-helpers";
 
 type OnboardingStep = "welcome" | "guidelines" | "role" | "profile" | "complete";
 
@@ -47,6 +48,7 @@ export default function OnboardingPage() {
         id: user.user.id,
         username: username.trim(),
         bio: bio.trim(),
+        credits_balance: 100, // Starting credits for new users
         onboarding_complete: true,
         onboarding_role: role,
         updated_at: new Date().toISOString(),
@@ -64,6 +66,18 @@ export default function OnboardingPage() {
 
       if (!data || data.length === 0) {
         throw new Error("Profile was not created properly");
+      }
+
+      // Give new users a welcome transaction
+      try {
+        await recordTransaction(
+          100,
+          "Welcome bonus! 🎉",
+          "purchase"
+        );
+      } catch (txError) {
+        console.error("Failed to create welcome transaction:", txError);
+        // Don't block onboarding if transaction fails
       }
 
       setStep("complete");

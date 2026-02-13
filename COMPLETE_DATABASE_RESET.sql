@@ -2,6 +2,7 @@
 -- This will completely rebuild all tables with proper relationships
 
 -- Drop ALL tables to start fresh
+drop table if exists transactions cascade;
 drop table if exists credit_escrow cascade;
 drop table if exists interactions cascade;
 drop table if exists offers cascade;
@@ -15,10 +16,23 @@ create table profiles (
   username text,
   bio text,
   avatar_url text,
+  credits_balance integer default 100,
   onboarding_complete boolean default false,
   onboarding_role text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
+);
+
+-- Create transactions table
+create table transactions (
+  id bigserial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  amount integer not null,
+  description text not null,
+  transaction_type text not null,
+  related_offer_id bigint,
+  related_request_id bigint,
+  created_at timestamptz default now()
 );
 
 -- Create categories table
@@ -79,6 +93,7 @@ create table credit_escrow (
 
 -- Enable RLS on all tables
 alter table profiles enable row level security;
+alter table transactions enable row level security;
 alter table categories enable row level security;
 alter table requests enable row level security;
 alter table offers enable row level security;
@@ -97,6 +112,15 @@ create policy "Profiles insert" on profiles
 create policy "Profiles update" on profiles
   for update
   using (auth.uid() = id);
+
+-- Transactions policies
+create policy "Transactions read own" on transactions
+  for select
+  using (auth.uid() = user_id);
+
+create policy "Transactions insert own" on transactions
+  for insert
+  with check (auth.uid() = user_id);
 
 -- Categories policies (allow public read, authenticated insert/update)
 create policy "Categories read" on categories
