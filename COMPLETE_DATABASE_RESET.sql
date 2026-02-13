@@ -7,6 +7,19 @@ drop table if exists interactions cascade;
 drop table if exists offers cascade;
 drop table if exists requests cascade;
 drop table if exists categories cascade;
+drop table if exists profiles cascade;
+
+-- Create profiles table
+create table profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text,
+  bio text,
+  avatar_url text,
+  onboarding_complete boolean default false,
+  onboarding_role text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 
 -- Create categories table
 create table categories (
@@ -65,11 +78,25 @@ create table credit_escrow (
 );
 
 -- Enable RLS on all tables
+alter table profiles enable row level security;
 alter table categories enable row level security;
 alter table requests enable row level security;
 alter table offers enable row level security;
 alter table interactions enable row level security;
 alter table credit_escrow enable row level security;
+
+-- Profiles policies (everyone can read for usernames, only owner can update)
+create policy "Profiles read all" on profiles
+  for select
+  using (true);
+
+create policy "Profiles insert" on profiles
+  for insert
+  with check (auth.uid() = id);
+
+create policy "Profiles update" on profiles
+  for update
+  using (auth.uid() = id);
 
 -- Categories policies (allow public read, authenticated insert/update)
 create policy "Categories read" on categories

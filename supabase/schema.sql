@@ -78,9 +78,9 @@ alter table offers enable row level security;
 alter table interactions enable row level security;
 alter table credit_escrow enable row level security;
 
-create policy "Profiles access" on profiles
+create policy "Profiles read all" on profiles
   for select
-  using (auth.uid() = id);
+  using (true);
 
 create policy "Profiles insert" on profiles
   for insert
