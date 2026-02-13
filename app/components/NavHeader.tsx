@@ -74,6 +74,12 @@ export default function NavHeader() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              <Link
+                href="/dashboard"
+                className="text-sm px-3 py-1 rounded-md border border-foreground/20 hover:bg-foreground/5"
+              >
+                Dashboard
+              </Link>
               <span className="text-sm text-foreground/70">{user.email}</span>
               <button
                 onClick={handleSignOut}

@@ -53,18 +53,26 @@ export default function CreditsPanel() {
           >
             Buy credits
           </a>
-          {balance > 0 && (
-            <a
-              href="/cashout"
-              className="inline-flex rounded-md border border-foreground/20 px-4 py-2 text-sm font-medium"
-            >
-              Cash out earnings
-            </a>
-          )}
+          <a
+            href={balance > 0 ? "/cashout" : "#"}
+            aria-disabled={balance === 0}
+            className={`inline-flex rounded-md border px-4 py-2 text-sm font-medium transition ${
+              balance > 0
+                ? "border-foreground/20 hover:bg-foreground/5"
+                : "border-foreground/10 text-foreground/40 cursor-not-allowed"
+            }`}
+          >
+            Cash out earnings
+          </a>
         </div>
         {balance === 0 && (
+          <p className="mt-2 text-xs text-foreground/50">
+            Cash out becomes available after you earn credits from completed work.
+          </p>
+        )}
+        {balance === 0 && (
           <p className="mt-3 text-xs text-foreground/50">
-            💡 Purchase credits to start requesting services, or post an offer to earn credits!
+            💡 Requests are free to post. You only need credits to purchase services.
           </p>
         )}
       </div>
