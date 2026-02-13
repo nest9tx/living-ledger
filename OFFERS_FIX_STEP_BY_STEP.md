@@ -1,32 +1,28 @@
--- Living Ledger schema (initial MVP)
+# Fix Offers Table Schema Cache Error
 
-create table if not exists profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  username text,
-  bio text,
-  avatar_url text,
-  onboarding_complete boolean default false,
-  onboarding_role text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
+## Error
+```
+Could not find the 'price_credits' column of 'offers' in the schema cache
+```
 
-create table if not exists transactions (
-  id bigserial primary key,
-  user_id uuid references auth.users(id) on delete cascade,
-  amount numeric(12, 2) not null,
-  description text,
-  created_at timestamptz default now()
-);
+## Solution (5 minutes)
 
-create table if not exists categories (
-  id bigserial primary key,
-  name text not null unique,
-  icon text,
-  created_at timestamptz default now()
-);
+### Step 1: Open Supabase SQL Editor
+```
+https://app.supabase.com/project/[YOUR-PROJECT]/sql/new
+```
 
-create table if not exists requests (
+### Step 2: Copy the Complete SQL Fix
+**Location**: `REQUESTS_OFFERS_FIX.sql` in your project
+
+Or copy this:
+```sql
+drop table if exists interactions cascade;
+drop table if exists credit_escrow cascade;
+drop table if exists offers cascade;
+drop table if exists requests cascade;
+
+create table requests (
   id bigserial primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
@@ -37,7 +33,7 @@ create table if not exists requests (
   created_at timestamptz default now()
 );
 
-create table if not exists offers (
+create table offers (
   id bigserial primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
@@ -47,7 +43,7 @@ create table if not exists offers (
   created_at timestamptz default now()
 );
 
-create table if not exists interactions (
+create table interactions (
   id bigserial primary key,
   request_id bigint references requests(id) on delete cascade,
   helper_id uuid references auth.users(id) on delete cascade,
@@ -59,7 +55,7 @@ create table if not exists interactions (
   completed_at timestamptz
 );
 
-create table if not exists credit_escrow (
+create table credit_escrow (
   id bigserial primary key,
   request_id bigint references requests(id) on delete cascade,
   payer_id uuid references auth.users(id) on delete cascade,
@@ -70,41 +66,10 @@ create table if not exists credit_escrow (
   created_at timestamptz default now()
 );
 
-alter table profiles enable row level security;
-alter table transactions enable row level security;
-alter table categories enable row level security;
 alter table requests enable row level security;
 alter table offers enable row level security;
 alter table interactions enable row level security;
 alter table credit_escrow enable row level security;
-
-create policy "Profiles access" on profiles
-  for select
-  using (auth.uid() = id);
-
-create policy "Profiles insert" on profiles
-  for insert
-  with check (auth.uid() = id);
-
-create policy "Profiles update" on profiles
-  for update
-  using (auth.uid() = id);
-
-create policy "Transactions access" on transactions
-  for select
-  using (auth.uid() = user_id);
-
-create policy "Transactions insert" on transactions
-  for insert
-  with check (auth.uid() = user_id);
-
-create policy "Categories read" on categories
-  for select
-  using (true);
-
-create policy "Categories insert" on categories
-  for insert
-  with check (auth.uid() is not null);
 
 create policy "Requests read" on requests
   for select
@@ -145,3 +110,27 @@ create policy "Credit escrow read" on credit_escrow
 create policy "Credit escrow insert" on credit_escrow
   for insert
   with check (auth.uid() = payer_id);
+```
+
+### Step 3: Paste & Run
+1. Paste the SQL into Supabase SQL Editor
+2. Click "Run"
+3. You should see: ✅ **Success**
+
+### Step 4: Test
+1. Refresh http://localhost:3000
+2. Try to create a new offer
+3. Should work now! ✅
+
+## Verify It Worked
+
+In Supabase Table Editor:
+- [ ] `offers` table exists with columns: id, user_id, title, description, category_id, **price_credits**, created_at
+- [ ] `requests` table exists with columns: id, user_id, title, description, category_id, **budget_credits**, status, created_at
+- [ ] Both have RLS enabled (click table, see "RLS" button)
+- [ ] Click each table's "RLS" button and verify INSERT policies exist
+
+## ⚠️ Note
+This will **delete all existing requests and offers** - but since we're still in MVP testing, that should be fine.
+
+If it fails, share the error message from Supabase and I'll help debug!

@@ -1,32 +1,14 @@
--- Living Ledger schema (initial MVP)
+-- COPY AND PASTE THIS ENTIRE BLOCK INTO SUPABASE SQL EDITOR
+-- This will fix the schema cache issue for requests and offers tables
 
-create table if not exists profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  username text,
-  bio text,
-  avatar_url text,
-  onboarding_complete boolean default false,
-  onboarding_role text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
+-- Drop the problematic tables
+drop table if exists interactions cascade;
+drop table if exists credit_escrow cascade;
+drop table if exists offers cascade;
+drop table if exists requests cascade;
 
-create table if not exists transactions (
-  id bigserial primary key,
-  user_id uuid references auth.users(id) on delete cascade,
-  amount numeric(12, 2) not null,
-  description text,
-  created_at timestamptz default now()
-);
-
-create table if not exists categories (
-  id bigserial primary key,
-  name text not null unique,
-  icon text,
-  created_at timestamptz default now()
-);
-
-create table if not exists requests (
+-- Recreate requests table with all required columns
+create table requests (
   id bigserial primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
@@ -37,7 +19,8 @@ create table if not exists requests (
   created_at timestamptz default now()
 );
 
-create table if not exists offers (
+-- Recreate offers table with all required columns
+create table offers (
   id bigserial primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
@@ -47,7 +30,8 @@ create table if not exists offers (
   created_at timestamptz default now()
 );
 
-create table if not exists interactions (
+-- Recreate interactions table
+create table interactions (
   id bigserial primary key,
   request_id bigint references requests(id) on delete cascade,
   helper_id uuid references auth.users(id) on delete cascade,
@@ -59,7 +43,8 @@ create table if not exists interactions (
   completed_at timestamptz
 );
 
-create table if not exists credit_escrow (
+-- Recreate credit_escrow table
+create table credit_escrow (
   id bigserial primary key,
   request_id bigint references requests(id) on delete cascade,
   payer_id uuid references auth.users(id) on delete cascade,
@@ -70,42 +55,13 @@ create table if not exists credit_escrow (
   created_at timestamptz default now()
 );
 
-alter table profiles enable row level security;
-alter table transactions enable row level security;
-alter table categories enable row level security;
+-- Enable RLS on all tables
 alter table requests enable row level security;
 alter table offers enable row level security;
 alter table interactions enable row level security;
 alter table credit_escrow enable row level security;
 
-create policy "Profiles access" on profiles
-  for select
-  using (auth.uid() = id);
-
-create policy "Profiles insert" on profiles
-  for insert
-  with check (auth.uid() = id);
-
-create policy "Profiles update" on profiles
-  for update
-  using (auth.uid() = id);
-
-create policy "Transactions access" on transactions
-  for select
-  using (auth.uid() = user_id);
-
-create policy "Transactions insert" on transactions
-  for insert
-  with check (auth.uid() = user_id);
-
-create policy "Categories read" on categories
-  for select
-  using (true);
-
-create policy "Categories insert" on categories
-  for insert
-  with check (auth.uid() is not null);
-
+-- Create RLS policies for requests
 create policy "Requests read" on requests
   for select
   using (true);
@@ -118,6 +74,7 @@ create policy "Requests update" on requests
   for update
   using (auth.uid() = user_id);
 
+-- Create RLS policies for offers
 create policy "Offers read" on offers
   for select
   using (true);
@@ -130,6 +87,7 @@ create policy "Offers update" on offers
   for update
   using (auth.uid() = user_id);
 
+-- Create RLS policies for interactions
 create policy "Interactions read" on interactions
   for select
   using (true);
@@ -138,6 +96,7 @@ create policy "Interactions insert" on interactions
   for insert
   with check (auth.uid() = helper_id);
 
+-- Create RLS policies for credit_escrow
 create policy "Credit escrow read" on credit_escrow
   for select
   using (auth.uid() = payer_id OR auth.uid() = provider_id);
