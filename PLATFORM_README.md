@@ -109,7 +109,7 @@ STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Application (optional)
-NEXT_PUBLIC_PLATFORM_FEE_PERCENT=10
+NEXT_PUBLIC_PLATFORM_FEE_PERCENT=15
 NEXT_PUBLIC_MIN_CASHOUT_CREDITS=20
 NEXT_PUBLIC_LISTING_EXPIRY_DAYS=30
 ```
@@ -187,14 +187,14 @@ npm run type-check  # (if configured)
 ### Credit System
 - **1 Credit = $1 USD** in real-world value
 - **Minimum service price**: 5 credits ($5)
-- **Platform fee**: 10% per transaction
+- **Platform fee**: 15% per transaction
 - **Weekly cashout threshold**: 20 credits minimum
 - **Payment method**: Stripe Connect (direct bank transfer)
 
 ### Example Flow
 1. Person A posts a request worth 50 credits
 2. Person B (provider) accepts and completes the work
-3. Person B earns 45 credits (50 - 10% platform fee)
+3. Person B earns 42.5 credits (50 - 15% platform fee)
 4. Once Person B reaches 20+ credits, they can cash out
 5. Credits can also be donated to New Earth causes
 

@@ -44,7 +44,7 @@ export default function CreditsPanel() {
         </p>
         <h2 className="mt-3 text-4xl font-semibold">{balance}</h2>
         <p className="mt-2 text-sm text-foreground/70">
-          1 credit = $1 USD. Buy credits to request services, earn credits by offering help.
+          1 credit = $1 USD. Requests are free to post. A 15% platform fee applies on completed transactions.
         </p>
         <div className="mt-4 flex gap-2">
           <a

@@ -301,7 +301,7 @@ export default function AdminDashboard() {
                   <label className="text-sm font-medium">Platform Fee (%)</label>
                   <input
                     type="number"
-                    defaultValue="10"
+                    defaultValue="15"
                     min="0"
                     max="50"
                     className="mt-2 w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm"

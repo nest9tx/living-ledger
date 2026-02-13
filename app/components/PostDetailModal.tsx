@@ -112,7 +112,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
       // For MVP, we'll just show a confirmation
       // In the future, this would handle credit escrow and notifications
       const credits = postType === "offer" ? post?.price_credits : post?.budget_credits;
-      if (confirm(`Purchase this ${postType} for ${credits} credits?\n\n(MVP: Payment processing coming soon)`)) {
+      if (confirm(`Purchase this ${postType} for ${credits} credits?\n\nA 15% platform fee applies on completed transactions.\n\n(MVP: Payment processing coming soon)`)) {
         alert(`Purchase initiated! The creator will be notified.\n\n(MVP: Full transaction flow coming soon)`);
         onClose();
       }

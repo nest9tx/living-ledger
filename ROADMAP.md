@@ -76,7 +76,7 @@
 | Action | Fee | Flow |
 |--------|-----|------|
 | Buy Credits | Stripe fee (2.9% + $0.30) | User pays |
-| Use Credits | 10% platform fee | $45 → provider, $5 → platform (per $50) |
+| Use Credits | 15% platform fee | $42.50 → provider, $7.50 → platform (per $50) |
 | Cashout | Stripe fee (2.9% + $0.30) | Provider pays |
 
 ### Payout Schedule

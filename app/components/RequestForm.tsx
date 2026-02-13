@@ -109,6 +109,9 @@ export default function RequestForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-foreground/10 bg-foreground/2 p-4">
       <h3 className="font-semibold">Post a request for help</h3>
+      <p className="text-xs text-foreground/60">
+        Posting requests is free. A 15% platform fee applies only when a transaction is completed.
+      </p>
 
       <div>
         <label className="text-sm font-medium" htmlFor="title">
