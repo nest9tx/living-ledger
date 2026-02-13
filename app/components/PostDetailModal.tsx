@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
+import { deleteRequest, deleteOffer } from "@/lib/supabase-helpers";
 
 type PostDetailProps = {
   postId: number;
   postType: "request" | "offer";
   onClose: () => void;
+  onDelete?: () => void;
 };
 
 type PostDetail = {
@@ -17,16 +19,18 @@ type PostDetail = {
   category_id: number | null;
   user_id: string;
   categories: { name: string; icon: string } | null;
+  profile?: { username: string } | null;
   price_credits?: number;
   budget_credits?: number;
   status?: string;
 };
 
-export default function PostDetailModal({ postId, postType, onClose }: PostDetailProps) {
+export default function PostDetailModal({ postId, postType, onClose, onDelete }: PostDetailProps) {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     // Get current user
@@ -48,6 +52,8 @@ export default function PostDetailModal({ postId, postType, onClose }: PostDetai
 
         if (error) throw error;
 
+        let postData = data;
+
         // Fetch category separately
         if (data?.category_id) {
           const { data: categoryData } = await supabase
@@ -56,10 +62,23 @@ export default function PostDetailModal({ postId, postType, onClose }: PostDetai
             .eq("id", data.category_id)
             .single();
           
-          setPost({ ...data, categories: categoryData });
+          postData = { ...postData, categories: categoryData };
         } else {
-          setPost({ ...data, categories: null });
+          postData = { ...postData, categories: null };
         }
+
+        // Fetch profile separately
+        if (data?.user_id) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", data.user_id)
+            .single();
+          
+          postData = { ...postData, profile: profileData };
+        }
+
+        setPost(postData);
       } catch (err) {
         console.error("Error loading post:", err);
       } finally {
@@ -100,6 +119,30 @@ export default function PostDetailModal({ postId, postType, onClose }: PostDetai
     } catch (err) {
       console.error("Error purchasing:", err);
       alert("Failed to process purchase. Please try again.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete this ${postType}?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      if (postType === "request") {
+        await deleteRequest(postId);
+      } else {
+        await deleteOffer(postId);
+      }
+      
+      alert(`${postType === "request" ? "Request" : "Offer"} deleted successfully!`);
+      onDelete?.(); // Trigger refresh in parent
+      onClose();
+    } catch (err) {
+      console.error("Error deleting:", err);
+      alert("Failed to delete. Please try again.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -237,22 +280,36 @@ export default function PostDetailModal({ postId, postType, onClose }: PostDetai
           )}
 
           {isOwnPost && (
-            <div className="border-t border-foreground/10 pt-6">
+            <div className="border-t border-foreground/10 pt-6 space-y-4">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex-1 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-500/20 transition disabled:opacity-50"
+                >
+                  {deleting ? "Deleting..." : "Delete Post"}
+                </button>
+              </div>
               <p className="text-sm text-foreground/60 text-center">
-                This is your post. You'll be notified when someone responds.
+                You'll be notified when someone responds to your {postType}.
               </p>
             </div>
           )}
 
           {/* Meta info */}
-          <div className="text-xs text-foreground/50 text-center">
-            Posted {new Date(post.created_at).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit"
-            })}
+          <div className="text-xs text-foreground/50 text-center border-t border-foreground/10 pt-4">
+            <div>
+              Posted by <span className="font-medium">{post.profile?.username || "Anonymous"}</span>
+            </div>
+            <div className="mt-1">
+              {new Date(post.created_at).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+              })}
+            </div>
           </div>
         </div>
       </div>

@@ -124,6 +124,7 @@ export async function fetchRequests() {
     // Fetch related data separately to avoid schema cache issues
     let enrichedData = data || [];
     if (enrichedData.length > 0) {
+      // Fetch categories
       const { data: categoryData } = await supabase
         .from("categories")
         .select("id, name, icon");
@@ -133,9 +134,22 @@ export async function fetchRequests() {
         return map;
       }, {} as Record<number, any>) || {};
       
+      // Fetch profiles
+      const userIds = [...new Set(enrichedData.map(req => req.user_id))];
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", userIds);
+      
+      const profileMap = profileData?.reduce((map, profile) => {
+        map[profile.id] = profile;
+        return map;
+      }, {} as Record<string, any>) || {};
+      
       enrichedData = enrichedData.map(req => ({
         ...req,
-        categories: req.category_id ? categoryMap[req.category_id] : null
+        categories: req.category_id ? categoryMap[req.category_id] : null,
+        profiles: req.user_id ? profileMap[req.user_id] : null
       }));
     }
 
@@ -209,6 +223,7 @@ export async function fetchOffers() {
     // Fetch related data separately to avoid schema cache issues
     let enrichedData = data || [];
     if (enrichedData.length > 0) {
+      // Fetch categories
       const { data: categoryData } = await supabase
         .from("categories")
         .select("id, name, icon");
@@ -218,9 +233,22 @@ export async function fetchOffers() {
         return map;
       }, {} as Record<number, any>) || {};
       
+      // Fetch profiles
+      const userIds = [...new Set(enrichedData.map(offer => offer.user_id))];
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", userIds);
+      
+      const profileMap = profileData?.reduce((map, profile) => {
+        map[profile.id] = profile;
+        return map;
+      }, {} as Record<string, any>) || {};
+      
       enrichedData = enrichedData.map(offer => ({
         ...offer,
-        categories: offer.category_id ? categoryMap[offer.category_id] : null
+        categories: offer.category_id ? categoryMap[offer.category_id] : null,
+        profiles: offer.user_id ? profileMap[offer.user_id] : null
       }));
     }
 
@@ -270,4 +298,51 @@ export async function recordTransaction(
 
   if (error) throw error;
   return data;
+}
+
+// Delete functions
+export async function deleteRequest(requestId: number) {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) throw new Error("Not authenticated");
+
+    const { error } = await supabase
+      .from("requests")
+      .delete()
+      .eq("id", requestId)
+      .eq("user_id", user.user.id); // Only allow deleting your own
+
+    if (error) {
+      console.error("Supabase error deleting request:", error);
+      throw new Error(error.message || "Failed to delete request");
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Error in deleteRequest:", err);
+    throw err;
+  }
+}
+
+export async function deleteOffer(offerId: number) {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) throw new Error("Not authenticated");
+
+    const { error } = await supabase
+      .from("offers")
+      .delete()
+      .eq("id", offerId)
+      .eq("user_id", user.user.id); // Only allow deleting your own
+
+    if (error) {
+      console.error("Supabase error deleting offer:", error);
+      throw new Error(error.message || "Failed to delete offer");
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Error in deleteOffer:", err);
+    throw err;
+  }
 }

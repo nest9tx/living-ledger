@@ -27,6 +27,7 @@ export default function Feed() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "requests" | "offers">("all");
   const [selectedPost, setSelectedPost] = useState<{ id: number; type: "request" | "offer" } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const loadFeed = async () => {
@@ -65,7 +66,7 @@ export default function Feed() {
     };
 
     loadFeed();
-  }, []);
+  }, [refreshKey]);
 
   const filtered = items.filter((item) => {
     if (filter === "all") return true;
@@ -198,6 +199,10 @@ export default function Feed() {
           postId={selectedPost.id}
           postType={selectedPost.type}
           onClose={() => setSelectedPost(null)}
+          onDelete={() => {
+            setSelectedPost(null);
+            setRefreshKey(prev => prev + 1); // Refresh feed after delete
+          }}
         />
       )}
     </div>
