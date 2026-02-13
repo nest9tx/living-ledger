@@ -53,7 +53,7 @@ export default function Home() {
           ].map((card) => (
             <div
               key={card.title}
-              className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6"
+              className="rounded-2xl border border-foreground/10 bg-foreground/3"
             >
               <h2 className="text-lg font-semibold">{card.title}</h2>
               <p className="mt-3 text-sm text-foreground/70">{card.copy}</p>
