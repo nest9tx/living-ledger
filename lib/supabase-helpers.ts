@@ -2,12 +2,34 @@ import supabase from "./supabase";
 
 // Categories
 export async function fetchCategories() {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .order("name");
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("*")
+      .order("name");
+    
+    if (error) {
+      console.error("Error fetching categories:", error);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      console.warn("No categories found. Seeding defaults...");
+      await seedDefaultCategories();
+      // Fetch again after seeding
+      const { data: seedData, error: seedError } = await supabase
+        .from("categories")
+        .select("*")
+        .order("name");
+      if (seedError) throw seedError;
+      return seedData;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Unexpected error in fetchCategories:", err);
+    throw err;
+  }
 }
 
 export async function seedDefaultCategories() {
@@ -22,11 +44,21 @@ export async function seedDefaultCategories() {
     { name: "Community & Activism", icon: "🌍" },
   ];
 
-  for (const category of defaultCategories) {
-    const { error } = await supabase
-      .from("categories")
-      .upsert([category], { onConflict: "name" });
-    if (error) console.error("Error seeding category:", error);
+  try {
+    for (const category of defaultCategories) {
+      const { data, error } = await supabase
+        .from("categories")
+        .upsert([category], { onConflict: "name" })
+        .select();
+      
+      if (error) {
+        console.error("Error seeding category:", category.name, error);
+      } else {
+        console.log("Category seeded:", category.name);
+      }
+    }
+  } catch (err) {
+    console.error("Unexpected error seeding categories:", err);
   }
 }
 
@@ -37,37 +69,65 @@ export async function createRequest(
   categoryId: number,
   budgetCredits: number
 ) {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Not authenticated");
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) throw new Error("Not authenticated");
 
-  const { data, error } = await supabase
-    .from("requests")
-    .insert([{ user_id: user.user.id, title, description, category_id: categoryId, budget_credits: budgetCredits }])
-    .select();
+    const { data, error } = await supabase
+      .from("requests")
+      .insert([{ 
+        user_id: user.user.id, 
+        title, 
+        description, 
+        category_id: categoryId, 
+        budget_credits: budgetCredits 
+      }])
+      .select();
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Supabase error creating request:", error);
+      throw new Error(error.message || "Failed to create request");
+    }
+
+    if (!data) {
+      throw new Error("No data returned from request creation");
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Error in createRequest:", err);
+    throw err;
+  }
 }
 
 export async function fetchRequests() {
-  const { data, error } = await supabase
-    .from("requests")
-    .select(
-      `id, 
-       title, 
-       description, 
-       status, 
-       budget_credits,
-       created_at, 
-       user_id, 
-       category_id, 
-       categories:category_id(name, icon), 
-       profiles:user_id(username)`
-    )
-    .order("created_at", { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from("requests")
+      .select(
+        `id, 
+         title, 
+         description, 
+         status, 
+         budget_credits,
+         created_at, 
+         user_id, 
+         category_id, 
+         categories:category_id(name, icon), 
+         profiles:user_id(username)`
+      )
+      .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Supabase error fetching requests:", error);
+      throw new Error(error.message || "Failed to fetch requests");
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error("Error in fetchRequests:", err);
+    throw err;
+  }
 }
 
 // Offers
@@ -77,44 +137,66 @@ export async function createOffer(
   categoryId: number,
   priceCredits: number
 ) {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error("Not authenticated");
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) throw new Error("Not authenticated");
 
-  const { data, error } = await supabase
-    .from("offers")
-    .insert([
-      {
-        user_id: user.user.id,
-        title,
-        description,
-        category_id: categoryId,
-        price_credits: priceCredits,
-      },
-    ])
-    .select();
+    const { data, error } = await supabase
+      .from("offers")
+      .insert([
+        {
+          user_id: user.user.id,
+          title,
+          description,
+          category_id: categoryId,
+          price_credits: priceCredits,
+        },
+      ])
+      .select();
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Supabase error creating offer:", error);
+      throw new Error(error.message || "Failed to create offer");
+    }
+
+    if (!data) {
+      throw new Error("No data returned from offer creation");
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Error in createOffer:", err);
+    throw err;
+  }
 }
 
 export async function fetchOffers() {
-  const { data, error } = await supabase
-    .from("offers")
-    .select(
-      `id, 
-       title, 
-       description, 
-       price_credits,
-       created_at, 
-       user_id, 
-       category_id, 
-       categories:category_id(name, icon), 
-       profiles:user_id(username)`
-    )
-    .order("created_at", { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from("offers")
+      .select(
+        `id, 
+         title, 
+         description, 
+         price_credits,
+         created_at, 
+         user_id, 
+         category_id, 
+         categories:category_id(name, icon), 
+         profiles:user_id(username)`
+      )
+      .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Supabase error fetching offers:", error);
+      throw new Error(error.message || "Failed to fetch offers");
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error("Error in fetchOffers:", err);
+    throw err;
+  }
 }
 
 // Credit balance & transactions
