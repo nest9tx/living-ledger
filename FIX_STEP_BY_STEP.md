@@ -20,7 +20,7 @@ Go to your project folder and find: `PROFILES_TABLE_COMPLETE_FIX.sql`
 
 Or copy this:
 ```sql
-drop table if not exists profiles cascade;
+drop table if exists profiles cascade;
 
 create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,

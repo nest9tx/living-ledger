@@ -2,7 +2,7 @@
 -- This will fix the "onboarding_complete column not found" error
 
 -- Drop the problematic table
-drop table if not exists profiles cascade;
+drop table if exists profiles cascade;
 
 -- Recreate the profiles table with all required columns
 create table profiles (

@@ -24,8 +24,8 @@ This means:
 If Option A doesn't work, run this SQL in your Supabase SQL Editor:
 
 ```sql
--- Drop the profiles table (this will delete all existing profiles)
-drop table if not exists profiles cascade;
+-- Drop the problematic table
+drop table if exists profiles cascade;
 
 -- Recreate it with all columns
 create table profiles (
