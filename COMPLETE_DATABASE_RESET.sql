@@ -97,6 +97,10 @@ create policy "Requests update" on requests
   for update
   using (auth.uid() = user_id);
 
+create policy "Requests delete" on requests
+  for delete
+  using (auth.uid() = user_id);
+
 -- Offers policies
 create policy "Offers read" on offers
   for select
@@ -108,6 +112,10 @@ create policy "Offers insert" on offers
 
 create policy "Offers update" on offers
   for update
+  using (auth.uid() = user_id);
+
+create policy "Offers delete" on offers
+  for delete
   using (auth.uid() = user_id);
 
 -- Interactions policies

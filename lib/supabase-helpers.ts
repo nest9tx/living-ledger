@@ -136,10 +136,14 @@ export async function fetchRequests() {
       
       // Fetch profiles
       const userIds = [...new Set(enrichedData.map(req => req.user_id))];
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("id, username")
         .in("id", userIds);
+      
+      if (profileError) {
+        console.error("Error fetching profiles:", profileError);
+      }
       
       const profileMap = profileData?.reduce((map, profile) => {
         map[profile.id] = profile;
@@ -235,10 +239,14 @@ export async function fetchOffers() {
       
       // Fetch profiles
       const userIds = [...new Set(enrichedData.map(offer => offer.user_id))];
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("id, username")
         .in("id", userIds);
+      
+      if (profileError) {
+        console.error("Error fetching profiles:", profileError);
+      }
       
       const profileMap = profileData?.reduce((map, profile) => {
         map[profile.id] = profile;
@@ -306,15 +314,24 @@ export async function deleteRequest(requestId: number) {
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) throw new Error("Not authenticated");
 
-    const { error } = await supabase
+    console.log("Attempting to delete request:", requestId, "by user:", user.user.id);
+
+    const { error, data } = await supabase
       .from("requests")
       .delete()
       .eq("id", requestId)
-      .eq("user_id", user.user.id); // Only allow deleting your own
+      .eq("user_id", user.user.id)
+      .select(); // Return deleted row to confirm
 
     if (error) {
       console.error("Supabase error deleting request:", error);
       throw new Error(error.message || "Failed to delete request");
+    }
+
+    console.log("Delete result:", data);
+
+    if (!data || data.length === 0) {
+      throw new Error("Request not found or you don't have permission to delete it");
     }
 
     return true;
@@ -329,15 +346,24 @@ export async function deleteOffer(offerId: number) {
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) throw new Error("Not authenticated");
 
-    const { error } = await supabase
+    console.log("Attempting to delete offer:", offerId, "by user:", user.user.id);
+
+    const { error, data } = await supabase
       .from("offers")
       .delete()
       .eq("id", offerId)
-      .eq("user_id", user.user.id); // Only allow deleting your own
+      .eq("user_id", user.user.id)
+      .select(); // Return deleted row to confirm
 
     if (error) {
       console.error("Supabase error deleting offer:", error);
       throw new Error(error.message || "Failed to delete offer");
+    }
+
+    console.log("Delete result:", data);
+
+    if (!data || data.length === 0) {
+      throw new Error("Offer not found or you don't have permission to delete it");
     }
 
     return true;
