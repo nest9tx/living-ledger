@@ -291,7 +291,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
                 </button>
               </div>
               <p className="text-sm text-foreground/60 text-center">
-                You'll be notified when someone responds to your {postType}.
+                You&apos;ll be notified when someone responds to your {postType}.
               </p>
             </div>
           )}
