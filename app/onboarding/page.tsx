@@ -48,7 +48,7 @@ export default function OnboardingPage() {
         id: user.user.id,
         username: username.trim(),
         bio: bio.trim(),
-        credits_balance: 100, // Starting credits for new users
+        credits_balance: 0, // Users start with 0 - must buy credits to request services
         onboarding_complete: true,
         onboarding_role: role,
         updated_at: new Date().toISOString(),
@@ -68,17 +68,8 @@ export default function OnboardingPage() {
         throw new Error("Profile was not created properly");
       }
 
-      // Give new users a welcome transaction
-      try {
-        await recordTransaction(
-          100,
-          "Welcome bonus! 🎉",
-          "purchase"
-        );
-      } catch (txError) {
-        console.error("Failed to create welcome transaction:", txError);
-        // Don't block onboarding if transaction fails
-      }
+      // No welcome bonus - users must purchase credits
+      // This ensures every credit = real money in the system
 
       setStep("complete");
       setTimeout(() => {

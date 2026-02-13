@@ -44,7 +44,7 @@ export default function CreditsPanel() {
         </p>
         <h2 className="mt-3 text-4xl font-semibold">{balance}</h2>
         <p className="mt-2 text-sm text-foreground/70">
-          1 credit = $1 USD. Use to pay for services or boost your listings.
+          1 credit = $1 USD. Buy credits to request services, earn credits by offering help.
         </p>
         <div className="mt-4 flex gap-2">
           <a
@@ -53,13 +53,20 @@ export default function CreditsPanel() {
           >
             Buy credits
           </a>
-          <a
-            href="/cashout"
-            className="inline-flex rounded-md border border-foreground/20 px-4 py-2 text-sm font-medium"
-          >
-            Cashout earnings
-          </a>
+          {balance > 0 && (
+            <a
+              href="/cashout"
+              className="inline-flex rounded-md border border-foreground/20 px-4 py-2 text-sm font-medium"
+            >
+              Cash out earnings
+            </a>
+          )}
         </div>
+        {balance === 0 && (
+          <p className="mt-3 text-xs text-foreground/50">
+            💡 Purchase credits to start requesting services, or post an offer to earn credits!
+          </p>
+        )}
       </div>
 
       {/* Transactions */}
@@ -92,7 +99,7 @@ export default function CreditsPanel() {
           </div>
         ) : (
           <p className="mt-4 text-sm text-foreground/60">
-            No transactions yet. Buy credits or complete a service to get started.
+            No transactions yet. Purchase credits or complete services to get started.
           </p>
         )}
       </div>

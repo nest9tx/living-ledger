@@ -16,7 +16,7 @@ create table profiles (
   username text,
   bio text,
   avatar_url text,
-  credits_balance integer default 100,
+  credits_balance integer default 0,
   onboarding_complete boolean default false,
   onboarding_role text,
   created_at timestamptz default now(),
@@ -32,6 +32,8 @@ create table transactions (
   transaction_type text not null,
   related_offer_id bigint,
   related_request_id bigint,
+  stripe_payment_intent_id text,
+  can_cashout boolean default false,
   created_at timestamptz default now()
 );
 

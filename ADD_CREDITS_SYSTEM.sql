@@ -3,7 +3,7 @@
 
 -- Step 1: Add credits_balance to profiles table
 alter table profiles 
-add column if not exists credits_balance integer default 100;
+add column if not exists credits_balance integer default 0;
 
 -- Step 2: Create transactions table
 create table if not exists transactions (
@@ -11,9 +11,11 @@ create table if not exists transactions (
   user_id uuid not null references auth.users(id) on delete cascade,
   amount integer not null,
   description text not null,
-  transaction_type text not null, -- 'purchase', 'earned', 'spent', 'refund'
+  transaction_type text not null, -- 'purchase', 'earned', 'spent', 'refund', 'platform_fee'
   related_offer_id bigint references offers(id) on delete set null,
   related_request_id bigint references requests(id) on delete set null,
+  stripe_payment_intent_id text, -- For tracking real money transactions
+  can_cashout boolean default false, -- Only earned credits can be cashed out
   created_at timestamptz default now()
 );
 
@@ -29,10 +31,15 @@ create policy "Transactions insert own" on transactions
   for insert
   with check (auth.uid() = user_id);
 
--- Step 5: Give existing users 100 starting credits
+-- Step 5: Give existing users 0 starting credits (they must buy credits)
 update profiles 
-set credits_balance = 100 
-where credits_balance is null or credits_balance = 0;
+set credits_balance = 0 
+where credits_balance is null;
+
+-- Note: New users start with 0 credits
+-- To request services, users must purchase credits with real money via Stripe
+-- To offer services, users can earn credits and cash them out for real money
+-- This ensures every credit in the system = real value
 
 -- Step 6: Create a function to update balance automatically on transaction
 create or replace function update_user_balance()
