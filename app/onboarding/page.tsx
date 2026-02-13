@@ -33,24 +33,45 @@ export default function OnboardingPage() {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Not authenticated");
 
-      // Create or update profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.user.id,
-          username,
-          bio,
-          onboarding_complete: true,
-          onboarding_role: role,
-        });
+      // Validate username
+      if (!username.trim()) {
+        throw new Error("Username is required");
+      }
 
-      if (profileError) throw profileError;
+      if (username.trim().length < 2) {
+        throw new Error("Username must be at least 2 characters");
+      }
+
+      // Create or update profile
+      const profileData = {
+        id: user.user.id,
+        username: username.trim(),
+        bio: bio.trim(),
+        onboarding_complete: true,
+        onboarding_role: role,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: profileError, data } = await supabase
+        .from("profiles")
+        .upsert(profileData, { onConflict: "id" })
+        .select();
+
+      if (profileError) {
+        console.error("Profile error details:", profileError);
+        throw new Error(profileError.message || "Failed to save profile");
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error("Profile was not created properly");
+      }
 
       setStep("complete");
       setTimeout(() => {
         router.push("/dashboard");
       }, 2000);
     } catch (err) {
+      console.error("Onboarding error:", err);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);

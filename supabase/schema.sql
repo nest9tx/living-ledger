@@ -82,6 +82,10 @@ create policy "Profiles access" on profiles
   for select
   using (auth.uid() = id);
 
+create policy "Profiles insert" on profiles
+  for insert
+  with check (auth.uid() = id);
+
 create policy "Profiles update" on profiles
   for update
   using (auth.uid() = id);

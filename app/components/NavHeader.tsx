@@ -9,20 +9,52 @@ export default function NavHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user ?? null);
+      try {
+        const { data } = await supabase.auth.getSession();
+        setUser(data.session?.user ?? null);
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
+    
     checkAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session) {
+          setUser(session.user);
+        } else {
+          setUser(null);
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    router.push("/");
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      console.error('Sign out failed:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Hide nav on auth pages
@@ -45,9 +77,10 @@ export default function NavHeader() {
               <span className="text-sm text-foreground/70">{user.email}</span>
               <button
                 onClick={handleSignOut}
-                className="text-sm px-3 py-1 rounded-md border border-foreground/20 hover:bg-foreground/5"
+                disabled={loading}
+                className="text-sm px-3 py-1 rounded-md border border-foreground/20 hover:bg-foreground/5 disabled:opacity-50"
               >
-                Sign out
+                {loading ? "Signing out…" : "Sign out"}
               </button>
             </>
           ) : (
