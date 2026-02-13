@@ -75,6 +75,7 @@ export default function GuidelinesPage() {
                 <ul className="list-disc list-inside space-y-1 text-foreground/70">
                   <li>Ghosting (disappearing after agreement)</li>
                   <li>Demanding payment outside the platform</li>
+                  <li>Posting listings that primarily advertise external sites or lead forms</li>
                   <li>Asking for personal information (SSN, banking details)</li>
                   <li>Harassing or threatening members</li>
                 </ul>
@@ -92,7 +93,7 @@ export default function GuidelinesPage() {
 
               <div>
                 <h3 className="font-semibold text-foreground mb-2">Using credits:</h3>
-                <p>Credits held in escrow until work is marked complete. Platform takes 10% fee on all transactions.</p>
+                <p>Credits are held in escrow until work is marked complete. Providers receive 85% (15% platform fee).</p>
               </div>
 
               <div>

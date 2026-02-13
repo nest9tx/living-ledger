@@ -31,6 +31,8 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
   const [message, setMessage] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   useEffect(() => {
     // Get current user
@@ -109,16 +111,56 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
 
   const handlePurchase = async () => {
     try {
-      // For MVP, we'll just show a confirmation
-      // In the future, this would handle credit escrow and notifications
+      setPurchaseError(null);
       const credits = postType === "offer" ? post?.price_credits : post?.budget_credits;
-      if (confirm(`Purchase this ${postType} for ${credits} credits?\n\nA 15% platform fee applies on completed transactions.\n\n(MVP: Payment processing coming soon)`)) {
-        alert(`Purchase initiated! The creator will be notified.\n\n(MVP: Full transaction flow coming soon)`);
-        onClose();
+      if (!credits) {
+        alert("This listing does not have a valid credit amount.");
+        return;
       }
+
+      if (!confirm(`Hold ${credits} credits in escrow for this ${postType}?\n\nBuyers pay the listed price. Providers receive 85% on completion (15% platform fee).\n\nCredits release after completion, with a 7-day safety delay.`)) {
+        return;
+      }
+
+      setPurchaseLoading(true);
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        alert("Please sign in again to continue.");
+        return;
+      }
+
+      const res = await fetch("/api/escrow/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ postId, postType }),
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to hold credits");
+      }
+
+      alert(
+        `Credits held in escrow!\n\nRelease available on: ${new Date(
+          payload.releaseAvailableAt
+        ).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}`
+      );
+      onClose();
     } catch (err) {
       console.error("Error purchasing:", err);
+      setPurchaseError(err instanceof Error ? err.message : "Failed to process purchase.");
       alert("Failed to process purchase. Please try again.");
+    } finally {
+      setPurchaseLoading(false);
     }
   };
 
@@ -266,16 +308,29 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
                   </button>
                   <button
                     onClick={handlePurchase}
+                    disabled={purchaseLoading}
                     className="flex-1 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90 transition"
                   >
-                    {postType === "offer" ? "Purchase" : "Accept & Pay"}
+                    {purchaseLoading
+                      ? "Holding credits..."
+                      : postType === "offer"
+                        ? "Purchase"
+                        : "Accept & Pay"}
                   </button>
                 </div>
               </div>
 
-              <p className="mt-3 text-xs text-foreground/50 text-center">
-                💡 MVP: Full messaging and escrow payment flow coming soon
-              </p>
+                {purchaseError && (
+                  <p className="mt-3 text-xs text-red-600 text-center">
+                    {purchaseError}
+                  </p>
+                )}
+                <p className="mt-3 text-xs text-foreground/50 text-center">
+                  💡 Buyers pay the listed price. Providers receive 85% after completion (15% platform fee).
+                </p>
+                <p className="mt-1 text-xs text-foreground/50 text-center">
+                  Credits are held in escrow and release after a 7-day safety delay.
+                </p>
             </div>
           )}
 

@@ -8,6 +8,7 @@ import Feed from "@/app/components/Feed";
 import RequestForm from "@/app/components/RequestForm";
 import OfferForm from "@/app/components/OfferForm";
 import CreditsPanel from "@/app/components/CreditsPanel";
+import OrdersPanel from "@/app/components/OrdersPanel";
 
 type DashboardUser = {
   email?: string;
@@ -16,7 +17,7 @@ type DashboardUser = {
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"feed" | "request" | "offer" | "credits">(
+  const [activeTab, setActiveTab] = useState<"feed" | "orders" | "request" | "offer" | "credits">(
     "feed"
   );
   const [feedKey, setFeedKey] = useState(0);
@@ -134,6 +135,16 @@ export default function DashboardPage() {
             My Credits
           </button>
           <button
+            onClick={() => setActiveTab("orders")}
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+              activeTab === "orders"
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-foreground/60 hover:text-foreground"
+            }`}
+          >
+            Current Orders
+          </button>
+          <button
             onClick={() => setActiveTab("request")}
             className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
               activeTab === "request"
@@ -159,6 +170,7 @@ export default function DashboardPage() {
         <div>
           {activeTab === "feed" && <Feed key={feedKey} />}
           {activeTab === "credits" && <CreditsPanel />}
+          {activeTab === "orders" && <OrdersPanel />}
           {activeTab === "request" && (
             <RequestForm
               onSuccess={() => {

@@ -85,10 +85,14 @@ create table interactions (
 create table credit_escrow (
   id bigserial primary key,
   request_id bigint references requests(id) on delete cascade,
+  offer_id bigint references offers(id) on delete cascade,
   payer_id uuid references auth.users(id) on delete cascade,
   provider_id uuid references auth.users(id) on delete cascade,
   credits_held integer not null,
   status text default 'held',
+  release_available_at timestamptz,
+  buyer_confirmed_at timestamptz,
+  provider_marked_complete_at timestamptz,
   released_at timestamptz,
   created_at timestamptz default now()
 );
