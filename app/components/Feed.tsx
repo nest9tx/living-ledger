@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchRequests, fetchOffers } from "@/lib/supabase-helpers";
 import { SkeletonFeed } from "./Skeletons";
+import PostDetailModal from "./PostDetailModal";
 
 type FeedItem = {
   id: number;
@@ -25,6 +26,7 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "requests" | "offers">("all");
+  const [selectedPost, setSelectedPost] = useState<{ id: number; type: "request" | "offer" } | null>(null);
 
   useEffect(() => {
     const loadFeed = async () => {
@@ -143,7 +145,8 @@ export default function Feed() {
           {filtered.map((item) => (
             <div
               key={`${item.type}-${item.id}`}
-              className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 transition hover:border-foreground/20"
+              onClick={() => setSelectedPost({ id: item.id, type: item.type })}
+              className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 transition hover:border-foreground/20 hover:bg-foreground/5 cursor-pointer"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -167,14 +170,14 @@ export default function Feed() {
                   </p>
                 </div>
                 <div className="text-right">
-                  {item.type === "offer" && item.price_credits && (
+                  {item.type === "offer" && item.price_credits !== undefined && (
                     <div className="text-sm font-semibold text-foreground">
-                      {item.price_credits} ⭐
+                      {item.price_credits} 💰
                     </div>
                   )}
-                  {item.type === "request" && item.budget_credits && (
+                  {item.type === "request" && item.budget_credits !== undefined && (
                     <div className="text-sm font-semibold text-foreground">
-                      Budget: {item.budget_credits} ⭐
+                      Budget: {item.budget_credits} 💰
                     </div>
                   )}
                   {item.type === "request" && (
@@ -187,6 +190,15 @@ export default function Feed() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Post Detail Modal */}
+      {selectedPost && (
+        <PostDetailModal
+          postId={selectedPost.id}
+          postType={selectedPost.type}
+          onClose={() => setSelectedPost(null)}
+        />
       )}
     </div>
   );
