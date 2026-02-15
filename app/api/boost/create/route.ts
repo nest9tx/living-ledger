@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const table = postType === "offer" ? "offers" : "requests";
     const { data: post, error: postError } = await supabaseAdmin
       .from(table)
-      .select("id, user_id, category_id, last_boosted_at")
+      .select("id, user_id, category_id, last_boosted_homepage_at, last_boosted_category_at")
       .eq("id", postId)
       .maybeSingle();
 
@@ -59,8 +59,9 @@ export async function POST(req: Request) {
     }
 
     // Enforce cooldown
-    if (post.last_boosted_at) {
-      const lastBoosted = new Date(post.last_boosted_at).getTime();
+    const lastBoostedAt = tier === "homepage" ? post.last_boosted_homepage_at : post.last_boosted_category_at;
+    if (lastBoostedAt) {
+      const lastBoosted = new Date(lastBoostedAt).getTime();
       const cooldownHours = tier === "homepage" ? HOMEPAGE_COOLDOWN_HOURS : CATEGORY_COOLDOWN_HOURS;
       const cooldownUntil = lastBoosted + cooldownHours * 60 * 60 * 1000;
 
@@ -161,9 +162,10 @@ export async function POST(req: Request) {
     }
 
     // Update last_boosted_at
+    const cooldownField = tier === "homepage" ? "last_boosted_homepage_at" : "last_boosted_category_at";
     await supabaseAdmin
       .from(table)
-      .update({ last_boosted_at: now.toISOString() })
+      .update({ [cooldownField]: now.toISOString() })
       .eq("id", postId);
 
     return Response.json({ success: true, expiresAt, creditsSpent });

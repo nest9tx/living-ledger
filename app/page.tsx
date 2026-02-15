@@ -74,7 +74,7 @@ export default async function Home() {
           </a>
         </div>
 
-        <section className="w-full space-y-4">
+        <section id="featured" className="w-full space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-foreground/60">Featured</p>
@@ -153,6 +153,56 @@ export default async function Home() {
             </div>
           ))}
         </div>
+
+        <section className="w-full space-y-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-foreground/60">
+              How it works
+            </p>
+            <h2 className="text-2xl font-semibold">A simple loop of giving</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
+              <h3 className="text-sm font-semibold">1. Post a request or offer</h3>
+              <p className="mt-2 text-sm text-foreground/70">
+                Requests are needs you want solved. Offers are skills you can share. Both live in categories.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
+              <h3 className="text-sm font-semibold">2. Match and collaborate</h3>
+              <p className="mt-2 text-sm text-foreground/70">
+                Buyers hold credits in escrow to signal commitment. Providers deliver the help.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
+              <h3 className="text-sm font-semibold">3. Earn or spend credits</h3>
+              <p className="mt-2 text-sm text-foreground/70">
+                Providers receive 85% on completion. Credits can fund your next request or boost visibility.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="w-full grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6">
+            <h3 className="text-lg font-semibold">Why people use Living Ledger</h3>
+            <ul className="mt-3 space-y-2 text-sm text-foreground/70">
+              <li>• Turn your skills into community credit.</li>
+              <li>• Get help without negotiating cash each time.</li>
+              <li>• Build trust through visible contribution history.</li>
+              <li>• Keep value circulating locally and ethically.</li>
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6">
+            <h3 className="text-lg font-semibold">Safety & trust</h3>
+            <ul className="mt-3 space-y-2 text-sm text-foreground/70">
+              <li>• Escrow holds funds until delivery.</li>
+              <li>• 7-day safety delay helps protect against chargebacks.</li>
+              <li>• Admin dispute resolution ensures fairness.</li>
+              <li>• Clear platform fee (15%) keeps the system running.</li>
+            </ul>
+          </div>
+        </section>
       </main>
     </div>
   );

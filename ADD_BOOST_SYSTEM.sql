@@ -49,8 +49,20 @@ $$ language plpgsql;
 alter table offers
 add column if not exists last_boosted_at timestamptz;
 
+alter table offers
+add column if not exists last_boosted_homepage_at timestamptz;
+
+alter table offers
+add column if not exists last_boosted_category_at timestamptz;
+
 alter table requests
 add column if not exists last_boosted_at timestamptz;
+
+alter table requests
+add column if not exists last_boosted_homepage_at timestamptz;
+
+alter table requests
+add column if not exists last_boosted_category_at timestamptz;
 
 -- RLS policies for listing_boosts
 alter table listing_boosts enable row level security;

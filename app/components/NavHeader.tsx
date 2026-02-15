@@ -65,7 +65,7 @@ export default function NavHeader() {
     <nav className="border-b border-foreground/10 bg-background text-foreground">
       <div className="mx-auto max-w-5xl px-6 py-3 flex items-center justify-between">
         <Link
-          href={user ? "/dashboard" : "/"}
+          href="/"
           className="text-lg font-semibold hover:opacity-70"
         >
           🌱 Living Ledger
@@ -74,6 +74,12 @@ export default function NavHeader() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              <Link
+                href="/"
+                className="text-sm hover:text-foreground/70"
+              >
+                Home
+              </Link>
               <Link
                 href="/dashboard"
                 className="text-sm px-3 py-1 rounded-md border border-foreground/20 hover:bg-foreground/5"

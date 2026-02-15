@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import supabase from "@/lib/supabase";
 import { deleteRequest, deleteOffer } from "@/lib/supabase-helpers";
 
@@ -226,11 +227,15 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
         throw new Error(payload?.error || "Failed to create boost");
       }
 
-      setBoostSuccess(`Boost active until ${new Date(payload.expiresAt).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })}`);
+      setBoostSuccess(
+        `Success! ${payload.creditsSpent} credits deducted. Boost active until ${new Date(
+          payload.expiresAt
+        ).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}.`
+      );
     } catch (err) {
       console.error("Boost error:", err);
       setBoostError(err instanceof Error ? err.message : "Failed to boost listing.");
@@ -419,7 +424,15 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
                   <p className="mt-3 text-xs text-red-600">{boostError}</p>
                 )}
                 {boostSuccess && (
-                  <p className="mt-3 text-xs text-emerald-600">{boostSuccess}</p>
+                  <div className="mt-3 text-xs text-emerald-600 space-y-2">
+                    <p>{boostSuccess}</p>
+                    <Link
+                      href="/#featured"
+                      className="inline-flex items-center gap-1 text-emerald-700 underline underline-offset-4 hover:text-emerald-800"
+                    >
+                      View boosted listing on homepage
+                    </Link>
+                  </div>
                 )}
               </div>
               <div className="flex gap-3">
