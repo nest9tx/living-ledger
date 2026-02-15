@@ -53,32 +53,46 @@ export async function GET(req: Request) {
       offerIds.length
         ? supabaseAdmin
             .from("offers")
-            .select("id, title, user_id, created_at")
+            .select("id, title, description, price_credits, category_id, user_id, created_at")
             .in("id", offerIds)
-        : Promise.resolve({ data: [] as { id: number; title: string; user_id: string; created_at: string }[] }),
+        : Promise.resolve({ data: [] as { id: number; title: string; description: string | null; price_credits: number | null; category_id: number | null; user_id: string; created_at: string }[] }),
       requestIds.length
         ? supabaseAdmin
             .from("requests")
-            .select("id, title, user_id, created_at")
+            .select("id, title, description, budget_credits, category_id, user_id, created_at")
             .in("id", requestIds)
-        : Promise.resolve({ data: [] as { id: number; title: string; user_id: string; created_at: string }[] }),
+        : Promise.resolve({ data: [] as { id: number; title: string; description: string | null; budget_credits: number | null; category_id: number | null; user_id: string; created_at: string }[] }),
     ]);
 
     const offerMap = (offersResult.data || []).reduce((acc, offer) => {
       acc[offer.id] = offer;
       return acc;
-    }, {} as Record<number, { id: number; title: string; user_id: string; created_at: string }>);
+    }, {} as Record<number, { id: number; title: string; description: string | null; price_credits: number | null; category_id: number | null; user_id: string; created_at: string }>);
 
     const requestMap = (requestsResult.data || []).reduce((acc, request) => {
       acc[request.id] = request;
       return acc;
-    }, {} as Record<number, { id: number; title: string; user_id: string; created_at: string }>);
+    }, {} as Record<number, { id: number; title: string; description: string | null; budget_credits: number | null; category_id: number | null; user_id: string; created_at: string }>);
 
     const items = flagsList.map((flag) => {
-      const listing = flag.post_type === "offer" ? offerMap[flag.post_id] : requestMap[flag.post_id];
+      if (flag.post_type === "offer") {
+        const listing = offerMap[flag.post_id];
+        return {
+          ...flag,
+          listingTitle: listing?.title || "Listing not found",
+          listingDescription: listing?.description || null,
+          listingCredits: listing?.price_credits || null,
+          listingUserId: listing?.user_id || null,
+          listingCreatedAt: listing?.created_at || null,
+        };
+      }
+
+      const listing = requestMap[flag.post_id];
       return {
         ...flag,
         listingTitle: listing?.title || "Listing not found",
+        listingDescription: listing?.description || null,
+        listingCredits: listing?.budget_credits || null,
         listingUserId: listing?.user_id || null,
         listingCreatedAt: listing?.created_at || null,
       };

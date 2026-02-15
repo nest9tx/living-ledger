@@ -361,13 +361,38 @@ export default function AdminDashboard() {
                         key={flag.id}
                         className="flex flex-col gap-3 rounded-lg border border-yellow-500/20 p-3"
                       >
-                        <div className="flex flex-col gap-1">
-                          <p className="font-medium">Flag #{flag.id}</p>
-                          <p className="text-xs text-foreground/60">
-                            {flag.post_type} • {flag.listingTitle}
-                          </p>
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-medium">Flag #{flag.id}</p>
+                              <p className="text-xs text-foreground/50">
+                                {flag.post_type === "offer" ? "Offer" : "Request"} • Reported{" "}
+                                {new Date(flag.created_at).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                            </div>
+                            {flag.listingCredits && (
+                              <span className="text-sm font-medium">
+                                {flag.listingCredits} credits
+                              </span>
+                            )}
+                          </div>
+                          <div className="rounded bg-foreground/5 p-3 space-y-2">
+                            <p className="text-sm font-medium">{flag.listingTitle}</p>
+                            {flag.listingDescription && (
+                              <p className="text-xs text-foreground/70 whitespace-pre-wrap">
+                                {flag.listingDescription}
+                              </p>
+                            )}
+                          </div>
                           {flag.reason && (
-                            <p className="text-xs text-foreground/50">Reason: {flag.reason}</p>
+                            <div className="rounded bg-red-500/5 p-2">
+                              <p className="text-xs text-red-600">
+                                <strong>Report reason:</strong> {flag.reason}
+                              </p>
+                            </div>
                           )}
                         </div>
                         <div className="flex flex-wrap gap-2">
