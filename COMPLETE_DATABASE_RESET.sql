@@ -17,6 +17,7 @@ create table profiles (
   bio text,
   avatar_url text,
   credits_balance integer default 0,
+  is_admin boolean default false,
   onboarding_complete boolean default false,
   onboarding_role text,
   created_at timestamptz default now(),
@@ -93,6 +94,11 @@ create table credit_escrow (
   release_available_at timestamptz,
   buyer_confirmed_at timestamptz,
   provider_marked_complete_at timestamptz,
+  dispute_status text,
+  dispute_reason text,
+  disputed_at timestamptz,
+  resolved_at timestamptz,
+  admin_note text,
   released_at timestamptz,
   created_at timestamptz default now()
 );

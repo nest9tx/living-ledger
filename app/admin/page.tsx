@@ -38,6 +38,8 @@ export default function AdminDashboard() {
   >("overview");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [disputeLoading, setDisputeLoading] = useState(false);
 
   useEffect(() => {
     const checkAdminAndLoadStats = async () => {
@@ -74,6 +76,8 @@ export default function AdminDashboard() {
           flaggedItems: 3,
           openDisputes: 2,
         });
+
+        await loadDisputes();
       } catch (err) {
         console.error("Admin dashboard error:", err);
         setError("Failed to load admin dashboard");
@@ -84,6 +88,79 @@ export default function AdminDashboard() {
 
     checkAdminAndLoadStats();
   }, []);
+
+  const loadDisputes = async () => {
+    setDisputeLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/admin/escrow/list?status=disputed", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load disputes:", payload?.error);
+        return;
+      }
+
+      setDisputes(payload.escrows || []);
+    } finally {
+      setDisputeLoading(false);
+    }
+  };
+
+  const handleAdminRelease = async (escrowId: number) => {
+    const adminNote = prompt("Admin note (optional):") || "";
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    const res = await fetch("/api/admin/escrow/force-release", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ escrowId, adminNote }),
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      alert(payload?.error || "Failed to release escrow");
+      return;
+    }
+
+    await loadDisputes();
+  };
+
+  const handleAdminRefund = async (escrowId: number) => {
+    const adminNote = prompt("Admin note (optional):") || "";
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    const res = await fetch("/api/admin/escrow/refund", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ escrowId, adminNote }),
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      alert(payload?.error || "Failed to refund escrow");
+      return;
+    }
+
+    await loadDisputes();
+  };
 
   if (loading) {
     return (
@@ -240,26 +317,50 @@ export default function AdminDashboard() {
               <h2 className="text-xl font-semibold">Dispute Resolution</h2>
               <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
                 <p className="text-foreground/70 mb-4">
-                  Open disputes: {stats?.openDisputes || 0}
+                  Open disputes: {disputes.length}
                 </p>
-                <div className="space-y-3">
-                  {Array.from({ length: stats?.openDisputes || 0 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-3 border border-red-500/20 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">Dispute #{i + 1}</p>
-                        <p className="text-xs text-foreground/50">
-                          Chargeback from user • 50 credits in escrow
-                        </p>
+                {disputeLoading ? (
+                  <p className="text-sm text-foreground/60">Loading disputes…</p>
+                ) : disputes.length === 0 ? (
+                  <p className="text-sm text-foreground/60">
+                    No open disputes right now.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {disputes.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col gap-3 rounded-lg border border-red-500/20 p-3"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <p className="font-medium">Dispute #{item.id}</p>
+                          <p className="text-xs text-foreground/50">
+                            {item.credits_held} credits • Status: {item.status}
+                          </p>
+                          {item.dispute_reason && (
+                            <p className="text-xs text-foreground/60">
+                              Reason: {item.dispute_reason}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleAdminRelease(item.id)}
+                            className="px-3 py-1 text-xs rounded border border-foreground/20 hover:bg-foreground/5"
+                          >
+                            Release to provider
+                          </button>
+                          <button
+                            onClick={() => handleAdminRefund(item.id)}
+                            className="px-3 py-1 text-xs rounded border border-red-500/20 text-red-600 hover:bg-red-500/5"
+                          >
+                            Refund buyer
+                          </button>
+                        </div>
                       </div>
-                      <button className="px-3 py-1 text-xs rounded border border-foreground/20 hover:bg-foreground/5">
-                        Investigate
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

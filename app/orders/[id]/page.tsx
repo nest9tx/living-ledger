@@ -16,6 +16,8 @@ type Escrow = {
   created_at: string;
   released_at: string | null;
   provider_marked_complete_at: string | null;
+  dispute_status?: string | null;
+  dispute_reason?: string | null;
 };
 
 type Listing = {
@@ -34,6 +36,7 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -51,7 +54,7 @@ export default function OrderDetailPage() {
         const { data: escrowData, error: escrowError } = await supabase
           .from("credit_escrow")
           .select(
-            "id, request_id, offer_id, payer_id, provider_id, credits_held, status, release_available_at, created_at, released_at, provider_marked_complete_at"
+            "id, request_id, offer_id, payer_id, provider_id, credits_held, status, release_available_at, created_at, released_at, provider_marked_complete_at, dispute_status, dispute_reason"
           )
           .eq("id", orderId)
           .maybeSingle();
@@ -100,6 +103,7 @@ export default function OrderDetailPage() {
     if (!escrow) return;
     setActionLoading(true);
     setError(null);
+    setNotice(null);
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
@@ -138,6 +142,7 @@ export default function OrderDetailPage() {
     if (!escrow) return;
     setActionLoading(true);
     setError(null);
+    setNotice(null);
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
@@ -165,8 +170,50 @@ export default function OrderDetailPage() {
         status: "released",
         released_at: new Date().toISOString(),
       });
+      setNotice("Funds released. Provider earnings will be available after the 7-day safety window.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to release escrow");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReportIssue = async () => {
+    if (!escrow) return;
+    const reason = prompt("Describe the issue (optional):") || "";
+    setActionLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      const res = await fetch("/api/escrow/report-dispute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ escrowId: escrow.id, reason }),
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to open dispute");
+      }
+
+      setEscrow({
+        ...escrow,
+        status: "disputed",
+        dispute_status: "open",
+      } as Escrow);
+      setNotice("Dispute submitted. An admin will review this order.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to open dispute");
     } finally {
       setActionLoading(false);
     }
@@ -234,7 +281,18 @@ export default function OrderDetailPage() {
           <p className="text-xs text-foreground/60">
             Buyers pay the listed price. Providers receive 85% after completion (15% platform fee).
           </p>
+          {escrow.status === "disputed" && (
+            <p className="text-xs text-red-600">
+              Dispute open{escrow.dispute_reason ? `: ${escrow.dispute_reason}` : "."}
+            </p>
+          )}
         </div>
+
+        {notice && (
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-700">
+            {notice}
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-600">
@@ -252,13 +310,23 @@ export default function OrderDetailPage() {
           </button>
         )}
 
-        {role === "buyer" && escrow.status !== "released" && (
+        {role === "buyer" && escrow.status !== "released" && escrow.status !== "disputed" && (
           <button
             onClick={handleRelease}
             disabled={actionLoading}
             className="w-full rounded-md bg-foreground px-4 py-3 text-sm font-medium text-background disabled:opacity-60"
           >
             {actionLoading ? "Releasing…" : "Release funds"}
+          </button>
+        )}
+
+        {escrow.status !== "released" && escrow.status !== "refunded" && (
+          <button
+            onClick={handleReportIssue}
+            disabled={actionLoading}
+            className="w-full rounded-md border border-red-500/40 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-500/5 disabled:opacity-60"
+          >
+            {actionLoading ? "Submitting…" : "Report an issue"}
           </button>
         )}
 
