@@ -41,6 +41,7 @@ export async function seedDefaultCategories() {
     { name: "Organization & Planning", icon: "📋" },
     { name: "Tech & Code", icon: "💻" },
     { name: "Healing & Wellness", icon: "🧘" },
+    { name: "Spirituality & Energy Work", icon: "✨" },
     { name: "Community & Activism", icon: "🌍" },
   ];
 
