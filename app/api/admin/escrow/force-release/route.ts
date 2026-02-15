@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     }
 
     const credits = escrow.credits_held || 0;
-    const fee = Math.round(credits * PLATFORM_FEE_RATE);
+    const fee = Math.floor(credits * PLATFORM_FEE_RATE);
     const providerCredits = Math.max(credits - fee, 0);
 
     const { error: earnedError } = await supabaseAdmin

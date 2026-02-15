@@ -18,7 +18,7 @@ begin
   elsif new.credit_source = 'purchase' and new.amount > 0 then
     update profiles
     set purchased_credits = purchased_credits + new.amount
-    where id = new.user_user;
+    where id = new.user_id;
     
   elsif new.credit_source = 'refund' and new.amount > 0 then
     -- Refunds go back to purchased_credits
