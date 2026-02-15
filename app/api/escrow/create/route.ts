@@ -30,15 +30,22 @@ export async function POST(req: Request) {
     const primaryTable = requestedType === "offer" ? "offers" : "requests";
     const secondaryTable = requestedType === "offer" ? "requests" : "offers";
 
+    const primarySelect = requestedType === "offer"
+      ? "id, user_id, price_credits"
+      : "id, user_id, budget_credits";
+    const secondarySelect = requestedType === "offer"
+      ? "id, user_id, budget_credits"
+      : "id, user_id, price_credits";
+
     const { data: primaryPost, error: primaryError } = await supabaseAdmin
       .from(primaryTable)
-      .select("id, user_id, price_credits, budget_credits")
+      .select(primarySelect)
       .eq("id", postId)
       .maybeSingle();
 
     const { data: secondaryPost, error: secondaryError } = await supabaseAdmin
       .from(secondaryTable)
-      .select("id, user_id, price_credits, budget_credits")
+      .select(secondarySelect)
       .eq("id", postId)
       .maybeSingle();
 
@@ -79,7 +86,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Cannot purchase your own post" }, { status: 400 });
     }
 
-    const credits = postType === "offer" ? post.price_credits : post.budget_credits;
+    const credits = "price_credits" in post ? post.price_credits : post.budget_credits;
     if (!credits || credits < 1) {
       return Response.json({ error: "Invalid credit amount" }, { status: 400 });
     }
