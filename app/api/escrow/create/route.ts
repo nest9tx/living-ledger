@@ -52,10 +52,26 @@ export async function POST(req: Request) {
         : requestedType;
 
     if (primaryError || secondaryError) {
-      console.error("Escrow fetch error:", primaryError || secondaryError);
+      console.error("Escrow fetch error:", {
+        primaryError,
+        secondaryError,
+        postId,
+        primaryTable,
+        secondaryTable,
+      });
+      return Response.json(
+        { error: "Database error while loading post" },
+        { status: 500 }
+      );
     }
 
     if (!post) {
+      console.warn("Escrow post not found", {
+        postId,
+        requestedType,
+        primaryTable,
+        secondaryTable,
+      });
       return Response.json({ error: "Post not found" }, { status: 404 });
     }
 
