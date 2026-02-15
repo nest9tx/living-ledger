@@ -75,6 +75,7 @@ export async function POST(req: Request) {
       .from("credit_escrow")
       .update({
         status: "refunded",
+        dispute_status: "resolved",
         resolved_at: new Date().toISOString(),
         admin_note: adminNote,
       })

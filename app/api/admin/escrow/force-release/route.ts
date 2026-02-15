@@ -93,6 +93,7 @@ export async function POST(req: Request) {
       .from("credit_escrow")
       .update({
         status: "released",
+        dispute_status: "resolved",
         resolved_at: new Date().toISOString(),
         admin_note: adminNote,
         released_at: new Date().toISOString(),

@@ -8,7 +8,7 @@ create table if not exists listing_boosts (
   post_type text not null check (post_type in ('offer', 'request')),
   post_id bigint not null,
   boost_tier text not null check (boost_tier in ('homepage', 'category')),
-  category text, -- Only required for category boosts
+  category_id bigint references categories(id) on delete set null,
   credits_spent int not null,
   duration_hours int not null default 24,
   started_at timestamptz not null default now(),
@@ -16,6 +16,10 @@ create table if not exists listing_boosts (
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+-- Ensure column exists if table was created earlier without it
+alter table listing_boosts
+add column if not exists category_id bigint references categories(id) on delete set null;
 
 -- Indexes for efficient queries
 create index if not exists idx_listing_boosts_active 
@@ -25,7 +29,7 @@ create index if not exists idx_listing_boosts_homepage
   on listing_boosts(boost_tier, expires_at) where boost_tier = 'homepage' and is_active = true;
 
 create index if not exists idx_listing_boosts_category 
-  on listing_boosts(category, expires_at) where boost_tier = 'category' and is_active = true;
+  on listing_boosts(category_id, expires_at) where boost_tier = 'category' and is_active = true;
 
 create index if not exists idx_listing_boosts_user
   on listing_boosts(user_id, is_active);
@@ -50,6 +54,10 @@ add column if not exists last_boosted_at timestamptz;
 
 -- RLS policies for listing_boosts
 alter table listing_boosts enable row level security;
+
+drop policy if exists "Anyone can view active boosts" on listing_boosts;
+drop policy if exists "Users can view own boosts" on listing_boosts;
+drop policy if exists "Authenticated users can create boosts" on listing_boosts;
 
 -- Users can view all active boosts (to see what's boosted)
 create policy "Anyone can view active boosts"

@@ -33,6 +33,9 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
   const [deleting, setDeleting] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [boostLoading, setBoostLoading] = useState(false);
+  const [boostError, setBoostError] = useState<string | null>(null);
+  const [boostSuccess, setBoostSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     // Get current user
@@ -188,6 +191,54 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
     }
   };
 
+  const handleBoost = async (tier: "homepage" | "category", durationDays: number) => {
+    try {
+      setBoostError(null);
+      setBoostSuccess(null);
+
+      const label = tier === "homepage" ? "Homepage" : "Category";
+      const cost = tier === "homepage" ? 10 : durationDays === 3 ? 10 : 5;
+
+      if (!confirm(`Boost this listing on ${label}?\n\nCost: ${cost} credits\nDuration: ${durationDays} day${durationDays > 1 ? "s" : ""}`)) {
+        return;
+      }
+
+      setBoostLoading(true);
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        alert("Please sign in again to continue.");
+        return;
+      }
+
+      const res = await fetch("/api/boost/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ postId, postType, tier, durationDays }),
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to create boost");
+      }
+
+      setBoostSuccess(`Boost active until ${new Date(payload.expiresAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })}`);
+    } catch (err) {
+      console.error("Boost error:", err);
+      setBoostError(err instanceof Error ? err.message : "Failed to boost listing.");
+    } finally {
+      setBoostLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -336,6 +387,41 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
 
           {isOwnPost && (
             <div className="border-t border-foreground/10 pt-6 space-y-4">
+              <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
+                <p className="text-sm font-medium">Boost this listing</p>
+                <p className="mt-1 text-xs text-foreground/60">
+                  Homepage boosts reach all visitors. Category boosts target your category.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleBoost("homepage", 1)}
+                    disabled={boostLoading}
+                    className="rounded-md border border-foreground/20 px-3 py-2 text-xs font-medium hover:bg-foreground/5 transition"
+                  >
+                    ⭐ Homepage (10 credits / 24h)
+                  </button>
+                  <button
+                    onClick={() => handleBoost("category", 1)}
+                    disabled={boostLoading}
+                    className="rounded-md border border-foreground/20 px-3 py-2 text-xs font-medium hover:bg-foreground/5 transition"
+                  >
+                    📌 Category (5 credits / 24h)
+                  </button>
+                  <button
+                    onClick={() => handleBoost("category", 3)}
+                    disabled={boostLoading}
+                    className="rounded-md border border-foreground/20 px-3 py-2 text-xs font-medium hover:bg-foreground/5 transition"
+                  >
+                    📌 Category (10 credits / 3 days)
+                  </button>
+                </div>
+                {boostError && (
+                  <p className="mt-3 text-xs text-red-600">{boostError}</p>
+                )}
+                {boostSuccess && (
+                  <p className="mt-3 text-xs text-emerald-600">{boostSuccess}</p>
+                )}
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={handleDelete}
