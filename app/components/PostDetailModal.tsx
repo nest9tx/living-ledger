@@ -37,6 +37,9 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
   const [boostLoading, setBoostLoading] = useState(false);
   const [boostError, setBoostError] = useState<string | null>(null);
   const [boostSuccess, setBoostSuccess] = useState<string | null>(null);
+  const [flagLoading, setFlagLoading] = useState(false);
+  const [flagError, setFlagError] = useState<string | null>(null);
+  const [flagSuccess, setFlagSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     // Get current user
@@ -244,6 +247,45 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
     }
   };
 
+  const handleFlag = async () => {
+    try {
+      setFlagError(null);
+      setFlagSuccess(null);
+
+      const reason = prompt("Why are you reporting this listing? (optional)") || "";
+      setFlagLoading(true);
+
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+
+      if (!token) {
+        alert("Please sign in again to continue.");
+        return;
+      }
+
+      const res = await fetch("/api/flags/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ postId, postType, reason }),
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to report listing");
+      }
+
+      setFlagSuccess("Thanks for the report. Our team will review it shortly.");
+    } catch (err) {
+      console.error("Flag error:", err);
+      setFlagError(err instanceof Error ? err.message : "Failed to report listing.");
+    } finally {
+      setFlagLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -387,6 +429,21 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
                 <p className="mt-1 text-xs text-foreground/50 text-center">
                   Credits are held in escrow and release after a 7-day safety delay.
                 </p>
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <button
+                    onClick={handleFlag}
+                    disabled={flagLoading}
+                    className="text-xs text-foreground/60 underline hover:text-foreground"
+                  >
+                    {flagLoading ? "Reporting..." : "Report this listing"}
+                  </button>
+                  {flagError && (
+                    <p className="text-xs text-red-600">{flagError}</p>
+                  )}
+                  {flagSuccess && (
+                    <p className="text-xs text-emerald-600">{flagSuccess}</p>
+                  )}
+                </div>
             </div>
           )}
 

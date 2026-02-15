@@ -40,6 +40,8 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [disputes, setDisputes] = useState<any[]>([]);
   const [disputeLoading, setDisputeLoading] = useState(false);
+  const [flags, setFlags] = useState<any[]>([]);
+  const [flagsLoading, setFlagsLoading] = useState(false);
 
   useEffect(() => {
     const checkAdminAndLoadStats = async () => {
@@ -90,7 +92,7 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         setStats(statsData.stats);
 
-        await loadDisputes();
+        await Promise.all([loadDisputes(), loadFlags()]);
       } catch (err) {
         console.error("Admin dashboard error:", err);
         setError("Failed to load admin dashboard");
@@ -125,6 +127,55 @@ export default function AdminDashboard() {
     } finally {
       setDisputeLoading(false);
     }
+  };
+
+  const loadFlags = async () => {
+    setFlagsLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/admin/flags/list?status=open", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load flags:", payload?.error);
+        return;
+      }
+
+      setFlags(payload.flags || []);
+    } finally {
+      setFlagsLoading(false);
+    }
+  };
+
+  const handleFlagResolve = async (flagId: number, action: "dismiss" | "remove") => {
+    const adminNote = prompt("Admin note (optional):") || "";
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    const res = await fetch("/api/admin/flags/resolve", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ flagId, action, adminNote }),
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      alert(payload?.error || "Failed to resolve flag");
+      return;
+    }
+
+    await loadFlags();
   };
 
   const handleAdminRelease = async (escrowId: number) => {
@@ -297,30 +348,46 @@ export default function AdminDashboard() {
                 <p className="text-foreground/70 mb-4">
                   Flagged content awaiting review ({stats?.flaggedItems || 0})
                 </p>
-                <div className="space-y-3">
-                  {Array.from({ length: stats?.flaggedItems || 0 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-3 border border-yellow-500/20 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">Flagged Item #{i + 1}</p>
-                        <p className="text-xs text-foreground/50">Reason: Needs review</p>
+                {flagsLoading ? (
+                  <p className="text-sm text-foreground/60">Loading flags…</p>
+                ) : flags.length === 0 ? (
+                  <p className="text-sm text-foreground/60">
+                    No flagged listings right now.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {flags.map((flag) => (
+                      <div
+                        key={flag.id}
+                        className="flex flex-col gap-3 rounded-lg border border-yellow-500/20 p-3"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <p className="font-medium">Flag #{flag.id}</p>
+                          <p className="text-xs text-foreground/60">
+                            {flag.post_type} • {flag.listingTitle}
+                          </p>
+                          {flag.reason && (
+                            <p className="text-xs text-foreground/50">Reason: {flag.reason}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleFlagResolve(flag.id, "dismiss")}
+                            className="px-3 py-1 text-xs rounded border border-green-500/20 text-green-600 hover:bg-green-500/5"
+                          >
+                            Dismiss
+                          </button>
+                          <button
+                            onClick={() => handleFlagResolve(flag.id, "remove")}
+                            className="px-3 py-1 text-xs rounded border border-red-500/20 text-red-600 hover:bg-red-500/5"
+                          >
+                            Remove listing
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button className="px-3 py-1 text-xs rounded border border-foreground/20 hover:bg-foreground/5">
-                          Review
-                        </button>
-                        <button className="px-3 py-1 text-xs rounded border border-green-500/20 text-green-600 hover:bg-green-500/5">
-                          Approve
-                        </button>
-                        <button className="px-3 py-1 text-xs rounded border border-red-500/20 text-red-600 hover:bg-red-500/5">
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

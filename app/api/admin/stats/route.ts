@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
       creditsResult,
       feesResult,
       disputesResult,
+      flagsResult,
     ] = await Promise.all([
       // Total users
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
@@ -71,6 +72,11 @@ export async function GET(req: NextRequest) {
         .from("credit_escrow")
         .select("id", { count: "exact", head: true })
         .eq("dispute_status", "open"),
+
+      supabaseAdmin
+        .from("flagged_listings")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open"),
     ]);
 
     // Calculate totals
@@ -89,8 +95,7 @@ export async function GET(req: NextRequest) {
     
     const openDisputes = disputesResult.count || 0;
 
-    // Flagged items - not implemented yet, set to 0
-    const flaggedItems = 0;
+    const flaggedItems = flagsResult.count || 0;
 
     return NextResponse.json({
       stats: {
