@@ -80,6 +80,7 @@ export async function POST(req: Request) {
         amount: providerCredits,
         description: `Escrow release (${credits})`,
         transaction_type: "earned",
+        credit_source: "earned",
         related_offer_id: escrow.offer_id,
         related_request_id: escrow.request_id,
         can_cashout: true,

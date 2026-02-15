@@ -61,6 +61,7 @@ export async function POST(req: Request) {
         amount: credits,
         description: `Escrow refund (${credits})`,
         transaction_type: "refund",
+        credit_source: "refund",
         related_offer_id: escrow.offer_id,
         related_request_id: escrow.request_id,
         can_cashout: false,

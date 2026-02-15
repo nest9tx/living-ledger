@@ -12,14 +12,18 @@ type Transaction = {
 
 export default function CreditsPanel() {
   const [balance, setBalance] = useState(0);
+  const [earnedCredits, setEarnedCredits] = useState(0);
+  const [purchasedCredits, setPurchasedCredits] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadCredits = async () => {
       try {
-        const { balance: bal, transactions: txs } = await getUserCredits();
+        const { balance: bal, earnedCredits: earned, purchasedCredits: purchased, transactions: txs } = await getUserCredits();
         setBalance(bal);
+        setEarnedCredits(earned);
+        setPurchasedCredits(purchased);
         setTransactions(txs || []);
       } catch (error) {
         console.error("Error loading credits:", error);
@@ -43,6 +47,16 @@ export default function CreditsPanel() {
           Gratitude Credits Balance
         </p>
         <h2 className="mt-3 text-4xl font-semibold">{balance}</h2>
+        <div className="mt-3 flex gap-4 text-sm">
+          <div>
+            <span className="text-foreground/50">Earned: </span>
+            <span className="font-medium text-emerald-600">{earnedCredits}</span>
+          </div>
+          <div>
+            <span className="text-foreground/50">Purchased: </span>
+            <span className="font-medium">{purchasedCredits}</span>
+          </div>
+        </div>
         <p className="mt-2 text-sm text-foreground/70">
           1 credit = $1 USD. Requests are free to post. Providers receive 85% on completion (15% platform fee).
         </p>
@@ -54,10 +68,10 @@ export default function CreditsPanel() {
             Buy credits
           </a>
           <a
-            href={balance > 0 ? "/cashout" : "#"}
-            aria-disabled={balance === 0}
+            href={earnedCredits > 0 ? "/cashout" : "#"}
+            aria-disabled={earnedCredits === 0}
             className={`inline-flex rounded-md border px-4 py-2 text-sm font-medium transition ${
-              balance > 0
+              earnedCredits > 0
                 ? "border-foreground/20 hover:bg-foreground/5"
                 : "border-foreground/10 text-foreground/40 cursor-not-allowed"
             }`}
@@ -65,9 +79,9 @@ export default function CreditsPanel() {
             Cash out earnings
           </a>
         </div>
-        {balance === 0 && (
+        {earnedCredits === 0 && (
           <p className="mt-2 text-xs text-foreground/50">
-            Cash out becomes available after you earn credits from completed work.
+            Cash out becomes available after you earn credits from completed work. Only earned credits can be cashed out.
           </p>
         )}
         {balance === 0 && (

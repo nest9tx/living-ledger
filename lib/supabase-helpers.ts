@@ -277,7 +277,7 @@ export async function getUserCredits() {
     // Get balance from profiles table
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("credits_balance")
+      .select("credits_balance, earned_credits, purchased_credits")
       .eq("id", user.user.id)
       .single();
 
@@ -300,7 +300,9 @@ export async function getUserCredits() {
     }
 
     return { 
-      balance: profile?.credits_balance || 0, 
+      balance: profile?.credits_balance || 0,
+      earnedCredits: profile?.earned_credits || 0,
+      purchasedCredits: profile?.purchased_credits || 0,
       transactions: transactions || [] 
     };
   } catch (err) {
