@@ -105,7 +105,7 @@ export default function GuidelinesPage() {
 
           <section className="pt-4 border-t border-foreground/10">
             <p className="text-sm text-foreground/60">
-              <strong>Questions?</strong> Email hello@livingledger.com (24–48 hour response)
+              <strong>Questions?</strong> Email admin@livingledger.org (24–48 hour response)
             </p>
           </section>
         </div>
