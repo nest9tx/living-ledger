@@ -66,16 +66,29 @@ export default function AdminDashboard() {
 
         setIsAdmin(true);
 
-        // TODO: Fetch actual statistics from Supabase
-        // For now, using placeholder data
-        setStats({
-          totalUsers: 1250,
-          activeListings: 342,
-          totalCreditsFlowing: 4850,
-          platformRevenue: 485,
-          flaggedItems: 3,
-          openDisputes: 2,
+        // Fetch real statistics from API
+        const { data: session } = await supabase.auth.getSession();
+        const token = session.session?.access_token;
+        if (!token) {
+          setError("No session token");
+          setLoading(false);
+          return;
+        }
+
+        const statsRes = await fetch("/api/admin/stats", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
+
+        if (!statsRes.ok) {
+          setError("Failed to load statistics");
+          setLoading(false);
+          return;
+        }
+
+        const statsData = await statsRes.json();
+        setStats(statsData.stats);
 
         await loadDisputes();
       } catch (err) {
