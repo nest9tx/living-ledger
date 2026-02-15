@@ -68,10 +68,10 @@ export default function CreditsPanel() {
             Buy credits
           </a>
           <a
-            href={earnedCredits > 0 ? "/cashout" : "#"}
-            aria-disabled={earnedCredits === 0}
+            href={earnedCredits >= 20 ? "/cashout" : "#"}
+            aria-disabled={earnedCredits < 20}
             className={`inline-flex rounded-md border px-4 py-2 text-sm font-medium transition ${
-              earnedCredits > 0
+              earnedCredits >= 20
                 ? "border-foreground/20 hover:bg-foreground/5"
                 : "border-foreground/10 text-foreground/40 cursor-not-allowed"
             }`}
@@ -79,9 +79,9 @@ export default function CreditsPanel() {
             Cash out earnings
           </a>
         </div>
-        {earnedCredits === 0 && (
+        {earnedCredits < 20 && (
           <p className="mt-2 text-xs text-foreground/50">
-            Cash out becomes available after you earn credits from completed work. Only earned credits can be cashed out.
+            Minimum cashout: $20 earned credits. {earnedCredits > 0 ? `You have $${earnedCredits} — earn $${20 - earnedCredits} more to cash out.` : 'Complete services to earn credits that can be cashed out.'}
           </p>
         )}
         {balance === 0 && (
