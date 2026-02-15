@@ -20,21 +20,42 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const postType = body?.postType === "offer" ? "offer" : "request";
+    const requestedType = body?.postType === "offer" ? "offer" : "request";
     const postId = Number(body?.postId);
 
     if (!Number.isFinite(postId)) {
       return Response.json({ error: "Invalid post" }, { status: 400 });
     }
 
-    const table = postType === "offer" ? "offers" : "requests";
-    const { data: post, error: postError } = await supabaseAdmin
-      .from(table)
+    const primaryTable = requestedType === "offer" ? "offers" : "requests";
+    const secondaryTable = requestedType === "offer" ? "requests" : "offers";
+
+    const { data: primaryPost, error: primaryError } = await supabaseAdmin
+      .from(primaryTable)
       .select("id, user_id, price_credits, budget_credits")
       .eq("id", postId)
       .maybeSingle();
 
-    if (postError || !post) {
+    const { data: secondaryPost, error: secondaryError } = await supabaseAdmin
+      .from(secondaryTable)
+      .select("id, user_id, price_credits, budget_credits")
+      .eq("id", postId)
+      .maybeSingle();
+
+    const post = primaryPost || secondaryPost;
+    const postType = primaryPost
+      ? requestedType
+      : secondaryPost
+        ? requestedType === "offer"
+          ? "request"
+          : "offer"
+        : requestedType;
+
+    if (primaryError || secondaryError) {
+      console.error("Escrow fetch error:", primaryError || secondaryError);
+    }
+
+    if (!post) {
       return Response.json({ error: "Post not found" }, { status: 404 });
     }
 
