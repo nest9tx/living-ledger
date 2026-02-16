@@ -150,11 +150,28 @@ export async function fetchRequests() {
         map[profile.id] = profile;
         return map;
       }, {} as Record<string, any>) || {};
+
+      // Fetch boost data
+      const requestIds = enrichedData.map(req => req.id);
+      const { data: boostData } = await supabase
+        .from("listing_boosts")
+        .select("listing_id, boost_tier, expires_at")
+        .eq("listing_type", "request")
+        .in("listing_id", requestIds)
+        .gt("expires_at", new Date().toISOString());
+
+      const boostMap = boostData?.reduce((map, boost) => {
+        map[boost.listing_id] = boost;
+        return map;
+      }, {} as Record<number, any>) || {};
       
       enrichedData = enrichedData.map(req => ({
         ...req,
         categories: req.category_id ? categoryMap[req.category_id] : null,
-        profiles: req.user_id ? profileMap[req.user_id] : null
+        profiles: req.user_id ? profileMap[req.user_id] : null,
+        isBoosted: !!boostMap[req.id],
+        boostTier: boostMap[req.id]?.boost_tier || null,
+        boostExpiresAt: boostMap[req.id]?.expires_at || null
       }));
     }
 
@@ -253,11 +270,28 @@ export async function fetchOffers() {
         map[profile.id] = profile;
         return map;
       }, {} as Record<string, any>) || {};
+
+      // Fetch boost data
+      const offerIds = enrichedData.map(offer => offer.id);
+      const { data: boostData } = await supabase
+        .from("listing_boosts")
+        .select("listing_id, boost_tier, expires_at")
+        .eq("listing_type", "offer")
+        .in("listing_id", offerIds)
+        .gt("expires_at", new Date().toISOString());
+
+      const boostMap = boostData?.reduce((map, boost) => {
+        map[boost.listing_id] = boost;
+        return map;
+      }, {} as Record<number, any>) || {};
       
       enrichedData = enrichedData.map(offer => ({
         ...offer,
         categories: offer.category_id ? categoryMap[offer.category_id] : null,
-        profiles: offer.user_id ? profileMap[offer.user_id] : null
+        profiles: offer.user_id ? profileMap[offer.user_id] : null,
+        isBoosted: !!boostMap[offer.id],
+        boostTier: boostMap[offer.id]?.boost_tier || null,
+        boostExpiresAt: boostMap[offer.id]?.expires_at || null
       }));
     }
 

@@ -25,6 +25,9 @@ type FeedItem = {
   capacity?: number;
   price_credits?: number;
   budget_credits?: number;
+  isBoosted?: boolean;
+  boostTier?: "homepage" | "category" | null;
+  boostExpiresAt?: string | null;
 };
 
 export default function Feed() {
@@ -192,17 +195,26 @@ export default function Feed() {
             <div
               key={`${item.type}-${item.id}`}
               onClick={() => setSelectedPost({ id: item.id, type: item.type })}
-              className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 transition hover:border-foreground/20 hover:bg-foreground/5 cursor-pointer"
+              className={`rounded-lg border p-4 transition hover:border-foreground/20 hover:bg-foreground/5 cursor-pointer ${
+                item.isBoosted
+                  ? "border-emerald-500/40 bg-emerald-500/5"
+                  : "border-foreground/10 bg-foreground/2"
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium capitalize">
                       {item.type === "request" ? "🤝 Request" : "🎁 Offer"}
                     </span>
                     {item.categories && (
                       <span className="text-xs text-foreground/60">
                         {item.categories.icon} {item.categories.name}
+                      </span>
+                    )}
+                    {item.isBoosted && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-500/30">
+                        ⭐ Featured
                       </span>
                     )}
                   </div>
