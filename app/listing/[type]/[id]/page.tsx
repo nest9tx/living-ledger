@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import supabase from "@/lib/supabase";
 
 type ListingDetail = {
   id: number;
@@ -33,16 +34,27 @@ type ListingDetail = {
 
 export default function ListingDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const type = params?.type as "offer" | "request" | undefined;
   const id = params?.id as string | undefined;
 
   const [listing, setListing] = useState<ListingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [flagLoading, setFlagLoading] = useState(false);
+  const [flagError, setFlagError] = useState<string | null>(null);
+  const [flagSuccess, setFlagSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadListing = async () => {
+    const loadData = async () => {
       try {
+        // Get current user
+        const { data: authData } = await supabase.auth.getUser();
+        setCurrentUserId(authData.user?.id || null);
+
         if (!type || !id) {
           setError("Invalid listing");
           setLoading(false);
@@ -55,8 +67,8 @@ export default function ListingDetailPage() {
           throw new Error(payload?.error || "Failed to load listing");
         }
 
-        const { listing: data } = await res.json();
-        setListing(data);
+        const { listing: listingData } = await res.json();
+        setListing(listingData);
       } catch (err) {
         console.error("Error loading listing:", err);
         setError(err instanceof Error ? err.message : "Failed to load listing");
@@ -65,8 +77,104 @@ export default function ListingDetailPage() {
       }
     };
 
-    loadListing();
+    loadData();
   }, [type, id]);
+
+  const handlePurchase = async () => {
+    try {
+      setPurchaseError(null);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        alert("Please sign in to continue.");
+        router.push("/login");
+        return;
+      }
+
+      if (!listing) return;
+
+      setPurchaseLoading(true);
+
+      const credits = type === "offer" ? listing.price_credits : listing.budget_credits;
+
+      const res = await fetch("/api/escrow/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          postId: listing.id,
+          postType: type,
+          credits,
+        }),
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to create order");
+      }
+
+      router.push(`/orders/${payload.escrowId}`);
+    } catch (err) {
+      console.error("Purchase error:", err);
+      setPurchaseError(err instanceof Error ? err.message : "Failed to create order");
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
+
+  const handleFlag = async () => {
+    try {
+      setFlagError(null);
+      setFlagSuccess(null);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        alert("Please sign in to report this listing.");
+        router.push("/login");
+        return;
+      }
+
+      if (!listing) return;
+
+      const reason = prompt("Why are you reporting this listing?");
+      if (!reason) return;
+
+      setFlagLoading(true);
+
+      const res = await fetch("/api/flags/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          postId: listing.id,
+          postType: type,
+          reason,
+        }),
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to report listing");
+      }
+
+      setFlagSuccess("✓ Thank you for reporting. Our team will review this.");
+    } catch (err) {
+      console.error("Flag error:", err);
+      setFlagError(err instanceof Error ? err.message : "Failed to report listing");
+    } finally {
+      setFlagLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -94,7 +202,7 @@ export default function ListingDetailPage() {
   }
 
   const credits = type === "offer" ? listing.price_credits : listing.budget_credits;
-  const isOffer = type === "offer";
+  const isOwnPost = currentUserId === listing.user_id;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -128,7 +236,7 @@ export default function ListingDetailPage() {
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-foreground/60 mb-2">
-                    {isOffer ? "Offer" : "Request"}
+                    {type === "offer" ? "Offer" : "Request"}
                   </p>
                   <h1 className="text-3xl font-semibold">{listing.title}</h1>
                 </div>
@@ -150,7 +258,7 @@ export default function ListingDetailPage() {
             {/* Description */}
             {listing.description && (
               <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
-                <h2 className="font-semibold mb-3">About this {isOffer ? "offer" : "request"}</h2>
+                <h2 className="font-semibold mb-3">About this {type === "offer" ? "offer" : "request"}</h2>
                 <p className="text-foreground/80 whitespace-pre-wrap leading-relaxed">
                   {listing.description}
                 </p>
@@ -161,7 +269,7 @@ export default function ListingDetailPage() {
             <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
               <h2 className="font-semibold mb-3">How this works</h2>
               <div className="space-y-2 text-sm text-foreground/70">
-                {isOffer ? (
+                {type === "offer" ? (
                   <>
                     <p>
                       <strong>You request this service</strong> by clicking the button below.
@@ -187,12 +295,25 @@ export default function ListingDetailPage() {
                     <p>
                       <strong>Credits are paid after completion</strong> when both parties agree work is done.
                     </p>
-                    <p>
-                      <strong>You&apos;ll receive 85% of the budgeted credits.</strong> 15% platform fee supports the ecosystem.
+                    <p className="text-xs text-foreground/60 mt-3">
+                      You&apos;ll receive 85% of the budgeted credits. 15% platform fee supports the ecosystem.
                     </p>
                   </>
                 )}
               </div>
+            </div>
+
+            {/* Report button */}
+            <div className="flex justify-center">
+              <button
+                onClick={handleFlag}
+                disabled={flagLoading}
+                className="text-xs text-foreground/60 underline hover:text-foreground transition"
+              >
+                {flagLoading ? "Reporting..." : "Report this listing"}
+              </button>
+              {flagError && <p className="text-xs text-red-600 mt-2">{flagError}</p>}
+              {flagSuccess && <p className="text-xs text-emerald-600 mt-2">{flagSuccess}</p>}
             </div>
           </div>
 
@@ -219,9 +340,11 @@ export default function ListingDetailPage() {
                     )}
                   </div>
                 </div>
-                <button className="w-full mt-4 rounded-lg border border-foreground/20 px-4 py-2 text-sm font-medium hover:bg-foreground/5 transition">
-                  Message user
-                </button>
+                {!isOwnPost && (
+                  <button className="w-full mt-4 rounded-lg border border-foreground/20 px-4 py-2 text-sm font-medium hover:bg-foreground/5 transition">
+                    Message user
+                  </button>
+                )}
               </div>
             )}
 
@@ -235,9 +358,37 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Action button */}
-            <button className="w-full rounded-lg bg-foreground px-4 py-3 font-medium text-background hover:bg-foreground/90 transition">
-              {isOffer ? "Request this service" : "Offer your help"}
-            </button>
+            {!isOwnPost && (
+              <>
+                <button
+                  onClick={handlePurchase}
+                  disabled={purchaseLoading}
+                  className="w-full rounded-lg bg-foreground px-4 py-3 font-medium text-background hover:bg-foreground/90 transition disabled:opacity-50"
+                >
+                  {purchaseLoading
+                    ? "Processing..."
+                    : type === "offer"
+                    ? "Request this service"
+                    : "Offer your help"}
+                </button>
+
+                {purchaseError && (
+                  <div className="rounded-lg bg-red-500/10 p-3 border border-red-500/20">
+                    <p className="text-sm text-red-600">{purchaseError}</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Own post actions */}
+            {isOwnPost && (
+              <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 text-center">
+                <p className="text-sm text-foreground/70">This is your post</p>
+                <p className="text-xs text-foreground/60 mt-2">
+                  You&apos;ll be notified when someone responds to your {type}.
+                </p>
+              </div>
+            )}
 
             {/* Status */}
             {listing.status && (
