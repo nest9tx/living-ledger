@@ -47,6 +47,7 @@ export default function ListingDetailPage() {
   const [flagLoading, setFlagLoading] = useState(false);
   const [flagError, setFlagError] = useState<string | null>(null);
   const [flagSuccess, setFlagSuccess] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -80,7 +81,26 @@ export default function ListingDetailPage() {
     loadData();
   }, [type, id]);
 
-  const handlePurchase = async () => {
+  const handleRequestClick = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        alert("Please sign in to continue.");
+        router.push("/login");
+        return;
+      }
+
+      // Show confirmation modal
+      setShowConfirmModal(true);
+    } catch (err) {
+      console.error("Error:", err);
+      setPurchaseError("Something went wrong. Please try again.");
+    }
+  };
+
+  const handleConfirmPurchase = async () => {
     try {
       setPurchaseError(null);
 
@@ -96,6 +116,7 @@ export default function ListingDetailPage() {
       if (!listing) return;
 
       setPurchaseLoading(true);
+      setShowConfirmModal(false);
 
       const credits = type === "offer" ? listing.price_credits : listing.budget_credits;
 
@@ -361,8 +382,8 @@ export default function ListingDetailPage() {
             {!isOwnPost && (
               <>
                 <button
-                  onClick={handlePurchase}
-                  disabled={purchaseLoading}
+                  onClick={handleRequestClick}
+                  disabled={purchaseLoading || showConfirmModal}
                   className="w-full rounded-lg bg-foreground px-4 py-3 font-medium text-background hover:bg-foreground/90 transition disabled:opacity-50"
                 >
                   {purchaseLoading
@@ -399,6 +420,59 @@ export default function ListingDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && listing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="mx-4 w-full max-w-md rounded-lg bg-background border border-foreground/10 p-6 shadow-lg">
+              <h2 className="text-xl font-semibold mb-2">Confirm {type === "offer" ? "Purchase" : "Proposal"}</h2>
+              <p className="text-sm text-foreground/70 mb-6">
+                You&apos;re about to {type === "offer" ? "request this service" : "offer your help"} on this {type === "offer" ? "offer" : "request"}.
+              </p>
+
+              {/* Details */}
+              <div className="rounded-lg bg-foreground/5 p-4 mb-6">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-foreground/60">Service</p>
+                    <p className="font-medium">{listing.title}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-foreground/60">Credits to deduct</p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {type === "offer" ? listing.price_credits : listing.budget_credits}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Information */}
+              <div className="rounded-lg bg-blue-500/5 border border-blue-500/20 p-4 mb-6">
+                <p className="text-xs text-blue-600 leading-relaxed">
+                  <strong>Credits will be placed in escrow immediately.</strong> They&apos;ll be held safely until the work is completed and confirmed. After 7 days, credits are released to the {type === "offer" ? "service provider" : "requester"}.
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={purchaseLoading}
+                  className="flex-1 rounded-lg border border-foreground/20 px-4 py-2 font-medium hover:bg-foreground/5 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmPurchase}
+                  disabled={purchaseLoading}
+                  className="flex-1 rounded-lg bg-foreground px-4 py-2 font-medium text-background hover:bg-foreground/90 transition disabled:opacity-50"
+                >
+                  {purchaseLoading ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
