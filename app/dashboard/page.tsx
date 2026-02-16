@@ -11,6 +11,7 @@ import CreditsPanel from "@/app/components/CreditsPanel";
 import OrdersPanel from "@/app/components/OrdersPanel";
 import MyListings from "@/app/components/MyListings";
 import ContributionHistory from "@/app/components/ContributionHistory";
+import MessagesInbox from "@/app/components/MessagesInbox";
 
 type DashboardUser = {
   email?: string;
@@ -19,7 +20,7 @@ type DashboardUser = {
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"feed" | "orders" | "request" | "offer" | "credits" | "listings" | "history">(
+  const [activeTab, setActiveTab] = useState<"feed" | "orders" | "request" | "offer" | "credits" | "listings" | "history" | "messages">(
     "feed"
   );
   const [feedKey, setFeedKey] = useState(0);
@@ -177,6 +178,16 @@ export default function DashboardPage() {
             My Listings
           </button>
           <button
+            onClick={() => setActiveTab("messages")}
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+              activeTab === "messages"
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-foreground/60 hover:text-foreground"
+            }`}
+          >
+            Messages
+          </button>
+          <button
             onClick={() => setActiveTab("history")}
             className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
               activeTab === "history"
@@ -194,6 +205,7 @@ export default function DashboardPage() {
           {activeTab === "credits" && <CreditsPanel />}
           {activeTab === "orders" && <OrdersPanel />}
           {activeTab === "listings" && <MyListings />}
+          {activeTab === "messages" && <MessagesInbox />}
           {activeTab === "history" && <ContributionHistory />}
           {activeTab === "request" && (
             <RequestForm

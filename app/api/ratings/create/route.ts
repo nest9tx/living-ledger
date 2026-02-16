@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user is part of this transaction
-    if (escrow.buyer_id !== from_user_id && escrow.provider_id !== from_user_id) {
+    if (escrow.payer_id !== from_user_id && escrow.provider_id !== from_user_id) {
       return NextResponse.json(
         { error: "You are not part of this transaction" },
         { status: 403 }

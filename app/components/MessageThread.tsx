@@ -10,8 +10,6 @@ type Message = {
   content: string;
   is_read: boolean;
   created_at: string;
-  from_profile: { id: string; email: string; username: string | null };
-  to_profile: { id: string; email: string; username: string | null };
 };
 
 type MessageThreadProps = {

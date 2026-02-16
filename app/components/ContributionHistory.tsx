@@ -5,18 +5,14 @@ import supabase from "@/lib/supabase";
 
 type Contribution = {
   id: number;
-  listing_id: number;
-  listing_type: "request" | "offer";
-  buyer_id: string;
+  request_id: number | null;
+  offer_id: number | null;
+  payer_id: string;
   provider_id: string;
-  amount_credits: number;
+  credits_held: number;
   status: string;
   created_at: string;
-  release_date: string | null;
-  buyer_profile: { username: string | null };
-  provider_profile: { username: string | null };
-  offers?: { title: string };
-  requests?: { title: string };
+  released_at: string | null;
   ratings?: Array<{
     id: number;
     from_user_id: string;
@@ -25,11 +21,17 @@ type Contribution = {
   }>;
 };
 
+type ListingMap = Record<number, string>;
+type ProfileMap = Record<string, string | null>;
+
 export default function ContributionHistory() {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [requestMap, setRequestMap] = useState<ListingMap>({});
+  const [offerMap, setOfferMap] = useState<ListingMap>({});
+  const [profileMap, setProfileMap] = useState<ProfileMap>({});
   const [ratingModal, setRatingModal] = useState<{
     escrowId: number;
     toUserId: string;
@@ -51,24 +53,75 @@ export default function ContributionHistory() {
 
         setCurrentUserId(userData.user.id);
 
-        // Fetch escrows where user was buyer or provider
+        // Fetch escrows where user was payer or provider
         const { data: escrows, error: escrowError } = await supabase
           .from("credit_escrow")
-          .select(`
-            *,
-            buyer_profile:buyer_id (username),
-            provider_profile:provider_id (username),
-            offers:listing_id (title),
-            requests:listing_id (title),
-            ratings (id, from_user_id, score, comment)
-          `)
-          .or(`buyer_id.eq.${userData.user.id},provider_id.eq.${userData.user.id}`)
+          .select(
+            "id, request_id, offer_id, payer_id, provider_id, credits_held, status, created_at, released_at, ratings (id, from_user_id, score, comment)"
+          )
+          .or(`payer_id.eq.${userData.user.id},provider_id.eq.${userData.user.id}`)
           .eq("status", "released")
           .order("created_at", { ascending: false });
 
         if (escrowError) throw escrowError;
 
-        setContributions(escrows || []);
+        const escrowsList = escrows || [];
+        setContributions(escrowsList);
+
+        const requestIds = Array.from(
+          new Set(
+            escrowsList
+              .map((item) => item.request_id)
+              .filter((id): id is number => typeof id === "number")
+          )
+        );
+
+        const offerIds = Array.from(
+          new Set(
+            escrowsList
+              .map((item) => item.offer_id)
+              .filter((id): id is number => typeof id === "number")
+          )
+        );
+
+        const profileIds = Array.from(
+          new Set(
+            escrowsList
+              .flatMap((item) => [item.payer_id, item.provider_id])
+              .filter((id): id is string => Boolean(id))
+          )
+        );
+
+        const [requestsRes, offersRes, profilesRes] = await Promise.all([
+          requestIds.length
+            ? supabase.from("requests").select("id, title").in("id", requestIds)
+            : Promise.resolve({ data: [] }),
+          offerIds.length
+            ? supabase.from("offers").select("id, title").in("id", offerIds)
+            : Promise.resolve({ data: [] }),
+          profileIds.length
+            ? supabase.from("profiles").select("id, username").in("id", profileIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        const requestTitleMap = (requestsRes.data || []).reduce((acc, row) => {
+          acc[row.id] = row.title;
+          return acc;
+        }, {} as ListingMap);
+
+        const offerTitleMap = (offersRes.data || []).reduce((acc, row) => {
+          acc[row.id] = row.title;
+          return acc;
+        }, {} as ListingMap);
+
+        const profilesTitleMap = (profilesRes.data || []).reduce((acc, row) => {
+          acc[row.id] = row.username;
+          return acc;
+        }, {} as ProfileMap);
+
+        setRequestMap(requestTitleMap);
+        setOfferMap(offerTitleMap);
+        setProfileMap(profilesTitleMap);
       } catch (err) {
         console.error("Error loading contributions:", err);
         setError("Failed to load contribution history");
@@ -118,19 +171,70 @@ export default function ContributionHistory() {
       // Refresh contributions to show new rating
       const { data: escrows } = await supabase
         .from("credit_escrow")
-        .select(`
-          *,
-          buyer_profile:buyer_id (username),
-          provider_profile:provider_id (username),
-          offers:listing_id (title),
-          requests:listing_id (title),
-          ratings (id, from_user_id, score, comment)
-        `)
-        .or(`buyer_id.eq.${currentUserId},provider_id.eq.${currentUserId}`)
+        .select(
+          "id, request_id, offer_id, payer_id, provider_id, credits_held, status, created_at, released_at, ratings (id, from_user_id, score, comment)"
+        )
+        .or(`payer_id.eq.${currentUserId},provider_id.eq.${currentUserId}`)
         .eq("status", "released")
         .order("created_at", { ascending: false });
 
-      setContributions(escrows || []);
+      const escrowsList = escrows || [];
+      setContributions(escrowsList);
+
+      const requestIds = Array.from(
+        new Set(
+          escrowsList
+            .map((item) => item.request_id)
+            .filter((id): id is number => typeof id === "number")
+        )
+      );
+
+      const offerIds = Array.from(
+        new Set(
+          escrowsList
+            .map((item) => item.offer_id)
+            .filter((id): id is number => typeof id === "number")
+        )
+      );
+
+      const profileIds = Array.from(
+        new Set(
+          escrowsList
+            .flatMap((item) => [item.payer_id, item.provider_id])
+            .filter((id): id is string => Boolean(id))
+        )
+      );
+
+      const [requestsRes, offersRes, profilesRes] = await Promise.all([
+        requestIds.length
+          ? supabase.from("requests").select("id, title").in("id", requestIds)
+          : Promise.resolve({ data: [] }),
+        offerIds.length
+          ? supabase.from("offers").select("id, title").in("id", offerIds)
+          : Promise.resolve({ data: [] }),
+        profileIds.length
+          ? supabase.from("profiles").select("id, username").in("id", profileIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const requestTitleMap = (requestsRes.data || []).reduce((acc, row) => {
+        acc[row.id] = row.title;
+        return acc;
+      }, {} as ListingMap);
+
+      const offerTitleMap = (offersRes.data || []).reduce((acc, row) => {
+        acc[row.id] = row.title;
+        return acc;
+      }, {} as ListingMap);
+
+      const profilesTitleMap = (profilesRes.data || []).reduce((acc, row) => {
+        acc[row.id] = row.username;
+        return acc;
+      }, {} as ProfileMap);
+
+      setRequestMap(requestTitleMap);
+      setOfferMap(offerTitleMap);
+      setProfileMap(profilesTitleMap);
       setRatingModal(null);
     } catch (err) {
       console.error("Error submitting rating:", err);
@@ -183,11 +287,13 @@ export default function ContributionHistory() {
         <div className="space-y-4">
           {contributions.map((contrib) => {
             const isProvider = contrib.provider_id === currentUserId;
-            const otherParty = isProvider ? contrib.buyer_profile : contrib.provider_profile;
-            const otherPartyId = isProvider ? contrib.buyer_id : contrib.provider_id;
-            const title = contrib.listing_type === "offer"
-              ? contrib.offers?.title
-              : contrib.requests?.title;
+            const otherPartyId = isProvider ? contrib.payer_id : contrib.provider_id;
+            const otherPartyName = profileMap[otherPartyId] || "Anonymous";
+            const listingTitle = contrib.offer_id
+              ? offerMap[contrib.offer_id]
+              : contrib.request_id
+                ? requestMap[contrib.request_id]
+                : "Untitled";
             
             const userRating = contrib.ratings?.find(r => r.from_user_id === currentUserId);
             const receivedRating = contrib.ratings?.find(r => r.from_user_id === otherPartyId);
@@ -207,23 +313,23 @@ export default function ContributionHistory() {
                         {new Date(contrib.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    <h3 className="font-semibold">{title || "Untitled"}</h3>
+                    <h3 className="font-semibold">{listingTitle || "Untitled"}</h3>
                     <p className="text-sm text-foreground/70 mt-1">
-                      {isProvider ? "Buyer" : "Provider"}: {otherParty?.username || "Anonymous"}
+                      {isProvider ? "Buyer" : "Provider"}: {otherPartyName}
                     </p>
                     <div className="mt-2 text-sm">
-                      <span className="font-medium">{contrib.amount_credits} credits</span>
+                      <span className="font-medium">{contrib.credits_held} credits</span>
                       {isProvider && (
                         <span className="text-foreground/60 ml-2">
-                          (you received {Math.floor(contrib.amount_credits * 0.85)} after platform fee)
+                          (you received {Math.floor(contrib.credits_held * 0.85)} after platform fee)
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    {contrib.release_date && (
+                    {contrib.released_at && (
                       <div className="text-xs text-foreground/50">
-                        Released {new Date(contrib.release_date).toLocaleDateString()}
+                        Released {new Date(contrib.released_at).toLocaleDateString()}
                       </div>
                     )}
                   </div>
@@ -244,7 +350,7 @@ export default function ContributionHistory() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => handleRateContribution(contrib.id, otherPartyId, title || "Contribution")}
+                      onClick={() => handleRateContribution(contrib.id, otherPartyId, listingTitle || "Contribution")}
                       className="text-sm text-foreground/60 underline hover:text-foreground"
                     >
                       Rate this {isProvider ? "buyer" : "provider"} →

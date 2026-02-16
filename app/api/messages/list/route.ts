@@ -31,11 +31,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from("messages")
-      .select(`
-        *,
-        from_profile:from_user_id (id, email, username),
-        to_profile:to_user_id (id, email, username)
-      `)
+      .select("*")
       .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
       .order("created_at", { ascending: true });
 

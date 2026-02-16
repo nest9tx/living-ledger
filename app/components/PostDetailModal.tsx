@@ -12,6 +12,7 @@ type PostDetailProps = {
   onClose: () => void;
   onDelete?: () => void;
   onBoost?: () => void;
+  defaultTab?: "details" | "messages";
 };
 
 type PostDetail = {
@@ -28,10 +29,9 @@ type PostDetail = {
   status?: string;
 };
 
-export default function PostDetailModal({ postId, postType, onClose, onDelete, onBoost }: PostDetailProps) {
+export default function PostDetailModal({ postId, postType, onClose, onDelete, onBoost, defaultTab = "details" }: PostDetailProps) {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -42,7 +42,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
   const [flagLoading, setFlagLoading] = useState(false);
   const [flagError, setFlagError] = useState<string | null>(null);
   const [flagSuccess, setFlagSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"details" | "messages">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "messages">(defaultTab);
 
   useEffect(() => {
     // Get current user
@@ -101,22 +101,9 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
     loadPost();
   }, [postId, postType]);
 
-  const handleRespond = async () => {
-    if (!message.trim()) {
-      alert("Please enter a message");
-      return;
-    }
-
-    try {
-      // For MVP, we'll just show an alert
-      // In the future, this would create a message/interaction record
-      alert(`Message sent! (MVP: Full messaging coming soon)\n\nYour message: "${message}"`);
-      setMessage("");
-      onClose();
-    } catch (err) {
-      console.error("Error sending message:", err);
-      alert("Failed to send message. Please try again.");
-    }
+  const handleOpenMessages = () => {
+    // Switch to Messages tab
+    setActiveTab("messages");
   };
 
   const handlePurchase = async () => {
@@ -420,22 +407,14 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
                 Interested?
               </h3>
               
-              {/* Message Box */}
+              {/* Action Buttons */}
               <div className="space-y-3">
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Send a message to the ${postType === "request" ? "requester" : "offerer"}...`}
-                  className="w-full rounded-lg border border-foreground/20 bg-background px-4 py-3 text-sm focus:border-foreground/40 focus:outline-none resize-none"
-                  rows={3}
-                />
-                
                 <div className="flex gap-3">
                   <button
-                    onClick={handleRespond}
+                    onClick={handleOpenMessages}
                     className="flex-1 rounded-lg border border-foreground/20 bg-background px-4 py-2 text-sm font-medium hover:bg-foreground/5 transition"
                   >
-                    Send Message
+                    💬 Message Seller
                   </button>
                   <button
                     onClick={handlePurchase}
