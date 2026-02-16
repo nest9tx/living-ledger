@@ -155,13 +155,14 @@ export async function fetchRequests() {
       const requestIds = enrichedData.map(req => req.id);
       const { data: boostData } = await supabase
         .from("listing_boosts")
-        .select("listing_id, boost_tier, expires_at")
-        .eq("listing_type", "request")
-        .in("listing_id", requestIds)
+        .select("post_id, boost_tier, expires_at")
+        .eq("post_type", "request")
+        .in("post_id", requestIds)
+        .eq("is_active", true)
         .gt("expires_at", new Date().toISOString());
 
       const boostMap = boostData?.reduce((map, boost) => {
-        map[boost.listing_id] = boost;
+        map[boost.post_id] = boost;
         return map;
       }, {} as Record<number, any>) || {};
       
@@ -275,13 +276,14 @@ export async function fetchOffers() {
       const offerIds = enrichedData.map(offer => offer.id);
       const { data: boostData } = await supabase
         .from("listing_boosts")
-        .select("listing_id, boost_tier, expires_at")
-        .eq("listing_type", "offer")
-        .in("listing_id", offerIds)
+        .select("post_id, boost_tier, expires_at")
+        .eq("post_type", "offer")
+        .in("post_id", offerIds)
+        .eq("is_active", true)
         .gt("expires_at", new Date().toISOString());
 
       const boostMap = boostData?.reduce((map, boost) => {
-        map[boost.listing_id] = boost;
+        map[boost.post_id] = boost;
         return map;
       }, {} as Record<number, any>) || {};
       
