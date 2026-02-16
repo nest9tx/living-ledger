@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 
 type FeaturedBoost = {
   boostId: number;
@@ -95,9 +96,10 @@ export default async function Home() {
           ) : (
             <div className="grid w-full gap-4 md:grid-cols-2">
               {boosts.map((boost) => (
-                <div
+                <Link
                   key={`${boost.postType}-${boost.postId}-${boost.boostId}`}
-                  className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5"
+                  href={`/listing/${boost.postType}/${boost.postId}`}
+                  className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5 hover:border-foreground/30 hover:bg-foreground/5 transition"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/60">
@@ -123,7 +125,7 @@ export default async function Home() {
                         : `${boost.budgetCredits ?? 0} credits`}
                     </span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

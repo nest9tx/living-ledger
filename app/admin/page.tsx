@@ -34,10 +34,12 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "moderation" | "disputes" | "users" | "settings"
+    "overview" | "moderation" | "disputes" | "cashouts" | "users" | "settings"
   >("overview");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cashouts, setCashouts] = useState<any[]>([]);
+  const [cashoutsLoading, setCashoutsLoading] = useState(false);
   const [disputes, setDisputes] = useState<any[]>([]);
   const [disputeLoading, setDisputeLoading] = useState(false);
   const [flags, setFlags] = useState<any[]>([]);
@@ -92,7 +94,7 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         setStats(statsData.stats);
 
-        await Promise.all([loadDisputes(), loadFlags()]);
+        await Promise.all([loadDisputes(), loadFlags(), loadCashouts()]);
       } catch (err) {
         console.error("Admin dashboard error:", err);
         setError("Failed to load admin dashboard");
@@ -151,6 +153,31 @@ export default function AdminDashboard() {
       setFlags(payload.flags || []);
     } finally {
       setFlagsLoading(false);
+    }
+  };
+
+  const loadCashouts = async () => {
+    setCashoutsLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/admin/cashout/list?status=pending", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load cashouts:", payload?.error);
+        return;
+      }
+
+      setCashouts(payload.cashouts || []);
+    } finally {
+      setCashoutsLoading(false);
     }
   };
 
@@ -305,11 +332,11 @@ export default function AdminDashboard() {
         <div className="border-b border-foreground/10 mb-6">
           <div className="flex gap-8 overflow-x-auto">
             {(
-              ["overview", "moderation", "disputes", "users", "settings"] as const
+              ["overview", "moderation", "disputes", "cashouts", "users", "settings"] as const
             ).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => setActiveTab(tab as any)}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition capitalize ${
                   activeTab === tab
                     ? "border-foreground text-foreground"
@@ -467,6 +494,108 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === "cashouts" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Cashout Requests</h2>
+                <button
+                  onClick={loadCashouts}
+                  className="text-sm px-3 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {cashoutsLoading ? (
+                <p className="text-foreground/60">Loading cashouts...</p>
+              ) : cashouts.length === 0 ? (
+                <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
+                  <p className="text-foreground/70">No pending cashout requests</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {cashouts.map((req) => (
+                    <div key={req.id} className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="font-medium">
+                            ${req.amount_credits} from {req.user?.username || "Unknown user"}
+                          </p>
+                          <p className="text-xs text-foreground/60 mt-1">
+                            Requested {new Date(req.requested_at).toLocaleDateString()}
+                          </p>
+                          {req.admin_note && (
+                            <p className="text-xs text-foreground/70 mt-2 italic">{req.admin_note}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const note = prompt("Admin note (optional):");
+                              const { data } = await supabase.auth.getSession();
+                              const token = data.session?.access_token;
+                              if (!token) return;
+
+                              const res = await fetch("/api/admin/cashout/approve", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({ cashout_id: req.id, admin_note: note }),
+                              });
+
+                              const payload = await res.json();
+                              if (!res.ok) {
+                                alert(payload?.error || "Failed to approve");
+                                return;
+                              }
+
+                              alert("✓ Cashout approved");
+                              await loadCashouts();
+                            }}
+                            className="px-3 py-1 text-xs rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 hover:bg-emerald-500/20"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const note = prompt("Rejection reason:");
+                              const { data } = await supabase.auth.getSession();
+                              const token = data.session?.access_token;
+                              if (!token) return;
+
+                              const res = await fetch("/api/admin/cashout/reject", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({ cashout_id: req.id, admin_note: note }),
+                              });
+
+                              const payload = await res.json();
+                              if (!res.ok) {
+                                alert(payload?.error || "Failed to reject");
+                                return;
+                              }
+
+                              alert("✓ Cashout rejected and credits returned to user");
+                              await loadCashouts();
+                            }}
+                            className="px-3 py-1 text-xs rounded bg-red-500/10 border border-red-500/20 text-red-700 hover:bg-red-500/20"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

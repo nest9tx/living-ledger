@@ -58,7 +58,7 @@ export default function NavHeader() {
   };
 
   // Hide nav on auth pages
-  const hideNavPages = ["/login", "/signup", "/forgot-password", "/reset-password", "/onboarding"];
+  const hideNavPages = ["/login", "/signup", "/forgot-password", "/reset-password", "/onboarding", "/cashout"];
   if (hideNavPages.includes(pathname)) return null;
 
   return (
