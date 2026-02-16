@@ -24,6 +24,7 @@ export default function DashboardPage() {
     "feed"
   );
   const [feedKey, setFeedKey] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -69,6 +70,45 @@ export default function DashboardPage() {
       subscription.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const userId = sessionData.session?.user?.id;
+
+        if (!token || !userId) {
+          setUnreadMessages(0);
+          return;
+        }
+
+        const response = await fetch("/api/messages/list", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          setUnreadMessages(0);
+          return;
+        }
+
+        const { messages } = await response.json();
+        const unreadCount = (messages || []).filter(
+          (msg: { to_user_id: string; is_read: boolean }) => msg.to_user_id === userId && !msg.is_read
+        ).length;
+
+        setUnreadMessages(unreadCount);
+      } catch {
+        setUnreadMessages(0);
+      }
+    };
+
+    if (user) {
+      loadUnreadCount();
+    }
+  }, [user, activeTab]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -116,7 +156,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-foreground/10 overflow-x-auto">
+        <div className="relative">
+          <div className="flex gap-2 border-b border-foreground/10 overflow-x-auto pr-16">
           <button
             onClick={() => setActiveTab("feed")}
             className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
@@ -179,13 +220,18 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab("messages")}
-            className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition flex items-center gap-2 ${
               activeTab === "messages"
                 ? "border-b-2 border-foreground text-foreground"
                 : "text-foreground/60 hover:text-foreground"
             }`}
           >
             Messages
+            {unreadMessages > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-500 px-1.5 text-xs font-semibold text-white">
+                {unreadMessages}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("history")}
@@ -197,6 +243,11 @@ export default function DashboardPage() {
           >
             History & Ratings
           </button>
+          </div>
+          <div className="pointer-events-none absolute right-0 top-0 h-full w-14 bg-linear-to-l from-background to-transparent" />
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-widest text-foreground/50 md:hidden">
+            Scroll →
+          </div>
         </div>
 
         {/* Tab Content */}

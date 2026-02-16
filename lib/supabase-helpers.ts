@@ -139,7 +139,7 @@ export async function fetchRequests() {
       const userIds = [...new Set(enrichedData.map(req => req.user_id))];
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, username")
+        .select("id, username, average_rating, total_ratings, total_contributions")
         .in("id", userIds);
       
       if (profileError) {
@@ -260,7 +260,7 @@ export async function fetchOffers() {
       const userIds = [...new Set(enrichedData.map(offer => offer.user_id))];
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, username")
+        .select("id, username, average_rating, total_ratings, total_contributions")
         .in("id", userIds);
       
       if (profileError) {

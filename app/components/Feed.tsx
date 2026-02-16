@@ -19,7 +19,12 @@ type FeedItem = {
   category_id: number | null;
   user_id: string;
   categories: { name: string; icon: string } | null;
-  profiles: { username: string | null } | null;
+  profiles: {
+    username: string | null;
+    average_rating?: number | null;
+    total_ratings?: number | null;
+    total_contributions?: number | null;
+  } | null;
   type: "request" | "offer";
   status?: string;
   capacity?: number;
@@ -57,13 +62,27 @@ export default function Feed() {
             ...r,
             type: "request" as const,
             categories: r.categories ? { name: r.categories.name, icon: r.categories.icon } : null,
-            profiles: r.profiles ? { username: r.profiles.username } : null,
+            profiles: r.profiles
+              ? {
+                  username: r.profiles.username,
+                  average_rating: r.profiles.average_rating,
+                  total_ratings: r.profiles.total_ratings,
+                  total_contributions: r.profiles.total_contributions,
+                }
+              : null,
           })),
           ...(offersData || []).map((o: any) => ({
             ...o,
             type: "offer" as const,
             categories: o.categories ? { name: o.categories.name, icon: o.categories.icon } : null,
-            profiles: o.profiles ? { username: o.profiles.username } : null,
+            profiles: o.profiles
+              ? {
+                  username: o.profiles.username,
+                  average_rating: o.profiles.average_rating,
+                  total_ratings: o.profiles.total_ratings,
+                  total_contributions: o.profiles.total_contributions,
+                }
+              : null,
           })),
         ].sort((a, b) => {
           // Boosted posts always come first
@@ -234,8 +253,18 @@ export default function Feed() {
                     {item.description}
                   </p>
                   <p className="mt-2 text-xs text-foreground/50">
-                    by {item.profiles?.username || "Anonymous"} •{" "}
-                    {new Date(item.created_at).toLocaleDateString()}
+                    by {item.profiles?.username || "Anonymous"}
+                    {item.profiles?.total_ratings ? (
+                      <>
+                        {" "}• ⭐ {Number(item.profiles.average_rating || 0).toFixed(1)} ({item.profiles.total_ratings})
+                      </>
+                    ) : (
+                      <> • New</>
+                    )}
+                    {item.profiles?.total_contributions ? (
+                      <> • {item.profiles.total_contributions} contributions</>
+                    ) : null}
+                    {" "}• {new Date(item.created_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="text-right">

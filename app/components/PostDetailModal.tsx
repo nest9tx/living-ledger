@@ -23,7 +23,12 @@ type PostDetail = {
   category_id: number | null;
   user_id: string;
   categories: { name: string; icon: string } | null;
-  profile?: { username: string } | null;
+  profile?: {
+    username: string | null;
+    average_rating?: number | null;
+    total_ratings?: number | null;
+    total_contributions?: number | null;
+  } | null;
   price_credits?: number;
   budget_credits?: number;
   status?: string;
@@ -83,7 +88,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
         if (data?.user_id) {
           const { data: profileData } = await supabase
             .from("profiles")
-            .select("username")
+            .select("username, average_rating, total_ratings, total_contributions")
             .eq("id", data.user_id)
             .single();
           
@@ -523,6 +528,16 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           <div className="text-xs text-foreground/50 text-center border-t border-foreground/10 pt-4 mt-6">
             <div>
               Posted by <span className="font-medium">{post.profile?.username || "Anonymous"}</span>
+              {post.profile?.total_ratings ? (
+                <>
+                  {" "}• ⭐ {Number(post.profile.average_rating || 0).toFixed(1)} ({post.profile.total_ratings})
+                </>
+              ) : (
+                <> • New</>
+              )}
+              {post.profile?.total_contributions ? (
+                <> • {post.profile.total_contributions} contributions</>
+              ) : null}
             </div>
             <div className="mt-1">
               {new Date(post.created_at).toLocaleDateString("en-US", {
