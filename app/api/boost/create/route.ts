@@ -119,6 +119,31 @@ export async function POST(req: Request) {
       return Response.json({ error: "Category boost limit reached (max 3 active)" }, { status: 400 });
     }
 
+    // Check global homepage slot availability (max 8 total across all users)
+    if (tier === "homepage") {
+      const { data: globalHomepageBoosts, error: globalError } = await supabaseAdmin
+        .from("listing_boosts")
+        .select("id, expires_at")
+        .eq("boost_tier", "homepage")
+        .eq("is_active", true)
+        .gt("expires_at", new Date().toISOString());
+
+      if (globalError) {
+        console.error("Error checking global homepage slots:", globalError);
+      } else if (globalHomepageBoosts && globalHomepageBoosts.length >= 8) {
+        // Find when the next slot opens (soonest expiry)
+        const soonestExpiry = globalHomepageBoosts
+          .map(b => new Date(b.expires_at).getTime())
+          .sort((a, b) => a - b)[0];
+        
+        const hoursUntilSlot = Math.ceil((soonestExpiry - Date.now()) / (1000 * 60 * 60));
+        
+        return Response.json({
+          error: `Homepage boosts are currently full (8/8 slots active). Next slot opens in approximately ${hoursUntilSlot} hour${hoursUntilSlot > 1 ? 's' : ''}. Try boosting in a specific category instead!`
+        }, { status: 400 });
+      }
+    }
+
     const now = new Date();
     const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
