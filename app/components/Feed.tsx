@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchRequests, fetchOffers } from "@/lib/supabase-helpers";
+import { fetchRequests, fetchOffers, fetchCategories } from "@/lib/supabase-helpers";
 import { SkeletonFeed } from "./Skeletons";
 import PostDetailModal from "./PostDetailModal";
+
+type Category = {
+  id: number;
+  name: string;
+  icon: string;
+};
 
 type FeedItem = {
   id: number;
@@ -23,9 +29,11 @@ type FeedItem = {
 
 export default function Feed() {
   const [items, setItems] = useState<FeedItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "requests" | "offers">("all");
+  const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [selectedPost, setSelectedPost] = useState<{ id: number; type: "request" | "offer" } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -33,10 +41,13 @@ export default function Feed() {
     const loadFeed = async () => {
       try {
         setError(null);
-        const [requestsData, offersData] = await Promise.all([
+        const [requestsData, offersData, categoriesData] = await Promise.all([
           fetchRequests(),
           fetchOffers(),
+          fetchCategories(),
         ]);
+
+        setCategories(categoriesData || []);
 
         const combined: FeedItem[] = [
           ...(requestsData || []).map((r: any) => ({
@@ -69,10 +80,14 @@ export default function Feed() {
   }, [refreshKey]);
 
   const filtered = items.filter((item) => {
-    if (filter === "all") return true;
-    if (filter === "requests") return item.type === "request";
-    if (filter === "offers") return item.type === "offer";
-    return false;
+    // Apply type filter
+    if (filter === "requests" && item.type !== "request") return false;
+    if (filter === "offers" && item.type !== "offer") return false;
+
+    // Apply category filter
+    if (categoryFilter !== null && item.category_id !== categoryFilter) return false;
+
+    return true;
   });
 
   if (loading) {
@@ -104,7 +119,8 @@ export default function Feed() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2">
+      {/* Type filters */}
+      <div className="flex gap-2 flex-wrap">
         <button
           onClick={() => setFilter("all")}
           className={`text-sm px-3 py-1 rounded-full transition ${
@@ -136,6 +152,35 @@ export default function Feed() {
           Offers
         </button>
       </div>
+
+      {/* Category filters */}
+      {categories.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setCategoryFilter(null)}
+            className={`text-sm px-3 py-1 rounded-full transition ${
+              categoryFilter === null
+                ? "bg-blue-600/20 border border-blue-500/50 text-blue-600"
+                : "border border-foreground/20 hover:border-foreground/40"
+            }`}
+          >
+            All categories
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setCategoryFilter(cat.id)}
+              className={`text-sm px-3 py-1 rounded-full transition whitespace-nowrap ${
+                categoryFilter === cat.id
+                  ? "bg-emerald-600/20 border border-emerald-500/50 text-emerald-600"
+                  : "border border-foreground/20 hover:border-foreground/40"
+              }`}
+            >
+              {cat.icon} {cat.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-sm text-foreground/60">
