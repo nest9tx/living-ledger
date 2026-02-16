@@ -260,6 +260,9 @@ export default function Feed() {
             setSelectedPost(null);
             setRefreshKey(prev => prev + 1); // Refresh feed after delete
           }}
+          onBoost={() => {
+            setRefreshKey(prev => prev + 1); // Refresh feed after boost
+          }}
         />
       )}
     </div>

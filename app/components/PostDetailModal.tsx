@@ -10,6 +10,7 @@ type PostDetailProps = {
   postType: "request" | "offer";
   onClose: () => void;
   onDelete?: () => void;
+  onBoost?: () => void;
 };
 
 type PostDetail = {
@@ -26,7 +27,7 @@ type PostDetail = {
   status?: string;
 };
 
-export default function PostDetailModal({ postId, postType, onClose, onDelete }: PostDetailProps) {
+export default function PostDetailModal({ postId, postType, onClose, onDelete, onBoost }: PostDetailProps) {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -239,6 +240,11 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete }:
           day: "numeric",
         })}.`
       );
+
+      // Trigger feed refresh
+      if (onBoost) {
+        onBoost();
+      }
     } catch (err) {
       console.error("Boost error:", err);
       setBoostError(err instanceof Error ? err.message : "Failed to boost listing.");
