@@ -24,7 +24,7 @@ export default function RequestForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
-  const [budgetCredits, setBudgetCredits] = useState(10);
+  const [budgetCredits, setBudgetCredits] = useState(5);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +67,8 @@ export default function RequestForm({
       errors.categoryId = "Please select a category";
     }
 
-    if (!budgetCredits || budgetCredits < 1) {
-      errors.budgetCredits = "Budget must be at least 1 credit";
+    if (!budgetCredits || budgetCredits < 5) {
+      errors.budgetCredits = "Budget must be at least 5 credits ($5)";
     } else if (budgetCredits > 10000) {
       errors.budgetCredits = "Budget cannot exceed 10,000 credits";
     }
@@ -92,7 +92,7 @@ export default function RequestForm({
       await createRequest(title, description, categoryId!, budgetCredits);
       setTitle("");
       setDescription("");
-      setBudgetCredits(10);
+      setBudgetCredits(5);
       setFieldErrors({});
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -207,7 +207,7 @@ export default function RequestForm({
           <input
             id="budget"
             type="number"
-            min="1"
+            min="5"
             max="10000"
             className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
               fieldErrors.budgetCredits
@@ -216,11 +216,14 @@ export default function RequestForm({
             }`}
             value={budgetCredits}
             onChange={(e) => {
-              const value = Math.max(1, parseInt(e.target.value) || 1);
+              const value = Math.max(5, parseInt(e.target.value) || 5);
               setBudgetCredits(value);
               if (fieldErrors.budgetCredits) setFieldErrors({ ...fieldErrors, budgetCredits: undefined });
             }}
           />
+          {!fieldErrors.budgetCredits && (
+            <p className="mt-1 text-xs text-foreground/60">Minimum: 5 credits ($5)</p>
+          )}
           {fieldErrors.budgetCredits && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.budgetCredits}</p>
           )}

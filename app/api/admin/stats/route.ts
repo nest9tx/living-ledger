@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       supabaseAdmin
         .from("transactions")
         .select("amount")
-        .eq("transaction_type", "fee"),
+        .in("transaction_type", ["fee", "platform_fee"]),  // Support both possible values
       
       // Open disputes
       supabaseAdmin

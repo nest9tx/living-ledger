@@ -67,8 +67,8 @@ export default function OfferForm({
       errors.categoryId = "Please select a category";
     }
 
-    if (!priceCredits || priceCredits < 1) {
-      errors.priceCredits = "Price must be at least 1 credit";
+    if (!priceCredits || priceCredits < 5) {
+      errors.priceCredits = "Price must be at least 5 credits ($5)";
     } else if (priceCredits > 10000) {
       errors.priceCredits = "Price cannot exceed 10,000 credits";
     }
@@ -204,7 +204,7 @@ export default function OfferForm({
           <input
             id="price"
             type="number"
-            min="1"
+            min="5"
             max="10000"
             className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
               fieldErrors.priceCredits
@@ -213,11 +213,14 @@ export default function OfferForm({
             }`}
             value={priceCredits}
             onChange={(e) => {
-              const value = Math.max(1, parseInt(e.target.value) || 1);
+              const value = Math.max(5, parseInt(e.target.value) || 5);
               setPriceCredits(value);
               if (fieldErrors.priceCredits) setFieldErrors({ ...fieldErrors, priceCredits: undefined });
             }}
           />
+          {!fieldErrors.priceCredits && (
+            <p className="mt-1 text-xs text-foreground/60">Minimum: 5 credits ($5)</p>
+          )}
           {fieldErrors.priceCredits && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.priceCredits}</p>
           )}

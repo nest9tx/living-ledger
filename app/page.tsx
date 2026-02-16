@@ -50,7 +50,7 @@ export default async function Home() {
           </h1>
           <p className="max-w-2xl text-base text-foreground/70 sm:text-lg">
             Post a request, offer your gifts, and earn gratitude credits that
-            circulate through a community built on contribution.
+            circulate through a community built on contribution. Cash out your earned credits via Stripe anytime.
           </p>
         </div>
 

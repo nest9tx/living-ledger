@@ -44,6 +44,8 @@ export default function AdminDashboard() {
   const [disputeLoading, setDisputeLoading] = useState(false);
   const [flags, setFlags] = useState<any[]>([]);
   const [flagsLoading, setFlagsLoading] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
     const checkAdminAndLoadStats = async () => {
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         setStats(statsData.stats);
 
-        await Promise.all([loadDisputes(), loadFlags(), loadCashouts()]);
+        await Promise.all([loadDisputes(), loadFlags(), loadCashouts(), loadUsers()]);
       } catch (err) {
         console.error("Admin dashboard error:", err);
         setError("Failed to load admin dashboard");
@@ -178,6 +180,31 @@ export default function AdminDashboard() {
       setCashouts(payload.cashouts || []);
     } finally {
       setCashoutsLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/admin/users/list", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load users:", payload?.error);
+        return;
+      }
+
+      setUsers(payload.users || []);
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -601,30 +628,120 @@ export default function AdminDashboard() {
 
           {activeTab === "users" && (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">User Management</h2>
-              <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
-                <p className="text-foreground/70 mb-4">Total users: {stats?.totalUsers}</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-foreground/10">
-                        <th className="text-left py-2 px-2">User</th>
-                        <th className="text-left py-2 px-2">Joined</th>
-                        <th className="text-left py-2 px-2">Status</th>
-                        <th className="text-left py-2 px-2">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-foreground/10">
-                        <td className="py-2 px-2">Coming soon…</td>
-                        <td className="py-2 px-2">-</td>
-                        <td className="py-2 px-2">-</td>
-                        <td className="py-2 px-2">-</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">User Management</h2>
+                <button
+                  onClick={loadUsers}
+                  className="text-sm px-3 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
+                >
+                  Refresh
+                </button>
               </div>
+
+              {usersLoading ? (
+                <p className="text-foreground/60">Loading users...</p>
+              ) : users.length === 0 ? (
+                <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
+                  <p className="text-foreground/70">No users found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-foreground/60">Total users: {users.length}</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-foreground/10">
+                          <th className="text-left py-2 px-2">User</th>
+                          <th className="text-left py-2 px-2">Credits</th>
+                          <th className="text-left py-2 px-2">Rating</th>
+                          <th className="text-left py-2 px-2">Joined</th>
+                          <th className="text-left py-2 px-2">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map((user) => (
+                          <tr key={user.id} className="border-b border-foreground/10">
+                            <td className="py-3 px-2">
+                              <div>
+                                <p className="font-medium">{user.username || "Anonymous"}</p>
+                                <p className="text-xs text-foreground/60">
+                                  {user.is_admin && <span className="text-emerald-600">Admin • </span>}
+                                  {user.is_suspended && <span className="text-red-600">Suspended • </span>}
+                                  ID: {user.id.substring(0, 8)}...
+                                </p>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="text-xs space-y-1">
+                                <p>Balance: {user.credits_balance || 0}</p>
+                                <p className="text-foreground/60">Earned: {user.earned_credits || 0}</p>
+                                <p className="text-foreground/60">Purchased: {user.purchased_credits || 0}</p>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              {user.total_ratings > 0 ? (
+                                <div className="text-xs">
+                                  <p>⭐ {user.average_rating?.toFixed(1)}</p>
+                                  <p className="text-foreground/60">({user.total_ratings} ratings)</p>
+                                  <p className="text-foreground/60">{user.total_contributions} contributions</p>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-foreground/60">No ratings</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-2 text-xs text-foreground/60">
+                              {new Date(user.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-2">
+                              <button
+                                onClick={async () => {
+                                  const amount = prompt(`Adjust credits for ${user.username}:\nEnter amount (positive to add, negative to subtract):`);
+                                  if (!amount) return;
+
+                                  const reason = prompt("Reason for adjustment:");
+                                  if (!reason) return;
+
+                                  const creditType = confirm("Adjust EARNED credits? (OK = earned, Cancel = purchased)") ? "earned" : "purchased";
+
+                                  const { data } = await supabase.auth.getSession();
+                                  const token = data.session?.access_token;
+                                  if (!token) return;
+
+                                  const res = await fetch("/api/admin/users/adjust-balance", {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({
+                                      userId: user.id,
+                                      amount: parseInt(amount),
+                                      reason,
+                                      creditType,
+                                    }),
+                                  });
+
+                                  const payload = await res.json();
+                                  if (!res.ok) {
+                                    alert(`Error: ${payload?.error || "Failed to adjust balance"}`);
+                                    return;
+                                  }
+
+                                  alert(`✓ ${payload.message}`);
+                                  await loadUsers();
+                                }}
+                                className="text-xs px-2 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
+                              >
+                                Adjust Credits
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

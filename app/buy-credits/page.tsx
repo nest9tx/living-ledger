@@ -115,11 +115,12 @@ export default function BuyCreditsPage() {
             <input
               type="number"
               min={1}
-              max={10000}
+              max={500}
               value={credits}
               onChange={(e) => setCredits(Number(e.target.value || 1))}
               className="w-28 rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm"
             />
+            <span className="text-xs text-foreground/60">(max: 500)</span>
           </div>
         </div>
 
