@@ -40,7 +40,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse request body
-    const { userId, amount, reason, creditType } = await req.json();
+    const body = await req.json();
+    const { userId, amount, reason } = body;
+    const creditType = body.creditType || "balance"; // balance, earned, or purchased
 
     if (!userId || !amount || !reason) {
       return NextResponse.json(
@@ -57,16 +59,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine which balance to update
-    const balanceField: "credits_balance" | "earned_credits" | "purchased_credits" = 
-      creditType === "earned" ? "earned_credits" : 
-      creditType === "purchased" ? "purchased_credits" :
-      "credits_balance";
 
-    // Get current balance
+    // Get current balances
     const { data: currentProfile } = await supabaseAdmin
       .from("profiles")
-      .select(`${balanceField}`)
+      .select("credits_balance, earned_credits, purchased_credits")
       .eq("id", userId)
       .single();
 
@@ -77,19 +74,66 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const currentBalance = ((currentProfile as Record<string, number>)[balanceField]) || 0;
-    const newBalance = currentBalance + amountInt;
+    const currentTotalBalance = currentProfile.credits_balance || 0;
+    const currentEarned = currentProfile.earned_credits || 0;
+    const currentPurchased = currentProfile.purchased_credits || 0;
 
-    if (newBalance < 0) {
-      return NextResponse.json(
-        { error: `Cannot reduce balance below 0. Current balance: ${currentBalance}` },
-        { status: 400 }
-      );
+    // Calculate new balances based on credit type
+    let updateData: Record<string, number> = {};
+    let targetBalance = 0;
+
+    if (creditType === "earned") {
+      // Adjust earned credits and total balance
+      const newEarned = currentEarned + amountInt;
+      const newTotal = currentTotalBalance + amountInt;
+      
+      if (newEarned < 0 || newTotal < 0) {
+        return NextResponse.json(
+          { error: `Cannot reduce balance below 0. Current earned: ${currentEarned}, total: ${currentTotalBalance}` },
+          { status: 400 }
+        );
+      }
+      
+      updateData = {
+        earned_credits: newEarned,
+        credits_balance: newTotal
+      };
+      targetBalance = newEarned;
+    } else if (creditType === "purchased") {
+      // Adjust purchased credits and total balance
+      const newPurchased = currentPurchased + amountInt;
+      const newTotal = currentTotalBalance + amountInt;
+      
+      if (newPurchased < 0 || newTotal < 0) {
+        return NextResponse.json(
+          { error: `Cannot reduce balance below 0. Current purchased: ${currentPurchased}, total: ${currentTotalBalance}` },
+          { status: 400 }
+        );
+      }
+      
+      updateData = {
+        purchased_credits: newPurchased,
+        credits_balance: newTotal
+      };
+      targetBalance = newPurchased;
+    } else {
+      // Adjust only total balance (legacy/general adjustment)
+      const newTotal = currentTotalBalance + amountInt;
+      
+      if (newTotal < 0) {
+        return NextResponse.json(
+          { error: `Cannot reduce balance below 0. Current total: ${currentTotalBalance}` },
+          { status: 400 }
+        );
+      }
+      
+      updateData = { credits_balance: newTotal };
+      targetBalance = newTotal;
     }
 
     const { error: finalUpdateError } = await supabaseAdmin
       .from("profiles")
-      .update({ [balanceField]: newBalance })
+      .update(updateData)
       .eq("id", userId);
 
     if (finalUpdateError) {
@@ -112,8 +156,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      newBalance,
-      message: `Balance adjusted by ${amountInt > 0 ? '+' : ''}${amountInt} credits`,
+      newBalance: targetBalance,
+      newTotal: updateData.credits_balance || currentTotalBalance,
+      creditType,
+      message: `${creditType === 'earned' ? 'Earned credits' : creditType === 'purchased' ? 'Purchased credits' : 'Balance'} adjusted by ${amountInt > 0 ? '+' : ''}${amountInt} credits`,
     });
   } catch (error) {
     console.error("Admin adjust balance error:", error);

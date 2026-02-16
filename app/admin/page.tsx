@@ -701,13 +701,36 @@ export default function AdminDashboard() {
                             <td className="py-3 px-2">
                               <button
                                 onClick={async () => {
+                                  // Show current balances first
+                                  alert(
+                                    `Current Balances for ${user.username}:\n\n` +
+                                    `Total: ${user.credits_balance || 0} credits\n` +
+                                    `Earned (cashout-eligible): ${user.earned_credits || 0} credits\n` +
+                                    `Purchased: ${user.purchased_credits || 0} credits`
+                                  );
+
                                   const amount = prompt(`Adjust credits for ${user.username}:\nEnter amount (positive to add, negative to subtract):`);
                                   if (!amount) return;
 
                                   const reason = prompt("Reason for adjustment:");
                                   if (!reason) return;
 
-                                  const creditType = confirm("Adjust EARNED credits? (OK = earned, Cancel = purchased)") ? "earned" : "purchased";
+                                  // Three-way choice for credit type
+                                  const typeChoice = prompt(
+                                    "Which balance to adjust?\n\n" +
+                                    "1 = Earned credits (cashout-eligible, also updates total)\n" +
+                                    "2 = Purchased credits (also updates total)\n" +
+                                    "3 = Total balance only (legacy/general adjustment)\n\n" +
+                                    "Enter 1, 2, or 3:"
+                                  );
+                                  
+                                  let creditType = "balance";
+                                  if (typeChoice === "1") creditType = "earned";
+                                  else if (typeChoice === "2") creditType = "purchased";
+                                  else if (typeChoice !== "3") {
+                                    alert("Invalid choice. Cancelled.");
+                                    return;
+                                  }
 
                                   const { data } = await supabase.auth.getSession();
                                   const token = data.session?.access_token;
@@ -733,7 +756,10 @@ export default function AdminDashboard() {
                                     return;
                                   }
 
-                                  alert(`✓ ${payload.message}`);
+                                  alert(
+                                    `✓ Success!\n\n${payload.message}\n\n` +
+                                    `New total balance: ${payload.newTotal} credits`
+                                  );
                                   await loadUsers();
                                 }}
                                 className="text-xs px-2 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
