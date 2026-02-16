@@ -108,6 +108,14 @@ export default function AdminDashboard() {
     checkAdminAndLoadStats();
   }, []);
 
+  // Load users when Users tab is clicked
+  useEffect(() => {
+    if (activeTab === "users" && users.length === 0) {
+      loadUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   const loadDisputes = async () => {
     setDisputeLoading(true);
     try {

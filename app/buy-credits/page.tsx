@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 
-const CREDIT_PACKS = [10, 25, 50, 100];
+const CREDIT_PACKS = [5, 10, 25, 50, 100];
 const STRIPE_FEE_PERCENT = 0.029;
 const STRIPE_FEE_FLAT_CENTS = 30;
 

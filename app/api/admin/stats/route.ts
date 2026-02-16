@@ -61,11 +61,11 @@ export async function GET(req: NextRequest) {
       // Total credits in circulation (sum of all balances)
       supabaseAdmin.from("profiles").select("credits_balance"),
       
-      // Platform revenue (sum of fee transactions)
+      // Platform revenue (boost payments + platform fees from escrow releases)
       supabaseAdmin
         .from("transactions")
         .select("amount")
-        .in("transaction_type", ["fee", "platform_fee"]),  // Support both possible values
+        .in("transaction_type", ["boost", "platform_fee"]),
       
       // Open disputes
       supabaseAdmin
@@ -88,8 +88,9 @@ export async function GET(req: NextRequest) {
       0
     ) || 0;
     
+    // Sum absolute values since boost/fee transactions may be stored as negative (debits)
     const platformRevenue = feesResult.data?.reduce(
-      (sum, t) => sum + (t.amount || 0),
+      (sum, t) => sum + Math.abs(t.amount || 0),
       0
     ) || 0;
     

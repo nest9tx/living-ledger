@@ -49,8 +49,8 @@ export default async function Home() {
             A community for micro-acts of help.
           </h1>
           <p className="max-w-2xl text-base text-foreground/70 sm:text-lg">
-            Post a request, offer your gifts, and earn gratitude credits that
-            circulate through a community built on contribution. Cash out your earned credits via Stripe anytime.
+            Post a request, offer your gifts, and earn gratitude credits. Use credits for services,
+            boost your listings, or cash out to USD ($20 minimum, 7-day escrow release required).
           </p>
         </div>
 
@@ -179,7 +179,7 @@ export default async function Home() {
             <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
               <h3 className="text-sm font-semibold">3. Earn or spend credits</h3>
               <p className="mt-2 text-sm text-foreground/70">
-                Providers receive 85% on completion. Credits can fund your next request or boost visibility.
+                Providers receive 85% on completion. Use credits for services, boost listings, or cash out to USD ($20 min after 7-day escrow release).
               </p>
             </div>
           </div>
