@@ -9,6 +9,8 @@ import RequestForm from "@/app/components/RequestForm";
 import OfferForm from "@/app/components/OfferForm";
 import CreditsPanel from "@/app/components/CreditsPanel";
 import OrdersPanel from "@/app/components/OrdersPanel";
+import MyListings from "@/app/components/MyListings";
+import ContributionHistory from "@/app/components/ContributionHistory";
 
 type DashboardUser = {
   email?: string;
@@ -17,7 +19,7 @@ type DashboardUser = {
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"feed" | "orders" | "request" | "offer" | "credits">(
+  const [activeTab, setActiveTab] = useState<"feed" | "orders" | "request" | "offer" | "credits" | "listings" | "history">(
     "feed"
   );
   const [feedKey, setFeedKey] = useState(0);
@@ -164,6 +166,26 @@ export default function DashboardPage() {
           >
             Offer Your Gifts
           </button>
+          <button
+            onClick={() => setActiveTab("listings")}
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+              activeTab === "listings"
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-foreground/60 hover:text-foreground"
+            }`}
+          >
+            My Listings
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+              activeTab === "history"
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-foreground/60 hover:text-foreground"
+            }`}
+          >
+            History & Ratings
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -171,6 +193,8 @@ export default function DashboardPage() {
           {activeTab === "feed" && <Feed key={feedKey} />}
           {activeTab === "credits" && <CreditsPanel />}
           {activeTab === "orders" && <OrdersPanel />}
+          {activeTab === "listings" && <MyListings />}
+          {activeTab === "history" && <ContributionHistory />}
           {activeTab === "request" && (
             <RequestForm
               onSuccess={() => {

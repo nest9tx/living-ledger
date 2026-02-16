@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import supabase from "@/lib/supabase";
 import { deleteRequest, deleteOffer } from "@/lib/supabase-helpers";
+import MessageThread from "./MessageThread";
 
 type PostDetailProps = {
   postId: number;
@@ -41,6 +42,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
   const [flagLoading, setFlagLoading] = useState(false);
   const [flagError, setFlagError] = useState<string | null>(null);
   const [flagSuccess, setFlagSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"details" | "messages">("details");
 
   useEffect(() => {
     // Get current user
@@ -351,9 +353,34 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-foreground/10 px-6">
+          <button
+            onClick={() => setActiveTab("details")}
+            className={`px-4 py-3 text-sm font-medium transition ${
+              activeTab === "details"
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-foreground/60 hover:text-foreground"
+            }`}
+          >
+            Details
+          </button>
+          <button
+            onClick={() => setActiveTab("messages")}
+            className={`px-4 py-3 text-sm font-medium transition ${
+              activeTab === "messages"
+                ? "border-b-2 border-foreground text-foreground"
+                : "text-foreground/60 hover:text-foreground"
+            }`}
+          >
+            Messages
+          </button>
+        </div>
+
         {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Description */}
+        <div className="p-6">
+          {activeTab === "details" && (
+            <div className="space-y-6">{/* Description */}
           <div>
             <h3 className="text-sm font-medium text-foreground/60 uppercase tracking-wider mb-2">
               Description
@@ -514,7 +541,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           )}
 
           {/* Meta info */}
-          <div className="text-xs text-foreground/50 text-center border-t border-foreground/10 pt-4">
+          <div className="text-xs text-foreground/50 text-center border-t border-foreground/10 pt-4 mt-6">
             <div>
               Posted by <span className="font-medium">{post.profile?.username || "Anonymous"}</span>
             </div>
@@ -528,6 +555,17 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
               })}
             </div>
           </div>
+          </div>
+          )}
+
+          {activeTab === "messages" && post && (
+            <MessageThread
+              listingId={postId}
+              listingType={postType}
+              listingOwnerId={post.user_id}
+              listingTitle={post.title}
+            />
+          )}
         </div>
       </div>
     </div>
