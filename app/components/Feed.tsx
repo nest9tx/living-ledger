@@ -65,10 +65,21 @@ export default function Feed() {
             categories: o.categories ? { name: o.categories.name, icon: o.categories.icon } : null,
             profiles: o.profiles ? { username: o.profiles.username } : null,
           })),
-        ].sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+        ].sort((a, b) => {
+          // Boosted posts always come first
+          if (a.isBoosted && !b.isBoosted) return -1;
+          if (!a.isBoosted && b.isBoosted) return 1;
+
+          // Within boosted posts, sort by expiry (soonest to expire first for fair rotation)
+          if (a.isBoosted && b.isBoosted) {
+            const aExpiry = a.boostExpiresAt ? new Date(a.boostExpiresAt).getTime() : 0;
+            const bExpiry = b.boostExpiresAt ? new Date(b.boostExpiresAt).getTime() : 0;
+            return aExpiry - bExpiry;
+          }
+
+          // Non-boosted posts sorted by newest first
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
 
         setItems(combined);
       } catch (error) {
