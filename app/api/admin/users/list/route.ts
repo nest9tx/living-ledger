@@ -53,9 +53,7 @@ export async function GET(req: NextRequest) {
         total_ratings,
         total_contributions,
         onboarding_complete,
-        created_at,
-        is_admin,
-        is_suspended
+        created_at
       `)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -63,7 +61,7 @@ export async function GET(req: NextRequest) {
     if (usersError) {
       console.error("Users fetch error:", usersError);
       return NextResponse.json(
-        { error: "Failed to fetch users" },
+        { error: "Failed to fetch users", details: usersError.message },
         { status: 500 }
       );
     }

@@ -673,8 +673,6 @@ export default function AdminDashboard() {
                               <div>
                                 <p className="font-medium">{user.username || "Anonymous"}</p>
                                 <p className="text-xs text-foreground/60">
-                                  {user.is_admin && <span className="text-emerald-600">Admin • </span>}
-                                  {user.is_suspended && <span className="text-red-600">Suspended • </span>}
                                   ID: {user.id.substring(0, 8)}...
                                 </p>
                               </div>

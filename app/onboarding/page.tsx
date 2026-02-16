@@ -117,7 +117,7 @@ export default function OnboardingPage() {
                 <li className="flex gap-3">
                   <span className="text-lg">🏦</span>
                   <span>
-                    <strong>Credits held in escrow until work is done.</strong> Safe for both sides. Cash out weekly.
+                    <strong>Credits held in escrow until work is done.</strong> Safe for both sides. Cash out via Stripe ($20 min, 7-day escrow release).
                   </span>
                 </li>
               </ul>

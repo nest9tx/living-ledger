@@ -67,11 +67,12 @@ export async function GET(req: NextRequest) {
         .select("amount")
         .in("transaction_type", ["boost", "platform_fee"]),
       
-      // Open disputes
+      // Open disputes (only count explicitly marked as 'open')
       supabaseAdmin
         .from("credit_escrow")
         .select("id", { count: "exact", head: true })
-        .eq("dispute_status", "open"),
+        .eq("dispute_status", "open")
+        .not("dispute_status", "is", null),
 
       supabaseAdmin
         .from("flagged_listings")

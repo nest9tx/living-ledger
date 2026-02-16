@@ -97,8 +97,16 @@ export default function GuidelinesPage() {
               </div>
 
               <div>
-                <h3 className="font-semibold text-foreground mb-2">Cashing out:</h3>
-                <p>Weekly cashout minimum: 20 credits. Stripe processes payouts (2.9% + $0.30 fee applies).</p>
+                <h3 className="font-semibold text-foreground mb-2">Cashing out earned credits:</h3>
+                <p className="mb-2">Minimum: 20 credits ($20). After escrow releases (7-day hold for chargeback protection).</p>
+                <p className="mb-2"><strong>How it works:</strong></p>
+                <ol className="list-decimal list-inside space-y-1 pl-2">
+                  <li>Request cashout from your dashboard ($20+ earned credits)</li>
+                  <li>Admin reviews request within 24-48 hours (fraud prevention)</li>
+                  <li>Upon approval, payment sent to your connected Stripe account</li>
+                  <li>Stripe handles tax reporting (1099-K if applicable)</li>
+                </ol>
+                <p className="mt-2 text-sm"><strong>Note:</strong> You may need to verify your identity with Stripe and connect a bank account before receiving payouts. Stripe charges processing fees (2.9% + $0.30 per transaction).</p>
               </div>
             </div>
           </section>
