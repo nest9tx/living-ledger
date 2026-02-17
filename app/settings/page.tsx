@@ -3,31 +3,33 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type UserProfile = {
   username: string;
   email: string;
   created_at: string;
-  bank_account_name: string | null;
-  bank_routing_number: string | null;
-  bank_account_type: string | null;
-  bank_account_last4: string | null;
-  bank_connected_at: string | null;
+  stripe_account_id: string | null;
+  stripe_account_status: string | null;
+  stripe_onboarding_complete: boolean | null;
+  stripe_connected_at: string | null;
+};
+
+type StripeStatus = {
+  connected: boolean;
+  status: string | null;
+  accountId?: string;
+  detailsSubmitted?: boolean;
+  chargesEnabled?: boolean;
+  payoutsEnabled?: boolean;
 };
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
-  
-  // Bank account fields
-  const [bankAccountName, setBankAccountName] = useState("");
-  const [bankAccountNumber, setBankAccountNumber] = useState("");
-  const [bankRoutingNumber, setBankRoutingNumber] = useState("");
-  const [bankAccountType, setBankAccountType] = useState("checking");
-  const [bankLast4, setBankLast4] = useState("");
-  const [bankConnectedAt, setBankConnectedAt] = useState<string | null>(null);
-  
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -41,17 +43,17 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("*")
+        .select("username, email, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at")
         .eq("id", session.user.id)
         .single();
 
       if (profile) {
         setUser(profile);
-        setBankAccountName(profile.bank_account_name || "");
-        setBankRoutingNumber(profile.bank_routing_number || "");
-        setBankAccountType(profile.bank_account_type || "checking");
-        setBankLast4(profile.bank_account_last4 || "");
-        setBankConnectedAt(profile.bank_connected_at);
+        
+        // Check Stripe Connect status if account exists
+        if (profile.stripe_account_id) {
+          await checkStripeStatus(session.access_token);
+        }
       }
 
       setLoading(false);
@@ -62,13 +64,37 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const checkStripeStatus = async (token: string) => {
+    try {
+      const res = await fetch("/api/stripe/connect/status", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      const data = await res.json();
+      setStripeStatus(data);
+    } catch (err) {
+      console.error("Failed to check Stripe status:", err);
+    }
+  };
+
   useEffect(() => {
     loadUserSettings();
-  }, [loadUserSettings]);
+    
+    // Check for return from Stripe onboarding
+    const stripeConnected = searchParams.get("stripe_connected");
+    const stripeRefresh = searchParams.get("stripe_refresh");
+    
+    if (stripeConnected === "true") {
+      setMessage("✓ Stripe account connected successfully! You can now request cashouts.");
+    } else if (stripeRefresh === "true") {
+      setError("Stripe onboarding was not completed. Please try again.");
+    }
+  }, [loadUserSettings, searchParams]);
 
-  async function saveBankAccount(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
+  const handleConnectStripe = async () => {
+    setConnecting(true);
     setError("");
     setMessage("");
 
@@ -76,51 +102,26 @@ export default function SettingsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Validate account number (basic check)
-      if (bankAccountNumber.length < 4 || bankAccountNumber.length > 17) {
-        setError("Account number must be 4-17 digits");
-        setSaving(false);
-        return;
-      }
-
-      // Validate routing number (US: 9 digits)
-      if (!/^\d{9}$/.test(bankRoutingNumber)) {
-        setError("Routing number must be exactly 9 digits");
-        setSaving(false);
-        return;
-      }
-
-      const response = await fetch("/api/settings/bank-account", {
+      const response = await fetch("/api/stripe/connect/create-account", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          accountName: bankAccountName,
-          accountNumber: bankAccountNumber,
-          routingNumber: bankRoutingNumber,
-          accountType: bankAccountType,
-        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to save bank account");
+        throw new Error(data.error || "Failed to connect Stripe account");
       }
 
-      setMessage("✓ Bank account connected successfully!");
-      setBankLast4(data.last4);
-      setBankConnectedAt(data.connectedAt);
-      setBankAccountNumber(""); // Clear full number after save
-
+      // Redirect to Stripe onboarding
+      window.location.href = data.url;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to save bank account");
-    } finally {
-      setSaving(false);
+      setError(err instanceof Error ? err.message : "Failed to connect Stripe account");
+      setConnecting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -156,92 +157,64 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Bank Account Section */}
+        {/* Stripe Connect Section */}
         <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
-          <h2 className="text-xl font-semibold mb-2">💰 Bank Account (For Cashouts)</h2>
+          <h2 className="text-xl font-semibold mb-2">💰 Stripe Connect (For Cashouts)</h2>
           <p className="text-sm text-foreground/60 mb-6">
-            Connect your bank account to receive cashout payments. Your account details are encrypted and secure.
+            Connect your Stripe account to receive cashout payments. Stripe handles all banking details, identity verification, and tax reporting.
           </p>
 
-          {bankConnectedAt && bankLast4 ? (
-            <div className="mb-6 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-              <p className="text-green-600 font-medium mb-2">✓ Bank Account Connected</p>
-              <div className="text-sm text-foreground/70 space-y-1">
-                <p>Account: ****{bankLast4}</p>
-                <p>Type: {bankAccountType}</p>
-                <p>Connected: {new Date(bankConnectedAt).toLocaleDateString()}</p>
+          {stripeStatus?.connected && stripeStatus?.status === "active" ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                <p className="text-green-600 font-medium mb-2">✓ Stripe Account Connected</p>
+                <div className="text-sm text-foreground/70 space-y-1">
+                  <p>Account ID: {stripeStatus.accountId?.slice(0, 20)}...</p>
+                  <p>Status: Active & verified</p>
+                  <p>Payouts: Enabled</p>
+                  {user?.stripe_connected_at && (
+                    <p>Connected: {new Date(user.stripe_connected_at).toLocaleDateString()}</p>
+                  )}
+                </div>
               </div>
+              
               <button
-                onClick={() => {
-                  setBankConnectedAt(null);
-                  setBankLast4("");
-                }}
-                className="mt-3 text-sm text-blue-600 hover:underline"
+                onClick={handleConnectStripe}
+                disabled={connecting}
+                className="text-sm text-blue-600 hover:underline"
               >
-                Update bank account
+                Update Stripe account details
+              </button>
+            </div>
+          ) : stripeStatus?.connected && stripeStatus?.status === "pending" ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <p className="text-yellow-700 font-medium mb-2">⚠️ Stripe Onboarding Incomplete</p>
+                <p className="text-sm text-foreground/70">
+                  Your Stripe account needs additional information. Please complete the onboarding process to enable cashouts.
+                </p>
+              </div>
+              
+              <button
+                onClick={handleConnectStripe}
+                disabled={connecting}
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {connecting ? "Redirecting to Stripe..." : "Complete Stripe Onboarding"}
               </button>
             </div>
           ) : (
-            <form onSubmit={saveBankAccount} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Account Holder Name
-                </label>
-                <input
-                  type="text"
-                  value={bankAccountName}
-                  onChange={(e) => setBankAccountName(e.target.value)}
-                  placeholder="John Doe"
-                  required
-                  className="w-full px-4 py-2 rounded-lg bg-background border border-foreground/20 focus:border-foreground/40 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Account Number
-                </label>
-                <input
-                  type="text"
-                  value={bankAccountNumber}
-                  onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="1234567890"
-                  required
-                  maxLength={17}
-                  className="w-full px-4 py-2 rounded-lg bg-background border border-foreground/20 focus:border-foreground/40 focus:outline-none"
-                />
-                <p className="text-xs text-foreground/60 mt-1">
-                  Your full account number is never stored - only the last 4 digits
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <p className="text-sm text-foreground/70">
+                  <strong>What you&apos;ll need:</strong>
                 </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Routing Number (9 digits)
-                </label>
-                <input
-                  type="text"
-                  value={bankRoutingNumber}
-                  onChange={(e) => setBankRoutingNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="021000021"
-                  required
-                  maxLength={9}
-                  className="w-full px-4 py-2 rounded-lg bg-background border border-foreground/20 focus:border-foreground/40 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Account Type
-                </label>
-                <select
-                  value={bankAccountType}
-                  onChange={(e) => setBankAccountType(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg bg-background border border-foreground/20 focus:border-foreground/40 focus:outline-none"
-                >
-                  <option value="checking">Checking</option>
-                  <option value="savings">Savings</option>
-                </select>
+                <ul className="text-sm text-foreground/70 mt-2 space-y-1 list-disc list-inside">
+                  <li>Government-issued ID (driver&apos;s license or passport)</li>
+                  <li>Social Security Number or Tax ID</li>
+                  <li>Bank account details</li>
+                  <li>Personal information (address, date of birth)</li>
+                </ul>
               </div>
 
               {message && (
@@ -257,28 +230,29 @@ export default function SettingsPage() {
               )}
 
               <button
-                type="submit"
-                disabled={saving}
+                onClick={handleConnectStripe}
+                disabled={connecting}
                 className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                {saving ? "Saving..." : "Connect Bank Account"}
+                {connecting ? "Redirecting to Stripe..." : "Connect Stripe Account"}
               </button>
 
               <p className="text-xs text-foreground/60 text-center">
-                🔒 Your bank details are encrypted and secure. We never store your full account number.
+                🔒 You&apos;ll be redirected to Stripe&apos;s secure platform. Your banking details are managed by Stripe, never stored on our servers.
               </p>
-            </form>
+            </div>
           )}
         </div>
 
         {/* Additional Info */}
         <div className="mt-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <p className="text-sm text-blue-600 font-medium mb-2">ℹ️ About Cashouts</p>
+          <p className="text-sm text-blue-600 font-medium mb-2">ℹ️ About Stripe Connect</p>
           <ul className="text-xs text-foreground/70 space-y-1 list-disc list-inside">
-            <li>Minimum cashout: $20 USD (20 credits)</li>
-            <li>Processing time: 2-5 business days after admin approval</li>
-            <li>Only earned credits (not purchased credits) can be cashed out</li>
-            <li>7-day escrow release required before cashout eligibility</li>
+            <li>Stripe verifies your identity (required by law for financial transactions)</li>
+            <li>Your bank details are encrypted and stored securely by Stripe</li>
+            <li>Stripe handles tax reporting (1099-K forms if you earn over $600/year)</li>
+            <li>Automated transfers when admin approves cashouts (2-5 business days)</li>
+            <li>Minimum cashout: $20 USD • Only earned credits can be cashed out</li>
           </ul>
         </div>
       </div>

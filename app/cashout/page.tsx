@@ -24,8 +24,8 @@ export default function CashoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [requests, setRequests] = useState<CashoutRequest[]>([]);
-  const [hasBankAccount, setHasBankAccount] = useState(false);
-  const [bankLast4, setBankLast4] = useState("");
+  const [hasStripeAccount, setHasStripeAccount] = useState(false);
+  const [stripeAccountStatus, setStripeAccountStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -36,17 +36,17 @@ export default function CashoutPage() {
           return;
         }
 
-        // Get earned credits and bank account status
+        // Get earned credits and Stripe account status
         const { data: profile } = await supabase
           .from("profiles")
-          .select("earned_credits, bank_account_last4, bank_connected_at")
+          .select("earned_credits, stripe_account_id, stripe_account_status, stripe_onboarding_complete")
           .eq("id", userData.user.id)
           .single();
 
         if (profile) {
           setEarnedCredits(profile.earned_credits || 0);
-          setHasBankAccount(!!profile.bank_connected_at);
-          setBankLast4(profile.bank_account_last4 || "");
+          setHasStripeAccount(!!profile.stripe_account_id && profile.stripe_onboarding_complete);
+          setStripeAccountStatus(profile.stripe_account_status);
         }
 
         // Get cashout requests
@@ -172,26 +172,44 @@ export default function CashoutPage() {
                   You need at least $20 to cash out. You have ${earnedCredits} — earn ${20 - earnedCredits} more to be eligible.
                 </p>
               </div>
-            ) : !hasBankAccount ? (
+            ) : !hasStripeAccount ? (
               <div className="space-y-4">
                 <div className="rounded-lg bg-blue-500/10 p-4 border border-blue-500/20">
-                  <p className="text-sm text-blue-600 font-medium mb-2">🏦 Bank Account Required</p>
-                  <p className="text-sm text-foreground/70">
-                    You need to connect a bank account before requesting a cashout. This is a one-time setup.
+                  <p className="text-sm text-blue-600 font-medium mb-2">💳 Stripe Account Required</p>
+                  <p className="text-sm text-foreground/70 mb-3">
+                    You need to connect a Stripe account before requesting a cashout. Stripe handles identity verification, banking details, and tax reporting.
+                  </p>
+                  <p className="text-xs text-foreground/60">
+                    This is a one-time setup and only takes a few minutes.
                   </p>
                 </div>
                 <button
                   onClick={() => router.push("/settings")}
                   className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
-                  Connect Bank Account in Settings
+                  Connect Stripe Account in Settings
+                </button>
+              </div>
+            ) : stripeAccountStatus !== "active" ? (
+              <div className="space-y-4">
+                <div className="rounded-lg bg-yellow-500/10 p-4 border border-yellow-500/20">
+                  <p className="text-sm text-yellow-700 font-medium mb-2">⚠️ Stripe Onboarding Incomplete</p>
+                  <p className="text-sm text-foreground/70">
+                    Your Stripe account needs additional verification before you can request cashouts. Please complete the onboarding process.
+                  </p>
+                </div>
+                <button
+                  onClick={() => router.push("/settings")}
+                  className="w-full px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium"
+                >
+                  Complete Stripe Onboarding
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="rounded-lg bg-green-500/10 p-3 border border-green-500/20">
                   <p className="text-xs text-green-600">
-                    ✓ Bank account connected: ****{bankLast4}
+                    ✓ Stripe account connected and verified
                   </p>
                 </div>
 

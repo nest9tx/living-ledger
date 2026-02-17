@@ -1,11 +1,11 @@
 import supabaseAdmin from "@/lib/supabase-admin";
 import supabase from "@/lib/supabase";
-// import Stripe from "stripe"; // Reserved for future automated payouts
+import Stripe from "stripe";
 import { Resend } from "resend";
 
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-//   apiVersion: "2026-01-28.clover",
-// });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-01-28.clover",
+});
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -50,10 +50,8 @@ export async function POST(req: Request) {
         profiles!inner(
           username,
           email,
-          bank_account_name,
-          bank_account_last4,
-          bank_routing_number,
-          bank_account_type
+          stripe_account_id,
+          stripe_account_status
         )
       `)
       .eq("id", cashout_id)
@@ -102,15 +100,52 @@ export async function POST(req: Request) {
       console.error("Transaction error:", txError);
     }
 
-    // Log manual payout info for admin
-    const profile = cashout.profiles;
-    console.log("\n=== MANUAL PAYOUT REQUIRED ===");
-    console.log(`Amount: $${cashout.amount_usd}`);
-    console.log(`User: ${profile.username} (${profile.email})`);
-    console.log(`Bank: ${profile.bank_account_name} (****${profile.bank_account_last4})`);
-    console.log(`Routing: ${profile.bank_routing_number}`);
-    console.log(`Type: ${profile.bank_account_type}`);
-    console.log("==============================\n");
+    // Process automated Stripe transfer
+    let transferSuccessful = false;
+    try {
+      const profile = cashout.profiles;
+      
+      if (!profile.stripe_account_id) {
+        throw new Error("User has not connected a Stripe account");
+      }
+
+      if (profile.stripe_account_status !== "active") {
+        throw new Error("User's Stripe account is not fully verified");
+      }
+
+      // Create transfer to connected account
+      const transfer = await stripe.transfers.create({
+        amount: Math.round(cashout.amount_usd * 100), // Convert to cents
+        currency: "usd",
+        destination: profile.stripe_account_id,
+        description: `Living Ledger Cashout #${cashout_id} for ${cashout.amount_credits} credits`,
+        metadata: {
+          cashout_id: cashout_id.toString(),
+          user_id: cashout.user_id,
+          username: profile.username,
+        },
+      });
+
+      console.log(`✓ Stripe transfer created: ${transfer.id} for $${cashout.amount_usd}`);
+      transferSuccessful = true;
+
+      // Optionally update cashout with transfer ID
+      await supabaseAdmin
+        .from("cashout_requests")
+        .update({ 
+          paid_at: new Date().toISOString(),
+          status: "paid",
+        })
+        .eq("id", cashout_id);
+
+    } catch (stripeError: unknown) {
+      console.error("Stripe transfer error:", stripeError);
+      console.log("\n⚠️ FALLBACK: Manual payout may be required");
+      console.log(`Cashout ID: ${cashout_id}`);
+      console.log(`Amount: $${cashout.amount_usd}`);
+      console.log(`User: ${cashout.profiles.username} (${cashout.profiles.email})`);
+      // Don't fail the approval - admin can handle manually
+    }
 
     // Send email notification
     try {
@@ -121,14 +156,14 @@ export async function POST(req: Request) {
         html: `
           <h2>Your cashout has been approved!</h2>
           <p>Hi ${cashout.profiles.username},</p>
-          <p>Great news! Your cashout request has been approved by our admin team.</p>
+          <p>Great news! Your cashout request has been approved${transferSuccessful ? " and payment has been sent" : ""}.</p>
           
           <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0;"><strong>Amount:</strong> $${cashout.amount_usd} USD</p>
-            <p style="margin: 8px 0 0 0;"><strong>Bank Account:</strong> ****${cashout.profiles.bank_account_last4}</p>
+            ${transferSuccessful ? `<p style="margin: 8px 0 0 0;"><strong>Status:</strong> Payment sent to your Stripe account</p>` : ""}
           </div>
           
-          <p>Your payment will arrive in your bank account within <strong>2-5 business days</strong>.</p>
+          <p>Your payment will arrive in your ${transferSuccessful ? "Stripe account (then to your bank)" : "bank account"} within <strong>2-5 business days</strong>.</p>
           
           ${admin_note ? `<p><strong>Admin Note:</strong> ${admin_note}</p>` : ""}
           
@@ -148,8 +183,11 @@ export async function POST(req: Request) {
     return Response.json({
       success: true,
       cashoutId: cashout_id,
-      status: "approved",
-      message: "Cashout approved. User notified via email. Payment will process within 2-5 business days.",
+      status: transferSuccessful ? "paid" : "approved",
+      transferSuccessful,
+      message: transferSuccessful 
+        ? "Cashout approved and payment transferred to user's Stripe account."
+        : "Cashout approved. User notified via email. Check console for manual payout info if transfer failed.",
     });
   } catch (error) {
     console.error("Admin approve cashout error:", error);
