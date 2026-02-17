@@ -7,7 +7,6 @@ const supabaseAdmin = createClient(
 );
 
 const PLATFORM_FEE_RATE = 0.15;
-const SAFETY_HOLD_DAYS = 7;
 
 export async function POST(req: Request) {
   try {
@@ -58,35 +57,50 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // ========== RELEASE LOGIC ==========
+    // ========== NEW RELEASE LOGIC ==========
     // Funds are ONLY released if:
-    // 1. Status is "confirmed" (both parties confirmed), OR
-    // 2. Status is "delivered" AND 7 days have passed since delivery
-    // ===================================
+    // 1. Both parties confirmed AND 7 days have passed since delivery
+    // 2. Admin has resolved a dispute in favor of provider
+    // NO automatic releases - requires mutual agreement OR admin decision
+    // =======================================
 
     const now = new Date();
     const releaseAvailableAt = escrow.release_available_at ? new Date(escrow.release_available_at) : null;
+    const bothConfirmed = escrow.payer_confirmed_at && escrow.provider_confirmed_at;
 
-    // Case 1: Both confirmed - can release immediately
-    if (escrow.status === "confirmed") {
+    // Check if in dispute
+    if (escrow.status === "disputed") {
+      return NextResponse.json(
+        { error: "Escrow is in dispute - awaiting admin resolution" },
+        { status: 400 }
+      );
+    }
+
+    // Case 1: Both confirmed AND 7 days have passed - ONLY release condition
+    if (bothConfirmed && releaseAvailableAt && now >= releaseAvailableAt) {
       return releaseEscrow(escrowId, user.id, escrow);
     }
 
-    // Case 2: 7 days have passed since delivery
-    if (escrow.status === "delivered" && releaseAvailableAt && now >= releaseAvailableAt) {
-      return releaseEscrow(escrowId, user.id, escrow);
-    }
-
-    // Case 3: Not ready yet
-    if (escrow.status === "delivered") {
-      const daysRemaining = releaseAvailableAt
-        ? Math.ceil((releaseAvailableAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        : SAFETY_HOLD_DAYS;
+    // Case 2: Both confirmed but 7 days hasn't passed yet
+    if (bothConfirmed && releaseAvailableAt) {
+      const daysRemaining = Math.ceil((releaseAvailableAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return NextResponse.json(
         {
-          error: `Safety hold in place. Available for release in ${daysRemaining} day(s)`,
-          status: "held",
+          error: `Both parties confirmed! Funds will be released in ${daysRemaining} day(s) (minimum 7-day safety period)`,
+          status: "confirmed_pending",
           daysRemaining,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Case 3: Time has passed but not both confirmed - NO AUTO RELEASE
+    if (releaseAvailableAt && now >= releaseAvailableAt && !bothConfirmed) {
+      return NextResponse.json(
+        {
+          error: "Escrow requires mutual agreement to release. If there's an issue, please file a dispute.",
+          status: "requires_agreement",
+          canDispute: true,
         },
         { status: 400 }
       );
