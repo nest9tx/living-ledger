@@ -66,6 +66,11 @@ export async function POST(req: Request) {
     }
 
     const credits = escrow.credits_held || 0;
+    const listingLabel = escrow.offer_id
+      ? `Offer #${escrow.offer_id}`
+      : escrow.request_id
+        ? `Request #${escrow.request_id}`
+        : "Listing";
     if (credits < 1) {
       return Response.json({ error: "Invalid escrow amount" }, { status: 400 });
     }
@@ -78,7 +83,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: escrow.provider_id,
         amount: providerCredits,
-        description: `Escrow release (${credits})`,
+        description: `Escrow release for ${listingLabel} (${credits} credits)`,
         transaction_type: "earned",
         credit_source: "earned",
         related_offer_id: escrow.offer_id,
@@ -97,7 +102,7 @@ export async function POST(req: Request) {
         .insert({
           user_id: escrow.provider_id,
           amount: -fee,
-          description: `Platform fee (15%)`,
+          description: `Platform fee (15%) for ${listingLabel}`,
           transaction_type: "platform_fee",
           related_offer_id: escrow.offer_id,
           related_request_id: escrow.request_id,

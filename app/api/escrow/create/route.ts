@@ -31,11 +31,11 @@ export async function POST(req: Request) {
     const secondaryTable = requestedType === "offer" ? "requests" : "offers";
 
     const primarySelect = requestedType === "offer"
-      ? "id, user_id, price_credits"
-      : "id, user_id, budget_credits";
+      ? "id, user_id, price_credits, title"
+      : "id, user_id, budget_credits, title";
     const secondarySelect = requestedType === "offer"
-      ? "id, user_id, budget_credits"
-      : "id, user_id, price_credits";
+      ? "id, user_id, budget_credits, title"
+      : "id, user_id, price_credits, title";
 
     const { data: primaryPost, error: primaryError } = await supabaseAdmin
       .from(primaryTable)
@@ -87,6 +87,8 @@ export async function POST(req: Request) {
     }
 
     const credits = "price_credits" in post ? post.price_credits : post.budget_credits;
+    const postTitle = "title" in post ? post.title : null;
+    const titleSuffix = postTitle ? `: ${postTitle}` : "";
     if (!credits || credits < 1) {
       return Response.json({ error: "Invalid credit amount" }, { status: 400 });
     }
@@ -133,7 +135,7 @@ export async function POST(req: Request) {
     const { error: txError } = await supabaseAdmin.from("transactions").insert({
       user_id: userData.user.id,
       amount: -credits,
-      description: `Escrow hold for ${postType} #${postId}`,
+      description: `Escrow hold for ${postType} #${postId}${titleSuffix}`,
       transaction_type: "escrow_hold",
       related_offer_id: postType === "offer" ? postId : null,
       related_request_id: postType === "request" ? postId : null,

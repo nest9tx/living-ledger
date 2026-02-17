@@ -77,7 +77,7 @@ export async function POST(req: Request) {
           .insert({
             user_id: userId,
             amount: credits,
-            description: `Credit purchase (${credits})`,
+            description: `Credit purchase (${credits} credits)`,
             transaction_type: 'purchase',
             credit_source: 'purchase',
             stripe_payment_intent_id: paymentIntentId,

@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: cashout.user_id,
         amount: cashout.amount_credits,
-        description: `Cashout rejected by admin (credits returned): ${admin_note || ""}`,
+        description: `Cashout #${cashout_id} rejected by admin (credits returned)${admin_note ? `: ${admin_note}` : ""}`,
         transaction_type: "cashout_rejected",
         credit_source: "earned",
         can_cashout: true,

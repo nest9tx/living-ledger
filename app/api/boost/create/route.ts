@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const table = postType === "offer" ? "offers" : "requests";
     const { data: post, error: postError } = await supabaseAdmin
       .from(table)
-      .select("id, user_id, category_id, last_boosted_homepage_at, last_boosted_category_at")
+      .select("id, user_id, title, category_id, last_boosted_homepage_at, last_boosted_category_at")
       .eq("id", postId)
       .maybeSingle();
 
@@ -168,13 +168,15 @@ export async function POST(req: Request) {
       return Response.json({ error: "Failed to create boost" }, { status: 500 });
     }
 
+    const titleSuffix = post?.title ? `: ${post.title}` : "";
+
     // Deduct credits via transaction
     const { error: transactionError } = await supabaseAdmin
       .from("transactions")
       .insert({
         user_id: userData.user.id,
         amount: -creditsSpent,
-        description: `${tier === "homepage" ? "Homepage" : "Category"} boost (${durationDays} day${durationDays > 1 ? "s" : ""})`,
+        description: `${tier === "homepage" ? "Homepage" : "Category"} boost (${durationDays} day${durationDays > 1 ? "s" : ""}) for ${postType} #${postId}${titleSuffix}`,
         transaction_type: "boost",
         related_offer_id: postType === "offer" ? postId : null,
         related_request_id: postType === "request" ? postId : null,

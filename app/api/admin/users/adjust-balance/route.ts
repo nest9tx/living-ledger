@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("transactions").insert({
       user_id: userId,
       amount: amountInt,
-      description: `Admin adjustment: ${reason}`,
+      description: `Admin adjustment (${creditType}): ${reason}`,
       transaction_type: "admin_adjustment",
       credit_source: creditType === "earned" ? "earned" : "purchased",
       can_cashout: creditType === "earned",

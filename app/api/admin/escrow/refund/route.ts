@@ -50,6 +50,11 @@ export async function POST(req: Request) {
     }
 
     const credits = escrow.credits_held || 0;
+    const listingLabel = escrow.offer_id
+      ? `Offer #${escrow.offer_id}`
+      : escrow.request_id
+        ? `Request #${escrow.request_id}`
+        : "Listing";
     if (credits < 1) {
       return Response.json({ error: "Invalid escrow amount" }, { status: 400 });
     }
@@ -59,7 +64,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: escrow.payer_id,
         amount: credits,
-        description: `Escrow refund (${credits})`,
+        description: `Escrow refund for ${listingLabel} (${credits} credits)`,
         transaction_type: "refund",
         credit_source: "refund",
         related_offer_id: escrow.offer_id,

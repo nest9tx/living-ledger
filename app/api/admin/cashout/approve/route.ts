@@ -90,7 +90,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: cashout.user_id,
         amount: -cashout.amount_credits,
-        description: `Cashout approved by admin ($${cashout.amount_credits})`,
+        description: `Cashout #${cashout_id} approved by admin ($${cashout.amount_credits})`,
         transaction_type: "cashout_approved",
         credit_source: "earned",
         can_cashout: false,

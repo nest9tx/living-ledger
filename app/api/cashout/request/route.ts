@@ -75,7 +75,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: userData.user.id,
         amount: -amount_credits,
-        description: `Cashout request pending admin approval ($${amount_credits})`,
+        description: `Cashout request #${cashout.id} pending admin approval ($${amount_credits})`,
         transaction_type: "cashout_hold",
         credit_source: "earned",
         can_cashout: false,
