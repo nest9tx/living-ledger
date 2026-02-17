@@ -21,12 +21,60 @@ type Listing = {
   title: string;
 };
 
+type NotificationItem = {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+};
+
 export default function OrdersPanel() {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [requestMap, setRequestMap] = useState<Record<number, Listing>>({});
   const [offerMap, setOfferMap] = useState<Record<number, Listing>>({});
+
+  // Mark order-related notifications as read when component loads
+  const markOrderNotificationsAsRead = async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+
+      // Get unread order-related notifications
+      const notificationsRes = await fetch("/api/notifications?unread=true", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (notificationsRes.ok) {
+        const data = await notificationsRes.json();
+        const orderNotifications = data.notifications.filter((n: NotificationItem) => 
+          n.type === "new_order" || n.type === "dispute_filed" || n.type === "order_completed"
+        );
+
+        if (orderNotifications.length > 0) {
+          await fetch("/api/notifications", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              action: "markRead",
+              notificationIds: orderNotifications.map((n: NotificationItem) => n.id),
+            }),
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to mark notifications as read:", error);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -93,6 +141,9 @@ export default function OrdersPanel() {
 
           setOfferMap(map);
         }
+
+        // Mark order-related notifications as read
+        await markOrderNotificationsAsRead();
       } finally {
         setLoading(false);
       }

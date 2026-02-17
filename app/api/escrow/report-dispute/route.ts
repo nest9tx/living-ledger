@@ -97,6 +97,22 @@ export async function POST(req: Request) {
     console.log("Email debug:", { reporterEmail, otherEmail, reporterRole, otherUserId });
     
     const listingTitle = escrow.offer_id ? `Offer #${escrow.offer_id}` : `Request #${escrow.request_id}`;
+
+    // Create notification for the other party
+    const { error: notifyError } = await supabaseAdmin.rpc("create_notification", {
+      target_user_id: otherUserId,
+      notification_type: "dispute_filed",
+      notification_title: `Dispute Filed - ${listingTitle}`,
+      notification_message: `A dispute has been filed for ${listingTitle}. Please review the details and respond promptly.`,
+      escrow_id: escrowId,
+      offer_id: escrow.offer_id || null,
+      request_id: escrow.request_id || null
+    });
+
+    if (notifyError) {
+      console.error("Failed to create notification:", notifyError);
+      // Don't fail the dispute creation if notification fails
+    }
     const listingUrl = escrow.offer_id 
       ? `${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/listing/offer/${escrow.offer_id}`
       : `${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/listing/request/${escrow.request_id}`;

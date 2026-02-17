@@ -147,6 +147,22 @@ export async function POST(req: Request) {
       return Response.json({ error: "Failed to record transaction" }, { status: 500 });
     }
 
+    // Create notification for the provider about new order
+    const { error: notifyError } = await supabaseAdmin.rpc("create_notification", {
+      target_user_id: post.user_id,
+      notification_type: "new_order",
+      notification_title: `New Order - ${post.title}`,
+      notification_message: `You have a new order for "${post.title}". Credits are held in escrow until completion.`,
+      escrow_id: escrow.id,
+      offer_id: postType === "offer" ? postId : null,
+      request_id: postType === "request" ? postId : null
+    });
+
+    if (notifyError) {
+      console.error("Failed to create notification:", notifyError);
+      // Don't fail the escrow creation if notification fails
+    }
+
     return Response.json({
       escrowId: escrow.id,
       creditsHeld: credits,

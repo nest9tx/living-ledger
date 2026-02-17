@@ -12,6 +12,7 @@ import OrdersPanel from "@/app/components/OrdersPanel";
 import MyListings from "@/app/components/MyListings";
 import ContributionHistory from "@/app/components/ContributionHistory";
 import MessagesInbox from "@/app/components/MessagesInbox";
+import NotificationBadge from "@/app/components/NotificationBadge";
 
 type DashboardUser = {
   email?: string;
@@ -180,13 +181,14 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+            className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
               activeTab === "orders"
                 ? "border-b-2 border-foreground text-foreground"
                 : "text-foreground/60 hover:text-foreground"
             }`}
           >
             Current Orders
+            <NotificationBadge />
           </button>
           <button
             onClick={() => setActiveTab("request")}
