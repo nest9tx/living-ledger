@@ -157,6 +157,37 @@ export default function SettingsPage() {
     }
   };
 
+  const handleResetStripe = async () => {
+    setConnecting(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch("/api/stripe/connect/reset", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reset Stripe connection");
+      }
+
+      setStripeStatus({ connected: false, status: null });
+      setMessage("Stripe connection reset. You can connect again.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to reset Stripe connection");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6">
@@ -212,13 +243,22 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              <button
-                onClick={handleConnectStripe}
-                disabled={connecting}
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Update Stripe account details
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={connecting}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Update Stripe account details
+                </button>
+                <button
+                  onClick={handleResetStripe}
+                  disabled={connecting}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  Reset Stripe connection
+                </button>
+              </div>
             </div>
           ) : stripeStatus?.connected && stripeStatus?.status === "pending" ? (
             <div className="space-y-4">
