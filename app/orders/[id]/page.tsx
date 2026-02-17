@@ -276,6 +276,53 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleCancelDispute = async () => {
+    if (!escrow) return;
+    
+    if (!confirm("Are you sure you want to cancel this dispute? The order will return to normal escrow process.")) {
+      return;
+    }
+    
+    setActionLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      const res = await fetch("/api/escrow/cancel-dispute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ escrowId: escrow.id }),
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to cancel dispute");
+      }
+
+      setEscrow({
+        ...escrow,
+        status: "held",
+        dispute_status: null,
+        dispute_reported_at: null,
+        dispute_reason: null,
+      } as Escrow);
+      setNotice("Dispute cancelled successfully. Order returned to normal escrow process.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to cancel dispute");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -450,6 +497,17 @@ export default function OrderDetailPage() {
             className="w-full rounded-md border border-red-500/40 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-500/5 disabled:opacity-60"
           >
             {actionLoading ? "Submitting…" : "Report Issue / Dispute"}
+          </button>
+        )}
+
+        {/* Cancel Dispute Button - Available only to the person who reported it */}
+        {escrow.status === "disputed" && escrow.dispute_status === "open" && (
+          <button
+            onClick={handleCancelDispute}
+            disabled={actionLoading}
+            className="w-full rounded-md border border-orange-500/40 px-4 py-3 text-sm font-medium text-orange-600 hover:bg-orange-500/5 disabled:opacity-60"
+          >
+            {actionLoading ? "Cancelling…" : "Cancel Dispute"}
           </button>
         )}
 
