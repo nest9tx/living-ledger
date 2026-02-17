@@ -226,9 +226,17 @@ export default function SettingsPage() {
         {/* Stripe Connect Section */}
         <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
           <h2 className="text-xl font-semibold mb-2">💰 Stripe Connect (For Cashouts)</h2>
-          <p className="text-sm text-foreground/60 mb-6">
+          <p className="text-sm text-foreground/60 mb-4">
             Connect your Stripe account to receive cashout payments. Stripe handles all banking details, identity verification, and tax reporting.
           </p>
+
+          {/* Lumina Nova Disclosure */}
+          <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 mb-6">
+            <p className="text-xs font-semibold text-blue-600 mb-2">ⓘ ABOUT THIS CONNECTION</p>
+            <p className="text-xs text-foreground/70 leading-relaxed">
+              When you connect your Stripe account, payouts will be processed through <strong>Lumina Nova</strong>, our parent 501(c)(3) organization. Your banking details are securely encrypted and never stored on our servers—they remain with Stripe. Stripe handles all identity verification (KYC), tax reporting (1099-K), and fraud protection.
+            </p>
+          </div>
 
           {stripeStatus?.connected && stripeStatus?.status === "active" ? (
             <div className="space-y-4">
@@ -328,7 +336,6 @@ export default function SettingsPage() {
             <li>Stripe handles tax reporting (1099-K forms if you earn over $600/year)</li>
             <li>Automated transfers when admin approves cashouts (2-5 business days)</li>
             <li>Minimum cashout: $20 USD • Only earned credits can be cashed out</li>
-            <li>testing updates</li>
           </ul>
         </div>
       </div>
