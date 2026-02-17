@@ -28,14 +28,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "Invalid escrow" }, { status: 400 });
     }
 
-    // Get escrow details with user profiles and listing info
+    // Get escrow details
     const { data: escrow, error: escrowError } = await supabaseAdmin
       .from("credit_escrow")
-      .select(`
-        id, payer_id, provider_id, status, credits_held, offer_id, request_id,
-        payer:profiles!credit_escrow_payer_id_fkey(username),
-        provider:profiles!credit_escrow_provider_id_fkey(username)
-      `)
+      .select("id, payer_id, provider_id, status, credits_held, offer_id, request_id")
       .eq("id", escrowId)
       .maybeSingle();
 
@@ -54,7 +50,21 @@ export async function POST(req: Request) {
 
     const reporterRole = escrow.payer_id === userData.user.id ? "buyer" : "provider";
     const otherUserId = reporterRole === "buyer" ? escrow.provider_id : escrow.payer_id;
-    const reporterUsername = reporterRole === "buyer" ? escrow.payer?.[0]?.username : escrow.provider?.[0]?.username;
+
+    // Get usernames for email notifications
+    const { data: payerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("username")
+      .eq("id", escrow.payer_id)
+      .single();
+
+    const { data: providerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("username")
+      .eq("id", escrow.provider_id)
+      .single();
+
+    const reporterUsername = reporterRole === "buyer" ? payerProfile?.username : providerProfile?.username;
 
     // Update escrow status
     const { error: updateError } = await supabaseAdmin
