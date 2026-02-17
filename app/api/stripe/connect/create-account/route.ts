@@ -25,12 +25,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const fallbackUsername =
+      (user.user_metadata as { username?: string } | undefined)?.username ||
+      (user.email ? user.email.split("@")[0] : "user");
+
     // Check if user already has Stripe Connect account
-    const { data: profile } = await supabaseAdmin
+    let { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("stripe_account_id, email, username")
+      .select("stripe_account_id, username")
       .eq("id", user.id)
       .single();
+
+    if (!profile) {
+      const { data: createdProfile } = await supabaseAdmin
+        .from("profiles")
+        .upsert(
+          {
+            id: user.id,
+            username: fallbackUsername,
+            onboarding_complete: false,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" }
+        )
+        .select("stripe_account_id, username")
+        .single();
+
+      profile = createdProfile || null;
+    }
 
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -50,7 +72,7 @@ export async function POST(req: Request) {
         business_type: "individual",
         metadata: {
           user_id: user.id,
-          username: profile.username,
+          username: profile.username || fallbackUsername,
         },
       });
 

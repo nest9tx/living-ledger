@@ -6,8 +6,8 @@ import Link from "next/link";
 
 type UserProfile = {
   username: string;
-  email: string;
-  created_at: string;
+  email: string | null;
+  created_at: string | null;
   stripe_account_id: string | null;
   stripe_account_status: string | null;
   stripe_onboarding_complete: boolean | null;
@@ -39,19 +39,52 @@ export default function SettingsPage() {
         return;
       }
 
+      const fallbackEmail = session.user.email ?? null;
+      const fallbackUsername =
+        session.user.user_metadata?.username ||
+        (fallbackEmail ? fallbackEmail.split("@")[0] : "user");
+
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, email, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at")
+        .select("username, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at")
         .eq("id", session.user.id)
         .single();
 
       if (profile) {
-        setUser(profile);
-        
+        setUser({
+          ...profile,
+          email: fallbackEmail,
+        });
+
         // Check Stripe Connect status if account exists
         if (profile.stripe_account_id) {
           await checkStripeStatus(session.access_token);
         }
+      } else {
+        // Create a minimal profile if missing
+        const { data: createdProfile } = await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id: session.user.id,
+              username: fallbackUsername,
+              onboarding_complete: false,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "id" }
+          )
+          .select("username, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at")
+          .single();
+
+        setUser({
+          username: createdProfile?.username || fallbackUsername,
+          email: fallbackEmail,
+          created_at: createdProfile?.created_at || null,
+          stripe_account_id: createdProfile?.stripe_account_id || null,
+          stripe_account_status: createdProfile?.stripe_account_status || null,
+          stripe_onboarding_complete: createdProfile?.stripe_onboarding_complete || null,
+          stripe_connected_at: createdProfile?.stripe_connected_at || null,
+        });
       }
 
       setLoading(false);
