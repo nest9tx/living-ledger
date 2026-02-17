@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import supabase from "@/lib/supabase";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 
 type UserProfile = {
   username: string;
@@ -25,7 +24,6 @@ type StripeStatus = {
 };
 
 export default function SettingsPage() {
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -81,17 +79,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadUserSettings();
-    
-    // Check for return from Stripe onboarding
-    const stripeConnected = searchParams.get("stripe_connected");
-    const stripeRefresh = searchParams.get("stripe_refresh");
-    
-    if (stripeConnected === "true") {
-      setMessage("✓ Stripe account connected successfully! You can now request cashouts.");
-    } else if (stripeRefresh === "true") {
-      setError("Stripe onboarding was not completed. Please try again.");
+
+    // Check for return from Stripe onboarding (client-side only)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const stripeConnected = params.get("stripe_connected");
+      const stripeRefresh = params.get("stripe_refresh");
+
+      if (stripeConnected === "true") {
+        setMessage("✓ Stripe account connected successfully! You can now request cashouts.");
+      } else if (stripeRefresh === "true") {
+        setError("Stripe onboarding was not completed. Please try again.");
+      }
     }
-  }, [loadUserSettings, searchParams]);
+  }, [loadUserSettings]);
 
   const handleConnectStripe = async () => {
     setConnecting(true);
