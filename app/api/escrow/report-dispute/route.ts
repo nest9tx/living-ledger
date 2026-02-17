@@ -95,6 +95,9 @@ export async function POST(req: Request) {
     const otherEmail = otherAuth?.user?.email;
     
     const listingTitle = escrow.offer_id ? `Offer #${escrow.offer_id}` : `Request #${escrow.request_id}`;
+    const listingUrl = escrow.offer_id 
+      ? `${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/listing/offer/${escrow.offer_id}`
+      : `${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/listing/request/${escrow.request_id}`;
     
     // Send email to the other party (dispute notification)
     if (otherEmail) {
@@ -108,7 +111,7 @@ export async function POST(req: Request) {
               <h2 style="color: #dc2626;">Dispute Filed on Your Order</h2>
               
               <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <p><strong>Order #${escrowId}</strong> has a dispute that requires your immediate attention.</p>
+                <p><strong>${listingTitle}</strong> has a dispute that requires your immediate attention.</p>
               </div>
               
               <div style="margin: 16px 0;">
@@ -129,9 +132,9 @@ export async function POST(req: Request) {
               </div>
               
               <div style="text-align: center; margin: 24px 0;">
-                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/orders/${escrowId}" 
+                <a href="${listingUrl}" 
                    style="background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
-                  View Order Details
+                  View Listing Details
                 </a>
               </div>
               
@@ -159,7 +162,7 @@ export async function POST(req: Request) {
             <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #059669;">Dispute Successfully Submitted</h2>
               
-              <p>Your dispute for <strong>Order #${escrowId}</strong> (${listingTitle}) has been submitted successfully.</p>
+              <p>Your dispute for <strong>${listingTitle}</strong> has been submitted successfully.</p>
               
               <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 8px; margin: 16px 0;">
                 <h3 style="margin: 0 0 8px 0; color: #065f46;">Next Steps:</h3>
@@ -172,9 +175,9 @@ export async function POST(req: Request) {
               </div>
               
               <div style="text-align: center; margin: 24px 0;">
-                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/orders/${escrowId}" 
+                <a href="${listingUrl}" 
                    style="background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
-                  Track Dispute Status
+                  View Listing
                 </a>
               </div>
               
