@@ -181,7 +181,7 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap transition ${
+            className={`relative pl-4 pr-8 py-3 text-sm font-medium whitespace-nowrap transition ${
               activeTab === "orders"
                 ? "border-b-2 border-foreground text-foreground"
                 : "text-foreground/60 hover:text-foreground"
