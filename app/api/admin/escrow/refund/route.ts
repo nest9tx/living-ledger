@@ -1,5 +1,8 @@
 import supabase from "@/lib/supabase";
 import supabaseAdmin from "@/lib/supabase-admin";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
   try {
@@ -37,7 +40,11 @@ export async function POST(req: Request) {
 
     const { data: escrow, error: escrowError } = await supabaseAdmin
       .from("credit_escrow")
-      .select("id, payer_id, credits_held, status, offer_id, request_id")
+      .select(`
+        id, payer_id, provider_id, credits_held, status, offer_id, request_id,
+        payer:profiles!credit_escrow_payer_id_fkey(username),
+        provider:profiles!credit_escrow_provider_id_fkey(username)
+      `)
       .eq("id", escrowId)
       .maybeSingle();
 
@@ -90,6 +97,97 @@ export async function POST(req: Request) {
     if (updateError) {
       console.error("Admin escrow update error:", updateError);
       return Response.json({ error: "Failed to update escrow" }, { status: 500 });
+    }
+
+    // Send resolution emails to both parties
+    const { data: providerAuth } = await supabaseAdmin.auth.admin.getUserById(escrow.provider_id);
+    const { data: payerAuth } = await supabaseAdmin.auth.admin.getUserById(escrow.payer_id);
+    
+    const providerEmail = providerAuth?.user?.email;
+    const payerEmail = payerAuth?.user?.email;
+    const listingTitle = escrow.offer_id ? `Offer #${escrow.offer_id}` : `Request #${escrow.request_id}`;
+
+    // Email to payer (winner - getting refund)
+    if (payerEmail) {
+      try {
+        await resend.emails.send({
+          from: "Living Ledger Support <support@livingledger.org>",
+          to: [payerEmail],
+          subject: `✅ Dispute Resolved - Refund Issued for Order #${escrowId}`,
+          html: `
+            <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #059669;">Dispute Resolved - Refund Issued</h2>
+              
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                <p><strong>Good news!</strong> The dispute for Order #${escrowId} has been resolved in your favor.</p>
+              </div>
+              
+              <div style="margin: 16px 0;">
+                <p><strong>Order:</strong> ${listingTitle}</p>
+                <p><strong>Credits Refunded:</strong> ${escrow.credits_held}</p>
+                ${adminNote ? `<p><strong>Admin Note:</strong> ${adminNote}</p>` : ''}
+              </div>
+              
+              <div style="background: #fffbeb; border: 1px solid #fed7aa; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                <p><strong>💰 Your credits have been refunded to your account!</strong></p>
+                <p>You can use these credits for new orders or request a cashout from your dashboard.</p>
+              </div>
+              
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/dashboard" 
+                   style="background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                  View Dashboard
+                </a>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+                This is an automated message from Living Ledger. Please do not reply to this email.
+                Contact support@livingledger.org if you need assistance.
+              </p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Failed to send refund email to payer:", emailError);
+      }
+    }
+
+    // Email to provider (notification)
+    if (providerEmail) {
+      try {
+        await resend.emails.send({
+          from: "Living Ledger Support <support@livingledger.org>",
+          to: [providerEmail],
+          subject: `📋 Dispute Resolved - Order #${escrowId}`,
+          html: `
+            <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #374151;">Dispute Resolution Complete</h2>
+              
+              <p>The dispute for <strong>Order #${escrowId}</strong> (${listingTitle}) has been resolved by our admin team.</p>
+              
+              <div style="background: #f3f4f6; border: 1px solid #d1d5db; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                <p><strong>Resolution:</strong> Credits have been refunded to the buyer</p>
+                <p><strong>Order Status:</strong> Refunded</p>
+                ${adminNote ? `<p><strong>Admin Note:</strong> ${adminNote}</p>` : ''}
+              </div>
+              
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://livingledger.org'}/orders/${escrowId}" 
+                   style="background: #374151; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                  View Order Details
+                </a>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+                This is an automated message from Living Ledger. Please do not reply to this email.
+                Contact support@livingledger.org if you need assistance.
+              </p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Failed to send refund email to provider:", emailError);
+      }
     }
 
     return Response.json({ success: true });
