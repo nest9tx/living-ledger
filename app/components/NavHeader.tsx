@@ -58,7 +58,7 @@ export default function NavHeader() {
   };
 
   // Hide nav on auth pages
-  const hideNavPages = ["/login", "/signup", "/forgot-password", "/reset-password", "/onboarding", "/cashout"];
+  const hideNavPages = ["/login", "/signup", "/forgot-password", "/reset-password", "/onboarding"];
   if (hideNavPages.includes(pathname)) return null;
 
   return (
@@ -85,6 +85,12 @@ export default function NavHeader() {
                 className="text-sm px-3 py-1 rounded-md border border-foreground/20 hover:bg-foreground/5"
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/settings"
+                className="text-sm hover:text-foreground/70"
+              >
+                Settings
               </Link>
               <span className="text-sm text-foreground/70">{user.email}</span>
               <button

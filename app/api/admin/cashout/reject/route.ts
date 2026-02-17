@@ -1,5 +1,8 @@
 import supabaseAdmin from "@/lib/supabase-admin";
 import supabase from "@/lib/supabase";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function POST(req: Request) {
   try {
@@ -34,10 +37,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "Cashout ID required" }, { status: 400 });
     }
 
-    // Get cashout request
+    // Get cashout request with user profile
     const { data: cashout } = await supabaseAdmin
       .from("cashout_requests")
-      .select("*")
+      .select(`
+        *,
+        profiles!inner(username, email)
+      `)
       .eq("id", cashout_id)
       .single();
 
@@ -96,11 +102,44 @@ export async function POST(req: Request) {
       console.error("Transaction error:", txError);
     }
 
+    // Send email notification
+    try {
+      await resend.emails.send({
+        from: "Living Ledger <support@livingledger.org>",
+        to: cashout.profiles.email,
+        subject: "Cashout Request Update",
+        html: `
+          <h2>Cashout Request Status Update</h2>
+          <p>Hi ${cashout.profiles.username},</p>
+          <p>We're writing to inform you about your recent cashout request.</p>
+          
+          <div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+            <p style="margin: 0; color: #dc2626;"><strong>Status:</strong> Request Declined</p>
+            <p style="margin: 8px 0 0 0;"><strong>Amount:</strong> $${cashout.amount_usd} USD</p>
+          </div>
+          
+          <p><strong>Reason:</strong> ${admin_note || "Please contact support for more information."}</p>
+          
+          <p>Your <strong>$${cashout.amount_credits} credits</strong> have been returned to your earned balance and are available for use or future cashout requests.</p>
+          
+          <p>If you have questions about this decision, please reply to this email or contact our support team.</p>
+          
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;" />
+          <p style="font-size: 12px; color: #6b7280;">
+            Questions? Reply to this email or visit <a href="${process.env.NEXT_PUBLIC_APP_URL}">livingledger.org</a>
+          </p>
+        `,
+      });
+    } catch (emailError: unknown) {
+      console.error("Email notification error:", emailError);
+      // Don't fail the rejection if email fails
+    }
+
     return Response.json({
       success: true,
       cashoutId: cashout_id,
       status: "rejected",
-      message: "Cashout rejected. Credits returned to user.",
+      message: "Cashout rejected. User notified via email. Credits returned to user.",
     });
   } catch (error) {
     console.error("Admin reject cashout error:", error);

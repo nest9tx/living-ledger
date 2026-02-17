@@ -24,6 +24,8 @@ export default function CashoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [requests, setRequests] = useState<CashoutRequest[]>([]);
+  const [hasBankAccount, setHasBankAccount] = useState(false);
+  const [bankLast4, setBankLast4] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -34,15 +36,17 @@ export default function CashoutPage() {
           return;
         }
 
-        // Get earned credits
+        // Get earned credits and bank account status
         const { data: profile } = await supabase
           .from("profiles")
-          .select("earned_credits")
+          .select("earned_credits, bank_account_last4, bank_connected_at")
           .eq("id", userData.user.id)
           .single();
 
         if (profile) {
           setEarnedCredits(profile.earned_credits || 0);
+          setHasBankAccount(!!profile.bank_connected_at);
+          setBankLast4(profile.bank_account_last4 || "");
         }
 
         // Get cashout requests
@@ -168,8 +172,29 @@ export default function CashoutPage() {
                   You need at least $20 to cash out. You have ${earnedCredits} — earn ${20 - earnedCredits} more to be eligible.
                 </p>
               </div>
+            ) : !hasBankAccount ? (
+              <div className="space-y-4">
+                <div className="rounded-lg bg-blue-500/10 p-4 border border-blue-500/20">
+                  <p className="text-sm text-blue-600 font-medium mb-2">🏦 Bank Account Required</p>
+                  <p className="text-sm text-foreground/70">
+                    You need to connect a bank account before requesting a cashout. This is a one-time setup.
+                  </p>
+                </div>
+                <button
+                  onClick={() => router.push("/settings")}
+                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Connect Bank Account in Settings
+                </button>
+              </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="rounded-lg bg-green-500/10 p-3 border border-green-500/20">
+                  <p className="text-xs text-green-600">
+                    ✓ Bank account connected: ****{bankLast4}
+                  </p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-2">Cashout Amount ($)</label>
                   <input
