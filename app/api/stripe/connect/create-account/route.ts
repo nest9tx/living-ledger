@@ -88,11 +88,19 @@ export async function POST(req: Request) {
         .eq("id", user.id);
     }
 
+    const origin = req.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "";
+    if (!origin.startsWith("http")) {
+      return NextResponse.json(
+        { error: "Missing or invalid app URL. Set NEXT_PUBLIC_APP_URL to https://your-domain.com" },
+        { status: 400 }
+      );
+    }
+
     // Create account link for onboarding/re-authentication
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?stripe_refresh=true`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?stripe_connected=true`,
+      refresh_url: `${origin}/settings?stripe_refresh=true`,
+      return_url: `${origin}/settings?stripe_connected=true`,
       type: "account_onboarding",
     });
 
