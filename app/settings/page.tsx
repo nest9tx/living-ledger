@@ -328,6 +328,7 @@ export default function SettingsPage() {
             <li>Stripe handles tax reporting (1099-K forms if you earn over $600/year)</li>
             <li>Automated transfers when admin approves cashouts (2-5 business days)</li>
             <li>Minimum cashout: $20 USD • Only earned credits can be cashed out</li>
+            <li>testing updates</li>
           </ul>
         </div>
       </div>
