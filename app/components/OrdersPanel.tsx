@@ -30,6 +30,54 @@ type NotificationItem = {
   created_at: string;
 };
 
+// Helper function to get status badge color and text
+const getStatusBadge = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "disputed":
+      return {
+        color: "bg-red-500 text-white",
+        text: "⚠️ DISPUTE",
+        priority: 1
+      };
+    case "held":
+      return {
+        color: "bg-yellow-500 text-white",
+        text: "⏳ PENDING",
+        priority: 3
+      };
+    case "delivered":
+      return {
+        color: "bg-blue-500 text-white", 
+        text: "✅ DELIVERED",
+        priority: 4
+      };
+    case "confirmed":
+      return {
+        color: "bg-green-500 text-white",
+        text: "🎉 CONFIRMED", 
+        priority: 5
+      };
+    case "released":
+      return {
+        color: "bg-emerald-500 text-white",
+        text: "💰 COMPLETED",
+        priority: 6
+      };
+    case "refunded":
+      return {
+        color: "bg-gray-500 text-white",
+        text: "↩️ REFUNDED",
+        priority: 7
+      };
+    default:
+      return {
+        color: "bg-gray-400 text-white",
+        text: status.toUpperCase(),
+        priority: 8
+      };
+  }
+};
+
 export default function OrdersPanel() {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,6 +216,17 @@ export default function OrdersPanel() {
 
   return (
     <div className="space-y-4">
+      {/* Status Legend */}
+      <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-3">
+        <p className="text-xs text-foreground/70 mb-2">Status indicators:</p>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="bg-red-500 text-white px-2 py-1 rounded-full font-bold">⚠️ DISPUTE</span>
+          <span className="bg-yellow-500 text-white px-2 py-1 rounded-full font-bold">⏳ PENDING</span>
+          <span className="bg-blue-500 text-white px-2 py-1 rounded-full font-bold">✅ DELIVERED</span>
+          <span className="bg-emerald-500 text-white px-2 py-1 rounded-full font-bold">💰 COMPLETED</span>
+        </div>
+      </div>
+
       {escrows.map((escrow) => {
         const listingTitle = escrow.offer_id
           ? offerMap[escrow.offer_id]?.title
@@ -184,12 +243,19 @@ export default function OrdersPanel() {
             })
           : null;
 
+        const statusBadge = getStatusBadge(escrow.status);
+
         return (
           <div
             key={escrow.id}
-            className="rounded-2xl border border-foreground/10 bg-foreground/2 p-5"
+            className="rounded-2xl border border-foreground/10 bg-foreground/2 p-5 relative"
           >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {/* Status Badge */}
+            <div className={`absolute top-3 right-3 px-2 py-1 text-xs font-bold rounded-full ${statusBadge.color}`}>
+              {statusBadge.text}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pr-24">
               <div>
                 <p className="text-sm text-foreground/60">Order #{escrow.id}</p>
                 <h3 className="text-lg font-semibold">{listingTitle}</h3>
@@ -197,7 +263,6 @@ export default function OrdersPanel() {
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold">{escrow.credits_held} credits</p>
-                <p className="text-xs text-foreground/60">Status: {escrow.status}</p>
                 {releaseDate && (
                   <p className="text-xs text-foreground/50">Release after {releaseDate}</p>
                 )}
