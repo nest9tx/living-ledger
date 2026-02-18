@@ -125,6 +125,7 @@ export default function OfferForm({
 
       // If we have uploaded images, associate them with the offer
       if (images.length > 0) {
+        console.log("Associating images with offer:", { imageIds: images.map(img => img.id), offerId });
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
 
@@ -143,8 +144,12 @@ export default function OfferForm({
           });
 
           if (!response.ok) {
-            console.error("Failed to associate images with offer");
+            const errorData = await response.json();
+            console.error("Failed to associate images with offer:", errorData);
             // Don't fail the whole operation if image association fails
+          } else {
+            const result = await response.json();
+            console.log("Successfully associated images:", result);
           }
         }
       }
@@ -312,7 +317,6 @@ export default function OfferForm({
           <input
             id="price"
             type="number"
-            min="5"
             max="10000"
             className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
               fieldErrors.priceCredits

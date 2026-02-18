@@ -304,12 +304,18 @@ export async function fetchOffers() {
       }, {} as Record<number, any>) || {};
 
       // Fetch listing images
-      const { data: imageData } = await supabase
+      const { data: imageData, error: imageError } = await supabase
         .from("listing_images")
         .select("id, listing_id, storage_path, filename, file_size, mime_type, upload_order")
         .eq("listing_type", "offer")
         .in("listing_id", offerIds)
         .order("upload_order", { ascending: true });
+
+      if (imageError) {
+        console.error("Error fetching offer images:", imageError);
+      } else {
+        console.log("Fetched offer images:", imageData);
+      }
 
       const imageMap = imageData?.reduce((map, image) => {
         if (!map[image.listing_id]) {
