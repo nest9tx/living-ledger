@@ -49,12 +49,60 @@ export async function POST(req: Request) {
       );
     }
 
-    // Must be in "held" status to mark as delivered
-    if (escrow.status !== "held") {
+    // Must be in "held" status to mark as delivered OR "delivered" status to confirm satisfaction
+    if (escrow.status !== "held" && escrow.status !== "delivered") {
       return NextResponse.json(
-        { error: "Escrow must be in 'held' status to confirm delivery" },
+        { error: "Escrow must be in 'held' or 'delivered' status to confirm" },
         { status: 400 }
       );
+    }
+
+    // If already in delivered status, this is a satisfaction confirmation
+    if (escrow.status === "delivered") {
+      if (escrow.payer_confirmed_at) {
+        return NextResponse.json(
+          { error: "You have already confirmed satisfaction" },
+          { status: 400 }
+        );
+      }
+
+      // Just update payer_confirmed_at for satisfaction confirmation
+      const now = new Date();
+      const newStatus = escrow.provider_confirmed_at ? "confirmed" : "delivered";
+
+      const { error: updateError } = await supabaseAdmin
+        .from("credit_escrow")
+        .update({
+          status: newStatus,
+          payer_confirmed_at: now.toISOString(),
+        })
+        .eq("id", escrowId);
+
+      if (updateError) {
+        console.error("Failed to confirm satisfaction:", updateError);
+        return NextResponse.json({ error: "Failed to confirm satisfaction" }, { status: 500 });
+      }
+
+      // Log transaction
+      await supabaseAdmin
+        .from("transactions")
+        .insert({
+          user_id: escrow.payer_id,
+          type: "escrow_confirmed",
+          credits: 0,
+          description: `Confirmed satisfaction for ${escrow.offer_id ? `Offer #${escrow.offer_id}` : `Request #${escrow.request_id}`}${newStatus === "confirmed" ? " - Both parties confirmed, funds ready to release" : ""}`,
+          related_escrow_id: escrowId,
+        });
+
+      return NextResponse.json({
+        success: true,
+        escrowId,
+        status: newStatus,
+        bothConfirmed: newStatus === "confirmed",
+        message: newStatus === "confirmed" 
+          ? "Both parties confirmed! You can now release funds immediately or wait for auto-release."
+          : "Satisfaction confirmed! Awaiting provider confirmation for instant release.",
+      });
     }
 
     const now = new Date();
