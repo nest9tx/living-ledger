@@ -58,10 +58,10 @@ export async function POST(req: Request) {
     }
 
     // ========== NEW RELEASE LOGIC ==========
-    // Funds are ONLY released if:
-    // 1. Both parties confirmed AND 7 days have passed since delivery
-    // 2. Admin has resolved a dispute in favor of provider
-    // NO automatic releases - requires mutual agreement OR admin decision
+    // Funds are released if:
+    // 1. Status is "confirmed" (both parties agreed) - IMMEDIATE release
+    // 2. Both parties confirmed AND 7 days have passed since delivery
+    // 3. Admin has resolved a dispute in favor of provider
     // =======================================
 
     const now = new Date();
@@ -76,13 +76,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Case 1: Both confirmed AND 7 days have passed - ONLY release condition
+    // Case 1: Status is "confirmed" (both parties agreed) - IMMEDIATE release
+    if (escrow.status === "confirmed" && bothConfirmed) {
+      return releaseEscrow(escrowId, user.id, escrow);
+    }
+
+    // Case 2: Both confirmed AND 7 days have passed - Standard release condition
     if (bothConfirmed && releaseAvailableAt && now >= releaseAvailableAt) {
       return releaseEscrow(escrowId, user.id, escrow);
     }
 
-    // Case 2: Both confirmed but 7 days hasn't passed yet
-    if (bothConfirmed && releaseAvailableAt) {
+    // Case 3: Both confirmed but 7 days hasn't passed yet (non-confirmed status)
+    if (bothConfirmed && releaseAvailableAt && escrow.status !== "confirmed") {
       const daysRemaining = Math.ceil((releaseAvailableAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return NextResponse.json(
         {
