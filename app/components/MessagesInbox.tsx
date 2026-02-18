@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import supabase from "@/lib/supabase";
 import PostDetailModal from "./PostDetailModal";
+import AdminMessageModal from "./AdminMessageModal";
 
 type MessageGroup = {
   listing_id: number;
@@ -21,6 +22,7 @@ export default function MessagesInbox() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedListing, setSelectedListing] = useState<{ id: number; type: "request" | "offer" } | null>(null);
+  const [selectedAdminConversation, setSelectedAdminConversation] = useState<{ userId: string; userName: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -272,9 +274,8 @@ export default function MessagesInbox() {
                 if (group.listing_type !== "admin") {
                   setSelectedListing({ id: group.listing_id, type: group.listing_type as "request" | "offer" });
                 } else {
-                  // For admin messages, just mark as read for now
-                  // Could implement a simple admin message modal in the future
-                  alert(`Admin conversation with ${group.other_user_name}:\n\n${group.last_message}`);
+                  // Open admin message modal for conversation
+                  setSelectedAdminConversation({ userId: group.other_user_id, userName: group.other_user_name });
                 }
               }}
               className={`rounded-lg border p-4 transition hover:border-foreground/20 hover:bg-foreground/5 cursor-pointer ${
@@ -322,6 +323,18 @@ export default function MessagesInbox() {
           defaultTab="messages"
           onClose={() => {
             setSelectedListing(null);
+            setRefreshKey((prev) => prev + 1); // Refresh to update unread counts
+          }}
+        />
+      )}
+
+      {/* Admin Message Modal */}
+      {selectedAdminConversation && (
+        <AdminMessageModal
+          otherUserId={selectedAdminConversation.userId}
+          otherUserName={selectedAdminConversation.userName}
+          onClose={() => {
+            setSelectedAdminConversation(null);
             setRefreshKey((prev) => prev + 1); // Refresh to update unread counts
           }}
         />
