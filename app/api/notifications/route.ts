@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { action, notificationIds } = body;
+    const { action, notificationIds, type } = body;
 
     if (action === "markRead") {
       if (!notificationIds || !Array.isArray(notificationIds)) {
@@ -85,6 +85,26 @@ export async function POST(req: Request) {
       if (error) {
         console.error("Mark read error:", error);
         return Response.json({ error: "Failed to mark notifications as read" }, { status: 500 });
+      }
+
+      return Response.json({ success: true });
+    }
+
+    // Clear notifications by type (e.g., when viewing Messages tab)
+    if (type) {
+      const { error } = await supabaseAdmin
+        .from("notifications")
+        .update({ 
+          is_read: true, 
+          read_at: new Date().toISOString() 
+        })
+        .eq("user_id", userData.user.id)
+        .eq("type", type)
+        .eq("is_read", false); // Only update unread ones
+
+      if (error) {
+        console.error("Clear notifications by type error:", error);
+        return Response.json({ error: "Failed to clear notifications" }, { status: 500 });
       }
 
       return Response.json({ success: true });

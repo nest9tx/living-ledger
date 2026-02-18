@@ -62,6 +62,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create notification for message recipient (especially important for admin messages)
+    const isAdminMessage = content.trim().startsWith('[ADMIN]');
+    if (isAdminMessage) {
+      try {
+        // Create high-priority notification for admin messages
+        await supabaseAdmin.rpc('create_notification', {
+          target_user_id: to_user_id,
+          notification_type: 'admin_message',
+          notification_title: 'New Admin Message',
+          notification_message: 'You have received a message from platform administration.',
+        });
+      } catch (notifError) {
+        console.error('Failed to create admin message notification:', notifError);
+        // Don't fail the message send if notification fails
+      }
+    }
+
     return NextResponse.json({ message }, { status: 200 });
   } catch (error) {
     console.error("Send message error:", error);

@@ -160,6 +160,32 @@ export default function MessagesInbox() {
     loadMessages();
   }, [refreshKey]);
 
+  // Clear admin message notifications when viewing Messages tab
+  useEffect(() => {
+    const clearMessageNotifications = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+
+        await fetch("/api/notifications", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            type: "admin_message", // Clear admin message notifications specifically
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to clear message notifications:", error);
+      }
+    };
+
+    clearMessageNotifications();
+  }, []); // Run once when component mounts
+
   if (loading) {
     return (
       <div className="space-y-4">
