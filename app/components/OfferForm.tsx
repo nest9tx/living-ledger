@@ -294,9 +294,16 @@ export default function OfferForm({
             }`}
             value={priceCredits}
             onChange={(e) => {
-              const value = Math.max(5, parseInt(e.target.value) || 5);
+              const value = parseInt(e.target.value) || 0;
               setPriceCredits(value);
               if (fieldErrors.priceCredits) setFieldErrors({ ...fieldErrors, priceCredits: undefined });
+            }}
+            onBlur={(e) => {
+              // Apply minimum validation on blur to ensure final value is valid
+              const value = parseInt(e.target.value) || 0;
+              if (value > 0 && value < 5) {
+                setPriceCredits(5);
+              }
             }}
           />
           {!fieldErrors.priceCredits && (
@@ -321,7 +328,7 @@ export default function OfferForm({
             type="listing"
             options={{
               maxFiles: 5,
-              listingId: tempOfferId || undefined,
+              // Don't require listingId for initial uploads
               listingType: "offer"
             }}
             onUploadComplete={handleImageUpload}

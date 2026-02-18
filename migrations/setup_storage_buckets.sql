@@ -1,5 +1,6 @@
 -- Supabase Storage Configuration for Living Ledger Image Uploads
--- This script sets up storage buckets and policies for secure image handling
+-- This script creates the storage buckets only
+-- Storage policies must be configured through the Supabase dashboard due to permission restrictions
 
 -- Create storage buckets for different types of uploads
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -29,97 +30,13 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Storage RLS policies for listing images (public bucket)
-CREATE POLICY "listing_images_public_read" 
-ON storage.objects FOR SELECT 
-USING (bucket_id = 'listing-images');
-
-CREATE POLICY "listing_images_authenticated_upload" 
-ON storage.objects FOR INSERT 
-WITH CHECK (
-  bucket_id = 'listing-images' 
-  AND auth.role() = 'authenticated'
-  AND (storage.foldername(name))[1] = auth.uid()::text -- Users can only upload to their own folder
-);
-
-CREATE POLICY "listing_images_owner_update" 
-ON storage.objects FOR UPDATE 
-USING (
-  bucket_id = 'listing-images' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-
-CREATE POLICY "listing_images_owner_delete" 
-ON storage.objects FOR DELETE 
-USING (
-  bucket_id = 'listing-images' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-
--- Storage RLS policies for message attachments (private bucket)
-CREATE POLICY "message_attachments_conversation_read" 
-ON storage.objects FOR SELECT 
-USING (
-  bucket_id = 'message-attachments'
-  AND EXISTS (
-    -- User can access if they're part of a conversation that has this attachment
-    SELECT 1 FROM message_attachments ma
-    JOIN messages m ON m.id = ma.message_id
-    WHERE ma.storage_path = name
-    AND (m.from_user_id = auth.uid() OR m.to_user_id = auth.uid())
-  )
-);
-
-CREATE POLICY "message_attachments_authenticated_upload" 
-ON storage.objects FOR INSERT 
-WITH CHECK (
-  bucket_id = 'message-attachments' 
-  AND auth.role() = 'authenticated'
-  AND (storage.foldername(name))[1] = auth.uid()::text
-);
-
-CREATE POLICY "message_attachments_owner_delete" 
-ON storage.objects FOR DELETE 
-USING (
-  bucket_id = 'message-attachments' 
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-
--- Storage RLS policies for delivery files (private bucket)
-CREATE POLICY "delivery_files_escrow_read" 
-ON storage.objects FOR SELECT 
-USING (
-  bucket_id = 'delivery-files'
-  AND EXISTS (
-    -- Both provider and buyer can access delivery files for their escrow
-    SELECT 1 FROM delivery_files df
-    JOIN credit_escrow e ON e.id = df.escrow_id
-    WHERE df.storage_path = name
-    AND (e.provider_id = auth.uid() OR e.buyer_id = auth.uid())
-  )
-);
-
-CREATE POLICY "delivery_files_provider_upload" 
-ON storage.objects FOR INSERT 
-WITH CHECK (
-  bucket_id = 'delivery-files' 
-  AND auth.role() = 'authenticated'
-  AND (storage.foldername(name))[1] = auth.uid()::text
-  -- Additional check that user is a provider will be handled in app logic
-);
-
-CREATE POLICY "delivery_files_provider_delete" 
-ON storage.objects FOR DELETE 
-USING (
-  bucket_id = 'delivery-files' 
-  AND EXISTS (
-    SELECT 1 FROM delivery_files df
-    JOIN credit_escrow e ON e.id = df.escrow_id
-    WHERE df.storage_path = name
-    AND df.provider_id = auth.uid()
-    AND e.status = 'held' -- Can only delete before completion
-  )
-);
-
--- Enable RLS on storage.objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- NOTE: Storage RLS policies need to be set up through the Supabase dashboard
+-- Go to: Storage > Settings > Policies for each bucket
+--
+-- For 'listing-images' bucket (public):
+-- 1. Allow SELECT for everyone
+-- 2. Allow INSERT/UPDATE/DELETE for authenticated users on their own folders
+--
+-- For 'message-attachments' and 'delivery-files' buckets (private):
+-- 1. Allow access only to authorized users based on conversation/escrow participation
+-- 2. Set up through dashboard UI with appropriate conditions

@@ -131,7 +131,7 @@ CREATE POLICY "delivery_files_select" ON delivery_files
     EXISTS (
       SELECT 1 FROM credit_escrow e 
       WHERE e.id = escrow_id 
-      AND (e.provider_id = auth.uid() OR e.buyer_id = auth.uid())
+      AND (e.provider_id = auth.uid() OR e.payer_id = auth.uid())
     )
   );
 
