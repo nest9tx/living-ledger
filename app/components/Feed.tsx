@@ -110,9 +110,6 @@ export default function Feed() {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
 
-        // Debug: Log items with images
-        console.log("Feed items with images:", combined.filter(item => item.images && item.images.length > 0).map(item => ({ id: item.id, title: item.title, imageCount: item.images?.length })));
-
         setItems(combined);
       } catch (error) {
         console.error("Error loading feed:", error);
@@ -269,8 +266,10 @@ export default function Feed() {
                   {item.images && item.images.length > 0 && (
                     <div className="mt-2 flex gap-2">
                       {item.images.slice(0, 3).map((image) => {
-                        const imageUrl = supabase.storage.from('listing-images').getPublicUrl(image.storage_path).data.publicUrl;
-                        console.log("Image URL for", item.id, ":", imageUrl);
+                        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                        if (!supabaseUrl) return null;
+                        
+                        const imageUrl = `${supabaseUrl}/storage/v1/object/public/listing-images/${image.storage_path}`;
                         return (
                           <div key={image.id} className="w-16 h-16 rounded border border-foreground/10 overflow-hidden bg-foreground/5">
                             <Image

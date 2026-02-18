@@ -300,7 +300,10 @@ export default function ListingDetailPage() {
                 <h2 className="font-semibold mb-3">Images</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {listing.images.map((image) => {
-                    const imageUrl = supabase.storage.from('listing-images').getPublicUrl(image.storage_path).data.publicUrl;
+                    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                    if (!supabaseUrl) return null;
+                    
+                    const imageUrl = `${supabaseUrl}/storage/v1/object/public/listing-images/${image.storage_path}`;
                     return (
                       <div key={image.id} className="aspect-square rounded-lg overflow-hidden border border-foreground/10">
                         <Image

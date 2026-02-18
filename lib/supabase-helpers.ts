@@ -313,8 +313,6 @@ export async function fetchOffers() {
 
       if (imageError) {
         console.error("Error fetching offer images:", imageError);
-      } else {
-        console.log("Fetched offer images:", imageData);
       }
 
       const imageMap = imageData?.reduce((map, image) => {

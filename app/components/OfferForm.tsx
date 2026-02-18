@@ -125,7 +125,6 @@ export default function OfferForm({
 
       // If we have uploaded images, associate them with the offer
       if (images.length > 0) {
-        console.log("Associating images with offer:", { imageIds: images.map(img => img.id), offerId });
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
 
@@ -147,9 +146,6 @@ export default function OfferForm({
             const errorData = await response.json();
             console.error("Failed to associate images with offer:", errorData);
             // Don't fail the whole operation if image association fails
-          } else {
-            const result = await response.json();
-            console.log("Successfully associated images:", result);
           }
         }
       }
