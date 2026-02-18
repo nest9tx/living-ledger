@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createOffer, fetchCategories } from "@/lib/supabase-helpers";
 import ImageUploadComponent from "./ImageUploadComponent";
 import { UploadedImage } from "@/lib/image-upload";
+import supabase from "@/lib/supabase";
 
 type Category = {
   id: number;
@@ -106,23 +107,49 @@ export default function OfferForm({
     setLoading(true);
 
     try {
+      // Create the offer first (without images)
       const offerData = await createOffer(
         title, 
         description, 
         categoryId!, 
         priceCredits,
         quantity,
-        images.map(img => ({
-          id: img.id,
-          storage_path: img.storage_path,
-          filename: img.filename
-        }))
+        [] // No images initially
       );
       
-      // Store the created offer ID for potential image uploads
-      if (offerData && offerData[0]) {
-        setTempOfferId(offerData[0].id);
+      if (!offerData || !offerData[0]) {
+        throw new Error("Failed to create offer");
       }
+
+      const offerId = offerData[0].id;
+
+      // If we have uploaded images, associate them with the offer
+      if (images.length > 0) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+
+        if (token) {
+          const response = await fetch("/api/uploads/associate-listing", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              imageIds: images.map(img => img.id),
+              listingId: offerId,
+              listingType: "offer"
+            }),
+          });
+
+          if (!response.ok) {
+            console.error("Failed to associate images with offer");
+            // Don't fail the whole operation if image association fails
+          }
+        }
+      }
+      
+      setTempOfferId(offerId);
       
       setTitle("");
       setDescription("");
@@ -328,8 +355,8 @@ export default function OfferForm({
             type="listing"
             options={{
               maxFiles: 5,
-              // Don't require listingId for initial uploads
               listingType: "offer"
+              // No listingId needed for temporary uploads
             }}
             onUploadComplete={handleImageUpload}
             onUploadError={handleImageUploadError}

@@ -40,20 +40,21 @@ export async function POST(req: Request) {
     let result;
     
     if (type === "listing") {
-      if (!listing_id || !listing_type) {
-        return Response.json({ error: "listing_id and listing_type required for listing uploads" }, { status: 400 });
-      }
+      // Allow temporary uploads without listing_id (for new listings being created)
+      if (listing_id && listing_type) {
+        // Verify user owns the listing
+        const table = listing_type === "offer" ? "offers" : "requests";
+        const { data: listing, error: listingError } = await supabaseAdmin
+          .from(table)
+          .select("user_id")
+          .eq("id", listing_id)
+          .single();
 
-      // Verify user owns the listing
-      const table = listing_type === "offer" ? "offers" : "requests";
-      const { data: listing, error: listingError } = await supabaseAdmin
-        .from(table)
-        .select("user_id")
-        .eq("id", listing_id)
-        .single();
-
-      if (listingError || !listing || listing.user_id !== userId) {
-        return Response.json({ error: "Listing not found or access denied" }, { status: 403 });
+        if (listingError || !listing || listing.user_id !== userId) {
+          return Response.json({ error: "Listing not found or access denied" }, { status: 403 });
+        }
+      } else if (!listing_type) {
+        return Response.json({ error: "listing_type required for listing uploads" }, { status: 400 });
       }
 
       // Insert into listing_images table
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
         .from("listing_images")
         .insert({
           listing_type,
-          listing_id,
+          listing_id: listing_id || null, // Allow null for temporary uploads
           user_id: userId,
           storage_path,
           filename,
