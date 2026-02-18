@@ -6,7 +6,7 @@ import PostDetailModal from "./PostDetailModal";
 
 type MessageGroup = {
   listing_id: number;
-  listing_type: "request" | "offer";
+  listing_type: "request" | "offer" | "admin";
   listing_title: string;
   other_user_id: string;
   other_user_name: string;
@@ -49,14 +49,19 @@ export default function MessagesInbox() {
 
         const { messages } = await response.json();
 
-        const validMessages = (messages || []).filter(
+        // Separate admin messages from listing-based messages
+        const allMessages = messages || [];
+        const adminMessages = allMessages.filter((msg: { content?: string; listing_id?: number | null }) => 
+          msg.content?.startsWith('[ADMIN]') && !msg.listing_id
+        );
+        const listingMessages = allMessages.filter(
           (msg: { listing_id: number | null; listing_type: string | null }) =>
             msg.listing_id && msg.listing_type
         );
 
         const requestIds = Array.from(
           new Set(
-            validMessages
+            listingMessages
               .filter((msg: { listing_type: string }) => msg.listing_type === "request")
               .map((msg: { listing_id: number }) => msg.listing_id)
           )
@@ -64,19 +69,21 @@ export default function MessagesInbox() {
 
         const offerIds = Array.from(
           new Set(
-            validMessages
+            listingMessages
               .filter((msg: { listing_type: string }) => msg.listing_type === "offer")
               .map((msg: { listing_id: number }) => msg.listing_id)
           )
         );
 
-        const otherUserIds = Array.from(
-          new Set(
-            validMessages.map((msg: { from_user_id: string; to_user_id: string }) =>
-              msg.from_user_id === userData.user.id ? msg.to_user_id : msg.from_user_id
-            )
-          )
+        // Get user IDs from both listing messages and admin messages
+        const listingUserIds = listingMessages.map((msg: { from_user_id: string; to_user_id: string }) =>
+          msg.from_user_id === userData.user.id ? msg.to_user_id : msg.from_user_id
         );
+        const adminUserIds = adminMessages.map((msg: { from_user_id: string; to_user_id: string }) =>
+          msg.from_user_id === userData.user.id ? msg.to_user_id : msg.from_user_id
+        );
+
+        const otherUserIds = Array.from(new Set([...listingUserIds, ...adminUserIds]));
 
         const [requestRes, offerRes, profileRes] = await Promise.all([
           requestIds.length
@@ -108,7 +115,8 @@ export default function MessagesInbox() {
         // Group messages by listing and conversation partner
         const grouped: Record<string, MessageGroup> = {};
 
-        for (const msg of validMessages) {
+        // Process listing-based messages
+        for (const msg of listingMessages) {
           const otherUserId = msg.from_user_id === userData.user.id ? msg.to_user_id : msg.from_user_id;
           const key = `${msg.listing_type}-${msg.listing_id}-${otherUserId}`;
 
@@ -124,6 +132,38 @@ export default function MessagesInbox() {
               listing_title: listingTitle,
               other_user_id: otherUserId,
               other_user_name: profileMap[otherUserId] || "Anonymous",
+              last_message: msg.content,
+              last_message_time: msg.created_at,
+              unread_count: 0,
+              is_sender: msg.from_user_id === userData.user.id,
+            };
+          }
+
+          // Update to latest message
+          if (new Date(msg.created_at) > new Date(grouped[key].last_message_time)) {
+            grouped[key].last_message = msg.content;
+            grouped[key].last_message_time = msg.created_at;
+            grouped[key].is_sender = msg.from_user_id === userData.user.id;
+          }
+
+          // Count unread
+          if (msg.to_user_id === userData.user.id && !msg.is_read) {
+            grouped[key].unread_count++;
+          }
+        }
+
+        // Process admin messages (group by sender)
+        for (const msg of adminMessages) {
+          const otherUserId = msg.from_user_id === userData.user.id ? msg.to_user_id : msg.from_user_id;
+          const key = `admin-messages-${otherUserId}`;
+
+          if (!grouped[key]) {
+            grouped[key] = {
+              listing_id: -1, // Special ID for admin messages
+              listing_type: "admin",
+              listing_title: "Admin Messages",
+              other_user_id: otherUserId,
+              other_user_name: profileMap[otherUserId] || "Platform Admin",
               last_message: msg.content,
               last_message_time: msg.created_at,
               unread_count: 0,
@@ -228,7 +268,15 @@ export default function MessagesInbox() {
           {messageGroups.map((group) => (
             <div
               key={`${group.listing_type}-${group.listing_id}-${group.other_user_id}`}
-              onClick={() => setSelectedListing({ id: group.listing_id, type: group.listing_type })}
+              onClick={() => {
+                if (group.listing_type !== "admin") {
+                  setSelectedListing({ id: group.listing_id, type: group.listing_type as "request" | "offer" });
+                } else {
+                  // For admin messages, just mark as read for now
+                  // Could implement a simple admin message modal in the future
+                  alert(`Admin conversation with ${group.other_user_name}:\n\n${group.last_message}`);
+                }
+              }}
               className={`rounded-lg border p-4 transition hover:border-foreground/20 hover:bg-foreground/5 cursor-pointer ${
                 group.unread_count > 0
                   ? "border-blue-500/40 bg-blue-500/5"
@@ -239,6 +287,11 @@ export default function MessagesInbox() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold truncate">{group.listing_title}</h3>
+                    {group.listing_type === "admin" && (
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-purple-500/10 text-purple-600 font-medium">
+                        ADMIN
+                      </span>
+                    )}
                     {group.unread_count > 0 && (
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-white text-xs font-bold">
                         {group.unread_count}
