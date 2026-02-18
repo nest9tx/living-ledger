@@ -56,11 +56,20 @@ export async function GET(req: Request) {
       .gt("expires_at", new Date().toISOString())
       .single();
 
+    // Fetch listing images
+    const { data: images } = await supabaseAdmin
+      .from("listing_images")
+      .select("id, storage_path, filename, file_size, mime_type, upload_order")
+      .eq("listing_type", type)
+      .eq("listing_id", listingId)
+      .order("upload_order", { ascending: true });
+
     return Response.json({
       listing: {
         ...listing,
         user,
         category,
+        images: images || [],
         isBoosted: !!boost,
         boostTier: boost?.boost_tier || null,
         boostExpiresAt: boost?.expires_at || null,

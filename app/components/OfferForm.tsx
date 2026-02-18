@@ -321,8 +321,16 @@ export default function OfferForm({
             }`}
             value={priceCredits}
             onChange={(e) => {
-              const value = parseInt(e.target.value) || 0;
-              setPriceCredits(value);
+              // Just store the raw input value without parsing, let user type freely
+              const rawValue = e.target.value;
+              if (rawValue === "" || rawValue === "0") {
+                setPriceCredits(0);
+              } else {
+                const value = parseInt(rawValue);
+                if (!isNaN(value)) {
+                  setPriceCredits(value);
+                }
+              }
               if (fieldErrors.priceCredits) setFieldErrors({ ...fieldErrors, priceCredits: undefined });
             }}
             onBlur={(e) => {

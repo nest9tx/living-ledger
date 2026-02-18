@@ -27,6 +27,14 @@ type ListingDetail = {
     name: string;
     icon: string;
   };
+  images?: Array<{
+    id: number;
+    storage_path: string;
+    filename: string;
+    file_size: number;
+    mime_type: string;
+    upload_order: number;
+  }>;
   isBoosted?: boolean;
   boostTier?: "homepage" | "category" | null;
   boostExpiresAt?: string | null;
@@ -283,6 +291,29 @@ export default function ListingDetailPage() {
                 <p className="text-foreground/80 whitespace-pre-wrap leading-relaxed">
                   {listing.description}
                 </p>
+              </div>
+            )}
+
+            {/* Images */}
+            {listing.images && listing.images.length > 0 && (
+              <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
+                <h2 className="font-semibold mb-3">Images</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {listing.images.map((image) => {
+                    const imageUrl = supabase.storage.from('listing-images').getPublicUrl(image.storage_path).data.publicUrl;
+                    return (
+                      <div key={image.id} className="aspect-square rounded-lg overflow-hidden border border-foreground/10">
+                        <Image
+                          src={imageUrl}
+                          alt={image.filename}
+                          width={400}
+                          height={400}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

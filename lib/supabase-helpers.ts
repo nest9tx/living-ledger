@@ -302,11 +302,28 @@ export async function fetchOffers() {
         map[boost.post_id] = boost;
         return map;
       }, {} as Record<number, any>) || {};
+
+      // Fetch listing images
+      const { data: imageData } = await supabase
+        .from("listing_images")
+        .select("id, listing_id, storage_path, filename, file_size, mime_type, upload_order")
+        .eq("listing_type", "offer")
+        .in("listing_id", offerIds)
+        .order("upload_order", { ascending: true });
+
+      const imageMap = imageData?.reduce((map, image) => {
+        if (!map[image.listing_id]) {
+          map[image.listing_id] = [];
+        }
+        map[image.listing_id].push(image);
+        return map;
+      }, {} as Record<number, any[]>) || {};
       
       enrichedData = enrichedData.map(offer => ({
         ...offer,
         categories: offer.category_id ? categoryMap[offer.category_id] : null,
         profiles: offer.user_id ? profileMap[offer.user_id] : null,
+        images: imageMap[offer.id] || [],
         isBoosted: !!boostMap[offer.id],
         boostTier: boostMap[offer.id]?.boost_tier || null,
         boostExpiresAt: boostMap[offer.id]?.expires_at || null

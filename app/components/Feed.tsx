@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { fetchRequests, fetchOffers, fetchCategories } from "@/lib/supabase-helpers";
 import { SkeletonFeed } from "./Skeletons";
 import PostDetailModal from "./PostDetailModal";
+import supabase from "@/lib/supabase";
 
 type Category = {
   id: number;
@@ -25,6 +27,14 @@ type FeedItem = {
     total_ratings?: number | null;
     total_contributions?: number | null;
   } | null;
+  images?: Array<{
+    id: number;
+    storage_path: string;
+    filename: string;
+    file_size: number;
+    mime_type: string;
+    upload_order: number;
+  }>;
   type: "request" | "offer";
   status?: string;
   capacity?: number;
@@ -252,6 +262,30 @@ export default function Feed() {
                   <p className="mt-1 text-sm text-foreground/70">
                     {item.description}
                   </p>
+                  {/* Image preview */}
+                  {item.images && item.images.length > 0 && (
+                    <div className="mt-2 flex gap-2">
+                      {item.images.slice(0, 3).map((image) => {
+                        const imageUrl = supabase.storage.from('listing-images').getPublicUrl(image.storage_path).data.publicUrl;
+                        return (
+                          <div key={image.id} className="w-16 h-16 rounded border border-foreground/10 overflow-hidden bg-foreground/5">
+                            <Image
+                              src={imageUrl}
+                              alt={image.filename}
+                              width={64}
+                              height={64}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        );
+                      })}
+                      {item.images.length > 3 && (
+                        <div className="w-16 h-16 rounded border border-foreground/10 bg-foreground/5 flex items-center justify-center text-xs text-foreground/60">
+                          +{item.images.length - 3}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="mt-2 text-xs text-foreground/50">
                     by {item.profiles?.username || "Anonymous"}
                     {item.profiles?.total_ratings ? (
