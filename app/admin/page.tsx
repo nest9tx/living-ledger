@@ -237,13 +237,19 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Filter for admin messages (messages sent by current admin)
+      // Filter for all messages in conversations involving current admin
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
-        const adminMsgs = payload.messages?.filter((msg: any) => 
-          msg.from_user_id === userData.user.id || msg.content?.startsWith('[ADMIN]')
+        // Get all conversations where admin is involved and no listing_id (admin conversations)
+        const adminConversationMessages = payload.messages?.filter((msg: {
+          from_user_id: string;
+          to_user_id: string;
+          listing_id?: number | null;
+        }) => 
+          (msg.from_user_id === userData.user.id || msg.to_user_id === userData.user.id) && 
+          !msg.listing_id
         ) || [];
-        setAdminMessages(adminMsgs);
+        setAdminMessages(adminConversationMessages);
       }
     } finally {
       setMessagesLoading(false);

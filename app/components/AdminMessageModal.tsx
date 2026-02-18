@@ -36,6 +36,26 @@ export default function AdminMessageModal({ otherUserId, otherUserName, onClose 
         
         setCurrentUserId(userData.user.id);
 
+        // Clear admin message notifications when viewing conversation
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (token) {
+            await fetch("/api/notifications", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                type: "admin_message",
+              }),
+            });
+          }
+        } catch (error) {
+          console.error("Failed to clear notifications:", error);
+        }
+
         // Check if current user is admin
         const { data: profile } = await supabase
           .from("profiles")
@@ -58,15 +78,14 @@ export default function AdminMessageModal({ otherUserId, otherUserName, onClose 
         if (res.ok) {
           const { messages: allMessages } = await res.json();
           
-          // Filter for admin messages between these two users
+          // Filter for all messages between current user and other user (no listing_id)
           const adminMessages = allMessages?.filter((msg: {
             content?: string;
             from_user_id: string;
             to_user_id: string;
             listing_id?: number | null;
           }) => 
-            (msg.content?.startsWith('[ADMIN]') || 
-             (msg.from_user_id === userData.user.id && msg.to_user_id === otherUserId) ||
+            ((msg.from_user_id === userData.user.id && msg.to_user_id === otherUserId) ||
              (msg.from_user_id === otherUserId && msg.to_user_id === userData.user.id)) &&
             !msg.listing_id
           ) || [];
