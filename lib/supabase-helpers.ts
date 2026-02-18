@@ -68,7 +68,9 @@ export async function createRequest(
   title: string,
   description: string,
   categoryId: number,
-  budgetCredits: number
+  budgetCredits: number,
+  quantity?: number | null,
+  images?: Array<{ id: string; storage_path: string; filename: string }> | null
 ) {
   try {
     const { data: user } = await supabase.auth.getUser();
@@ -81,7 +83,13 @@ export async function createRequest(
         title, 
         description, 
         category_id: categoryId, 
-        budget_credits: budgetCredits 
+        budget_credits: budgetCredits,
+        quantity: quantity,
+        images: images ? images.map(img => ({
+          id: img.id,
+          storage_path: img.storage_path,
+          filename: img.filename
+        })) : [],
       }])
       .select();
 
@@ -188,7 +196,9 @@ export async function createOffer(
   title: string,
   description: string,
   categoryId: number,
-  priceCredits: number
+  priceCredits: number,
+  quantity?: number | null,
+  images?: Array<{ id: string; storage_path: string; filename: string }> | null
 ) {
   try {
     const { data: user } = await supabase.auth.getUser();
@@ -203,6 +213,12 @@ export async function createOffer(
           description,
           category_id: categoryId,
           price_credits: priceCredits,
+          quantity: quantity,
+          images: images ? images.map(img => ({
+            id: img.id,
+            storage_path: img.storage_path,
+            filename: img.filename
+          })) : [],
         },
       ])
       .select();

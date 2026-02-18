@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createOffer, fetchCategories } from "@/lib/supabase-helpers";
+import ImageUploadComponent from "./ImageUploadComponent";
+import { UploadedImage } from "@/lib/image-upload";
 
 type Category = {
   id: number;
@@ -14,6 +16,8 @@ type FormErrors = {
   description?: string;
   categoryId?: string;
   priceCredits?: string;
+  quantity?: string;
+  images?: string;
 };
 
 export default function OfferForm({
@@ -25,9 +29,12 @@ export default function OfferForm({
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [priceCredits, setPriceCredits] = useState(5);
+  const [quantity, setQuantity] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tempOfferId, setTempOfferId] = useState<number | null>(null);
   const [success, setSuccess] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
 
@@ -73,6 +80,16 @@ export default function OfferForm({
       errors.priceCredits = "Price cannot exceed 10,000 credits";
     }
 
+    if (quantity !== null && quantity < 1) {
+      errors.quantity = "Quantity must be at least 1";
+    } else if (quantity !== null && quantity > 1000) {
+      errors.quantity = "Quantity cannot exceed 1,000";
+    }
+
+    if (images.length > 5) {
+      errors.images = "Maximum 5 images allowed";
+    }
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -89,10 +106,29 @@ export default function OfferForm({
     setLoading(true);
 
     try {
-      await createOffer(title, description, categoryId!, priceCredits);
+      const offerData = await createOffer(
+        title, 
+        description, 
+        categoryId!, 
+        priceCredits,
+        quantity,
+        images.map(img => ({
+          id: img.id,
+          storage_path: img.storage_path,
+          filename: img.filename
+        }))
+      );
+      
+      // Store the created offer ID for potential image uploads
+      if (offerData && offerData[0]) {
+        setTempOfferId(offerData[0].id);
+      }
+      
       setTitle("");
       setDescription("");
       setPriceCredits(5);
+      setQuantity(null);
+      setImages([]);
       setFieldErrors({});
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -104,6 +140,21 @@ export default function OfferForm({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleImageUpload = (uploadedImages: UploadedImage[]) => {
+    setImages(prev => [...prev, ...uploadedImages]);
+    if (fieldErrors.images) {
+      setFieldErrors({ ...fieldErrors, images: undefined });
+    }
+  };
+
+  const handleImageUploadError = (error: string) => {
+    setError(`Image upload error: ${error}`);
+  };
+
+  const removeImage = (imageId: string) => {
+    setImages(prev => prev.filter(img => img.id !== imageId));
   };
 
   return (
@@ -167,7 +218,7 @@ export default function OfferForm({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-sm font-medium" htmlFor="offer-category">
             Category *
@@ -194,6 +245,36 @@ export default function OfferForm({
           </select>
           {fieldErrors.categoryId && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.categoryId}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-sm font-medium" htmlFor="quantity">
+            Quantity (optional)
+          </label>
+          <input
+            id="quantity"
+            type="number"
+            min="1"
+            max="1000"
+            placeholder="Leave blank if unlimited"
+            className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
+              fieldErrors.quantity
+                ? "border-red-500/50 bg-red-500/5"
+                : "border-foreground/15"
+            }`}
+            value={quantity || ""}
+            onChange={(e) => {
+              const value = e.target.value ? parseInt(e.target.value) : null;
+              setQuantity(value);
+              if (fieldErrors.quantity) setFieldErrors({ ...fieldErrors, quantity: undefined });
+            }}
+          />
+          {!fieldErrors.quantity && (
+            <p className="mt-1 text-xs text-foreground/60">How many available? (optional)</p>
+          )}
+          {fieldErrors.quantity && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.quantity}</p>
           )}
         </div>
 
@@ -228,6 +309,63 @@ export default function OfferForm({
             Providers receive 85% when work is completed (15% platform fee).
           </p>
         </div>
+      </div>
+
+      {/* Image Upload Section */}
+      <div>
+        <label className="text-sm font-medium">
+          Images (optional)
+        </label>
+        <div className="mt-1">
+          <ImageUploadComponent
+            type="listing"
+            options={{
+              maxFiles: 5,
+              listingId: tempOfferId || undefined,
+              listingType: "offer"
+            }}
+            onUploadComplete={handleImageUpload}
+            onUploadError={handleImageUploadError}
+            disabled={loading}
+            multiple={true}
+          />
+          {fieldErrors.images && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.images}</p>
+          )}
+        </div>
+
+        {/* Display uploaded images */}
+        {images.length > 0 && (
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+            {images.map((image) => (
+              <div key={image.id} className="relative group">
+                <div className="aspect-square rounded-lg border border-foreground/10 bg-foreground/5 p-2">
+                  {image.url ? (
+                    <img
+                      src={image.url}
+                      alt={image.filename}
+                      className="w-full h-full object-cover rounded-md"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg className="w-8 h-8 text-foreground/40" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(image.id)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-foreground/60 truncate">{image.filename}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {error && (
