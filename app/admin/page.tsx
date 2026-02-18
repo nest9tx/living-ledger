@@ -249,7 +249,49 @@ export default function AdminDashboard() {
           (msg.from_user_id === userData.user.id || msg.to_user_id === userData.user.id) && 
           !msg.listing_id
         ) || [];
-        setAdminMessages(adminConversationMessages);
+
+        // Get unique user IDs to fetch usernames
+        const userIds = Array.from(new Set(
+          adminConversationMessages.flatMap((msg: any) => [msg.from_user_id, msg.to_user_id])
+        )).filter((id) => typeof id === 'string' && id !== userData.user.id) as string[];
+
+        // Fetch usernames
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", userIds);
+
+        const usernameMap = (profiles || []).reduce((acc: any, profile: any) => {
+          acc[profile.id] = profile.username || "Unknown User";
+          return acc;
+        }, {});
+
+        // Group messages by other user (conversation partner)
+        const conversationGroups: Record<string, any[]> = {};
+        
+        adminConversationMessages.forEach((msg: any) => {
+          const otherUserId = msg.from_user_id === userData.user.id ? msg.to_user_id : msg.from_user_id;
+          if (!conversationGroups[otherUserId]) {
+            conversationGroups[otherUserId] = [];
+          }
+          conversationGroups[otherUserId].push({
+            ...msg,
+            from_username: usernameMap[msg.from_user_id] || "Unknown User",
+            to_username: usernameMap[msg.to_user_id] || "Unknown User",
+            other_user_id: otherUserId,
+            other_username: usernameMap[otherUserId] || "Unknown User"
+          });
+        });
+
+        // Convert to flat list sorted by latest message per conversation
+        const conversationList = Object.entries(conversationGroups).map(([otherUserId, messages]) => {
+          const sortedMessages = messages.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          return sortedMessages[0]; // Get latest message to represent the conversation
+        }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        setAdminMessages(conversationList);
       }
     } finally {
       setMessagesLoading(false);
@@ -895,26 +937,26 @@ export default function AdminDashboard() {
                 <div className="space-y-4">
                   <p className="text-sm text-foreground/60">Total conversations: {adminMessages.length}</p>
                   <div className="space-y-3">
-                    {adminMessages.map((message) => (
-                      <div key={message.id} className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
+                    {adminMessages.map((conversation) => (
+                      <div key={`${conversation.other_user_id}-${conversation.created_at}`} className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="text-sm font-medium">
-                                {message.from_user_id === message.current_user_id ? 'You' : message.from_username || 'Unknown User'}
+                              <span className="text-sm font-medium text-blue-600">
+                                Admin Conversation
                               </span>
-                              <span className="text-xs text-foreground/60">→</span>
-                              <span className="text-sm text-foreground/70">
-                                {message.to_user_id === message.current_user_id ? 'You' : message.to_username || 'Unknown User'}
+                              <span className="text-xs text-foreground/60">with</span>
+                              <span className="text-sm font-medium">
+                                {conversation.other_username}
                               </span>
                               <span className="text-xs text-foreground/60">
-                                {new Date(message.created_at).toLocaleDateString()} {new Date(message.created_at).toLocaleTimeString()}
+                                {new Date(conversation.created_at).toLocaleDateString()} {new Date(conversation.created_at).toLocaleTimeString()}
                               </span>
                             </div>
-                            <p className="text-sm">{message.content}</p>
+                            <p className="text-sm">{conversation.content}</p>
                           </div>
                           <div className="flex gap-2">
-                            {!message.is_read && (
+                            {!conversation.is_read && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-500/10 text-blue-600">
                                 Unread
                               </span>

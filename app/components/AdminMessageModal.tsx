@@ -18,9 +18,10 @@ interface AdminMessageModalProps {
   otherUserId: string;
   otherUserName: string;
   onClose: () => void;
+  onNotificationsClearedProp?: () => void;
 }
 
-export default function AdminMessageModal({ otherUserId, otherUserName, onClose }: AdminMessageModalProps) {
+export default function AdminMessageModal({ otherUserId, otherUserName, onClose, onNotificationsClearedProp }: AdminMessageModalProps) {
   const [messages, setMessages] = useState<AdminMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,7 @@ export default function AdminMessageModal({ otherUserId, otherUserName, onClose 
           const { data: sessionData } = await supabase.auth.getSession();
           const token = sessionData.session?.access_token;
           if (token) {
-            await fetch("/api/notifications", {
+            const clearResponse = await fetch("/api/notifications", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -51,6 +52,16 @@ export default function AdminMessageModal({ otherUserId, otherUserName, onClose 
                 type: "admin_message",
               }),
             });
+            
+            if (clearResponse.ok) {
+              console.log("Admin message notifications cleared");
+              // Trigger notification badge refresh
+              if (onNotificationsClearedProp) {
+                onNotificationsClearedProp();
+              }
+            } else {
+              console.error("Failed to clear notifications:", await clearResponse.text());
+            }
           }
         } catch (error) {
           console.error("Failed to clear notifications:", error);
