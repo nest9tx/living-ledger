@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS notifications (
   id bigserial PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type text NOT NULL CHECK (type IN ('new_order', 'dispute_filed', 'dispute_resolved', 'order_completed', 'late_delivery')),
+  type text NOT NULL CHECK (type IN ('new_order', 'dispute_filed', 'dispute_resolved', 'order_completed', 'late_delivery', 'admin_message')),
   title text NOT NULL,
   message text NOT NULL,
   related_escrow_id bigint REFERENCES credit_escrow(id) ON DELETE CASCADE,

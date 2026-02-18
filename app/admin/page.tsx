@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "moderation" | "disputes" | "cashouts" | "users" | "settings"
+    "overview" | "moderation" | "disputes" | "cashouts" | "users" | "messages" | "settings"
   >("overview");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +46,8 @@ export default function AdminDashboard() {
   const [flagsLoading, setFlagsLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [adminMessages, setAdminMessages] = useState<any[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
 
   useEffect(() => {
     const checkAdminAndLoadStats = async () => {
@@ -96,7 +98,7 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         setStats(statsData.stats);
 
-        await Promise.all([loadDisputes(), loadFlags(), loadCashouts(), loadUsers()]);
+        await Promise.all([loadDisputes(), loadFlags(), loadCashouts(), loadUsers(), loadAdminMessages()]);
       } catch (err) {
         console.error("Admin dashboard error:", err);
         setError("Failed to load admin dashboard");
@@ -213,6 +215,38 @@ export default function AdminDashboard() {
       setUsers(payload.users || []);
     } finally {
       setUsersLoading(false);
+    }
+  };
+
+  const loadAdminMessages = async () => {
+    setMessagesLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+
+      const res = await fetch("/api/messages/list", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load admin messages:", payload?.error);
+        return;
+      }
+
+      // Filter for admin messages (messages sent by current admin)
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        const adminMsgs = payload.messages?.filter((msg: any) => 
+          msg.from_user_id === userData.user.id || msg.content?.startsWith('[ADMIN]')
+        ) || [];
+        setAdminMessages(adminMsgs);
+      }
+    } finally {
+      setMessagesLoading(false);
     }
   };
 
@@ -367,7 +401,7 @@ export default function AdminDashboard() {
         <div className="border-b border-foreground/10 mb-6">
           <div className="flex gap-8 overflow-x-auto">
             {(
-              ["overview", "moderation", "disputes", "cashouts", "users", "settings"] as const
+              ["overview", "moderation", "disputes", "cashouts", "users", "messages", "settings"] as const
             ).map((tab) => (
               <button
                 key={tab}
@@ -699,78 +733,190 @@ export default function AdminDashboard() {
                               {new Date(user.created_at).toLocaleDateString()}
                             </td>
                             <td className="py-3 px-2">
-                              <button
-                                onClick={async () => {
-                                  // Show current balances first
-                                  alert(
-                                    `Current Balances for ${user.username}:\n\n` +
-                                    `Total: ${user.credits_balance || 0} credits\n` +
-                                    `Earned (cashout-eligible): ${user.earned_credits || 0} credits\n` +
-                                    `Purchased: ${user.purchased_credits || 0} credits`
-                                  );
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={async () => {
+                                    // Show current balances first
+                                    alert(
+                                      `Current Balances for ${user.username}:\n\n` +
+                                      `Total: ${user.credits_balance || 0} credits\n` +
+                                      `Earned (cashout-eligible): ${user.earned_credits || 0} credits\n` +
+                                      `Purchased: ${user.purchased_credits || 0} credits`
+                                    );
 
-                                  const amount = prompt(`Adjust credits for ${user.username}:\nEnter amount (positive to add, negative to subtract):`);
-                                  if (!amount) return;
+                                    const amount = prompt(`Adjust credits for ${user.username}:\nEnter amount (positive to add, negative to subtract):`);
+                                    if (!amount) return;
 
-                                  const reason = prompt("Reason for adjustment:");
-                                  if (!reason) return;
+                                    const reason = prompt("Reason for adjustment:");
+                                    if (!reason) return;
 
-                                  // Three-way choice for credit type
-                                  const typeChoice = prompt(
-                                    "Which balance to adjust?\n\n" +
-                                    "1 = Earned credits (cashout-eligible, also updates total)\n" +
-                                    "2 = Purchased credits (also updates total)\n" +
-                                    "3 = Total balance only (legacy/general adjustment)\n\n" +
-                                    "Enter 1, 2, or 3:"
-                                  );
-                                  
-                                  let creditType = "balance";
-                                  if (typeChoice === "1") creditType = "earned";
-                                  else if (typeChoice === "2") creditType = "purchased";
-                                  else if (typeChoice !== "3") {
-                                    alert("Invalid choice. Cancelled.");
-                                    return;
-                                  }
+                                    // Three-way choice for credit type
+                                    const typeChoice = prompt(
+                                      "Which balance to adjust?\n\n" +
+                                      "1 = Earned credits (cashout-eligible, also updates total)\n" +
+                                      "2 = Purchased credits (also updates total)\n" +
+                                      "3 = Total balance only (legacy/general adjustment)\n\n" +
+                                      "Enter 1, 2, or 3:"
+                                    );
+                                    
+                                    let creditType = "balance";
+                                    if (typeChoice === "1") creditType = "earned";
+                                    else if (typeChoice === "2") creditType = "purchased";
+                                    else if (typeChoice !== "3") {
+                                      alert("Invalid choice. Cancelled.");
+                                      return;
+                                    }
 
-                                  const { data } = await supabase.auth.getSession();
-                                  const token = data.session?.access_token;
-                                  if (!token) return;
+                                    const { data } = await supabase.auth.getSession();
+                                    const token = data.session?.access_token;
+                                    if (!token) return;
 
-                                  const res = await fetch("/api/admin/users/adjust-balance", {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                      Authorization: `Bearer ${token}`,
-                                    },
-                                    body: JSON.stringify({
-                                      userId: user.id,
-                                      amount: parseInt(amount),
-                                      reason,
-                                      creditType,
-                                    }),
-                                  });
+                                    const res = await fetch("/api/admin/users/adjust-balance", {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                      body: JSON.stringify({
+                                        userId: user.id,
+                                        amount: parseInt(amount),
+                                        reason,
+                                        creditType,
+                                      }),
+                                    });
 
-                                  const payload = await res.json();
-                                  if (!res.ok) {
-                                    alert(`Error: ${payload?.error || "Failed to adjust balance"}`);
-                                    return;
-                                  }
+                                    const payload = await res.json();
+                                    if (!res.ok) {
+                                      alert(`Error: ${payload?.error || "Failed to adjust balance"}`);
+                                      return;
+                                    }
 
-                                  alert(
-                                    `✓ Success!\n\n${payload.message}\n\n` +
-                                    `New total balance: ${payload.newTotal} credits`
-                                  );
-                                  await loadUsers();
-                                }}
-                                className="text-xs px-2 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
-                              >
-                                Adjust Credits
-                              </button>
+                                    alert(
+                                      `✓ Success!\n\n${payload.message}\n\n` +
+                                      `New total balance: ${payload.newTotal} credits`
+                                    );
+                                    await loadUsers();
+                                  }}
+                                  className="text-xs px-2 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
+                                >
+                                  Adjust Credits
+                                </button>
+                                
+                                <button
+                                  onClick={async () => {
+                                    const message = prompt(`Send admin message to ${user.username}:`);
+                                    if (!message?.trim()) return;
+
+                                    const { data } = await supabase.auth.getSession();
+                                    const token = data.session?.access_token;
+                                    if (!token) return;
+
+                                    // Send the message
+                                    const res = await fetch("/api/messages/send", {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                      body: JSON.stringify({
+                                        to_user_id: user.id,
+                                        content: `[ADMIN] ${message.trim()}`,
+                                      }),
+                                    });
+
+                                    const payload = await res.json();
+                                    if (!res.ok) {
+                                      alert(`Error: ${payload?.error || "Failed to send message"}`);
+                                      return;
+                                    }
+
+                                    // Create notification for the user
+                                    await fetch("/api/notifications", {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                      body: JSON.stringify({
+                                        user_id: user.id,
+                                        type: "admin_message",
+                                        title: "Admin Message",
+                                        message: `You have received a message from admin`,
+                                      }),
+                                    });
+
+                                    alert(`✓ Message sent to ${user.username}`);
+                                    await loadAdminMessages(); // Refresh admin messages
+                                  }}
+                                  className="text-xs px-2 py-1 rounded border border-blue-500/40 text-blue-600 hover:bg-blue-500/5"
+                                >
+                                  Send Message
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "messages" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Admin Messages</h2>
+                <button
+                  onClick={loadAdminMessages}
+                  className="text-sm px-3 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {messagesLoading ? (
+                <p className="text-foreground/60">Loading messages...</p>
+              ) : adminMessages.length === 0 ? (
+                <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
+                  <p className="text-foreground/70">No admin messages found</p>
+                  <p className="text-sm text-foreground/60 mt-2">
+                    Messages you send to users from the Users tab will appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-foreground/60">Total conversations: {adminMessages.length}</p>
+                  <div className="space-y-3">
+                    {adminMessages.map((message) => (
+                      <div key={message.id} className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm font-medium">
+                                {message.from_user_id === message.current_user_id ? 'You' : message.from_username || 'Unknown User'}
+                              </span>
+                              <span className="text-xs text-foreground/60">→</span>
+                              <span className="text-sm text-foreground/70">
+                                {message.to_user_id === message.current_user_id ? 'You' : message.to_username || 'Unknown User'}
+                              </span>
+                              <span className="text-xs text-foreground/60">
+                                {new Date(message.created_at).toLocaleDateString()} {new Date(message.created_at).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <p className="text-sm">{message.content}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            {!message.is_read && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-500/10 text-blue-600">
+                                Unread
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
