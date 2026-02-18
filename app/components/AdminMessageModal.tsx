@@ -113,7 +113,7 @@ export default function AdminMessageModal({ otherUserId, otherUserName, onClose,
     };
 
     loadMessages();
-  }, [otherUserId]);
+  }, [otherUserId, onNotificationsClearedProp]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || sending) return;
