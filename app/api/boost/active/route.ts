@@ -63,7 +63,9 @@ export async function GET(req: Request) {
       .filter((b) => b.post_type === "request")
       .map((b) => b.post_id);
 
-    const [offersResult, requestsResult, categoriesResult] = await Promise.all([
+    const allPostIds = boostList.map((b) => b.post_id);
+
+    const [offersResult, requestsResult, categoriesResult, imagesResult] = await Promise.all([
       offerIds.length
         ? supabaseAdmin
             .from("offers")
@@ -79,7 +81,22 @@ export async function GET(req: Request) {
       supabaseAdmin
         .from("categories")
         .select("id, name, icon"),
+      allPostIds.length
+        ? supabaseAdmin
+            .from("listing_images")
+            .select("listing_id, storage_path")
+            .in("listing_id", allPostIds)
+            .order("upload_order", { ascending: true })
+        : Promise.resolve({ data: [] as Array<{ listing_id: number; storage_path: string }> }),
     ]);
+
+    // First image per listing
+    const imageMap: Record<number, string> = {};
+    for (const img of imagesResult.data || []) {
+      if (!imageMap[img.listing_id]) {
+        imageMap[img.listing_id] = img.storage_path;
+      }
+    }
 
     const categoryMap = (categoriesResult.data || []).reduce((acc, cat) => {
       acc[cat.id] = cat;
@@ -117,6 +134,7 @@ export async function GET(req: Request) {
             category: category ? { name: category.name, icon: category.icon } : null,
             createdAt: listing.created_at,
             userId: listing.user_id,
+            thumbnailPath: imageMap[boost.post_id] || null,
           };
         }
 
@@ -138,6 +156,7 @@ export async function GET(req: Request) {
           category: category ? { name: category.name, icon: category.icon } : null,
           createdAt: listing.created_at,
           userId: listing.user_id,
+          thumbnailPath: imageMap[boost.post_id] || null,
         };
       })
       .filter(Boolean);

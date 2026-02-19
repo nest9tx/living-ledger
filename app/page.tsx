@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 
 type FeaturedBoost = {
@@ -14,6 +15,7 @@ type FeaturedBoost = {
   budgetCredits?: number;
   category: { name: string; icon: string } | null;
   createdAt: string;
+  thumbnailPath?: string | null;
 };
 
 const loadFeaturedBoosts = async (): Promise<FeaturedBoost[]> => {
@@ -99,31 +101,43 @@ export default async function Home() {
                 <Link
                   key={`${boost.postType}-${boost.postId}-${boost.boostId}`}
                   href={`/listing/${boost.postType}/${boost.postId}`}
-                  className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5 hover:border-foreground/30 hover:bg-foreground/5 transition"
+                  className="rounded-2xl border border-foreground/10 bg-foreground/3 hover:border-foreground/30 hover:bg-foreground/5 transition overflow-hidden"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/60">
-                      ⭐ Featured
-                    </span>
-                    <span className="text-xs text-foreground/50">
-                      {boost.postType === "offer" ? "Offer" : "Request"}
-                    </span>
-                  </div>
-                  <h3 className="mt-3 text-lg font-semibold">{boost.title}</h3>
-                  <p className="mt-2 text-sm text-foreground/70">
-                    {boost.description}
-                  </p>
-                  <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-foreground/60">
-                    {boost.category && (
-                      <span>
-                        {boost.category.icon} {boost.category.name}
+                  {boost.thumbnailPath && process.env.NEXT_PUBLIC_SUPABASE_URL && (
+                    <div className="relative h-44 w-full">
+                      <Image
+                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/listing-images/${boost.thumbnailPath}`}
+                        alt={boost.title}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="p-5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/60">
+                        ⭐ Featured
                       </span>
-                    )}
-                    <span>
-                      {boost.postType === "offer"
-                        ? `${boost.priceCredits ?? 0} credits`
-                        : `${boost.budgetCredits ?? 0} credits`}
-                    </span>
+                      <span className="text-xs text-foreground/50">
+                        {boost.postType === "offer" ? "Offer" : "Request"}
+                      </span>
+                    </div>
+                    <h3 className="mt-3 text-lg font-semibold">{boost.title}</h3>
+                    <p className="mt-2 text-sm text-foreground/70">
+                      {boost.description}
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-foreground/60">
+                      {boost.category && (
+                        <span>
+                          {boost.category.icon} {boost.category.name}
+                        </span>
+                      )}
+                      <span>
+                        {boost.postType === "offer"
+                          ? `${boost.priceCredits ?? 0} credits`
+                          : `${boost.budgetCredits ?? 0} credits`}
+                      </span>
+                    </div>
                   </div>
                 </Link>
               ))}
