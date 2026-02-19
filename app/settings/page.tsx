@@ -274,7 +274,7 @@ export default function SettingsPage() {
             <input
               type="text"
               value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              onChange={(e) => setNewUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
               placeholder={`Current: ${user?.username || ""}`}
               maxLength={20}
               className="flex-1 px-3 py-2 rounded-lg border border-foreground/20 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground/30"

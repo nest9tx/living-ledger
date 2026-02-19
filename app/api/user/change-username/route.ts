@@ -21,10 +21,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "Username is required" }, { status: 400 });
     }
 
-    const trimmed = new_username.trim().toLowerCase();
+    const trimmed = new_username.trim();
 
     // Validate format: 3-20 chars, alphanumeric + underscore only
-    if (!/^[a-z0-9_]{3,20}$/.test(trimmed)) {
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(trimmed)) {
       return Response.json(
         { error: "Username must be 3-20 characters, letters/numbers/underscores only" },
         { status: 400 }
@@ -73,11 +73,11 @@ export async function POST(req: Request) {
       }
     }
 
-    // Check uniqueness
+    // Check uniqueness (case-insensitive)
     const { data: existing } = await supabaseAdmin
       .from("profiles")
       .select("id")
-      .eq("username", trimmed)
+      .ilike("username", trimmed)
       .maybeSingle();
 
     if (existing) {

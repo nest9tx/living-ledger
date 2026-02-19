@@ -23,12 +23,12 @@ export async function GET(req: Request) {
     const [offersRes, requestsRes, boostsRes] = await Promise.all([
       supabaseAdmin
         .from("offers")
-        .select("id, title, description, credits, status, user_id, created_at")
+        .select("id, title, description, price_credits, status, user_id, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       supabaseAdmin
         .from("requests")
-        .select("id, title, description, budget, status, user_id, created_at")
+        .select("id, title, description, budget_credits, status, user_id, created_at")
         .order("created_at", { ascending: false })
         .limit(100),
       supabaseAdmin
@@ -64,6 +64,7 @@ export async function GET(req: Request) {
       listing_type: "offer",
       username: usernameMap[o.user_id] || "Unknown",
       is_boosted: boostedIds.has(`offer:${o.id}`),
+      display_credits: o.price_credits,
     }));
 
     const requests = (requestsRes.data || []).map((r) => ({
@@ -71,6 +72,7 @@ export async function GET(req: Request) {
       listing_type: "request",
       username: usernameMap[r.user_id] || "Unknown",
       is_boosted: boostedIds.has(`request:${r.id}`),
+      display_credits: r.budget_credits,
     }));
 
     return Response.json({

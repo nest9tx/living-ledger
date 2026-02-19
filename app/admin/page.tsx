@@ -811,7 +811,7 @@ export default function AdminDashboard() {
                                 {item.is_boosted && (
                                   <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/20">⚡ Boosted</span>
                                 )}
-                                <span className="text-xs text-foreground/50">{item.credits} credits · by {item.username}</span>
+                                <span className="text-xs text-foreground/50">{item.display_credits} credits · by {item.username}</span>
                               </div>
                               <p className="text-xs text-foreground/50 mt-0.5">{new Date(item.created_at).toLocaleDateString()}</p>
                             </div>
@@ -853,7 +853,7 @@ export default function AdminDashboard() {
                                 {item.is_boosted && (
                                   <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/20">⚡ Boosted</span>
                                 )}
-                                <span className="text-xs text-foreground/50">Budget: {item.budget} credits · by {item.username}</span>
+                                <span className="text-xs text-foreground/50">Budget: {item.display_credits} credits · by {item.username}</span>
                               </div>
                               <p className="text-xs text-foreground/50 mt-0.5">{new Date(item.created_at).toLocaleDateString()}</p>
                             </div>
