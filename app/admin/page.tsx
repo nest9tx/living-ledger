@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "moderation" | "disputes" | "cashouts" | "listings" | "users" | "messages" | "settings"
+    "overview" | "moderation" | "disputes" | "cashouts" | "listings" | "users" | "messages" | "transactions" | "settings"
   >("overview");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +58,14 @@ export default function AdminDashboard() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [adminMessages, setAdminMessages] = useState<any[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsTotal, setTransactionsTotal] = useState(0);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [transactionSearch, setTransactionSearch] = useState("");
+  const [refundingId, setRefundingId] = useState<number | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundConfirmId, setRefundConfirmId] = useState<number | null>(null);
 
   useEffect(() => {
     const checkAdminAndLoadStats = async () => {
@@ -519,7 +527,47 @@ export default function AdminDashboard() {
     }
   };
 
-  const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "users", "messages", "settings"] as const;
+  const loadTransactions = async (page = 1, search = "") => {
+    setTransactionsLoading(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    const params = new URLSearchParams({ page: String(page), search });
+    try {
+      const res = await fetch(`/api/admin/transactions/list?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        setTransactions(payload.transactions || []);
+        setTransactionsTotal(payload.total || 0);
+        setTransactionsPage(page);
+      }
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
+  const handleRefund = async (txId: number) => {
+    setRefundingId(txId);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    const res = await fetch("/api/admin/transactions/refund", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ transaction_id: txId, reason: refundReason }),
+    });
+    setRefundingId(null);
+    setRefundConfirmId(null);
+    setRefundReason("");
+    if (res.ok) {
+      await loadTransactions(transactionsPage, transactionSearch);
+    } else {
+      const payload = await res.json();
+      alert(payload.error || "Refund failed.");
+    }
+  };
+
+  const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "transactions", "users", "messages", "settings"] as const;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -575,6 +623,7 @@ export default function AdminDashboard() {
                 onClick={() => {
                   setActiveTab(tab as any);
                   if (tab === "listings") loadListings();
+                  if (tab === "transactions") loadTransactions(1, "");
                 }}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition capitalize ${
                   activeTab === tab
@@ -1327,6 +1376,157 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "transactions" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-xl font-semibold">Transactions</h2>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search description…"
+                    value={transactionSearch}
+                    onChange={(e) => setTransactionSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && loadTransactions(1, transactionSearch)}
+                    className="rounded-md border border-foreground/20 bg-transparent px-3 py-1.5 text-sm focus:border-foreground/40 focus:outline-none w-56"
+                  />
+                  <button
+                    onClick={() => loadTransactions(1, transactionSearch)}
+                    className="text-sm px-3 py-1.5 rounded border border-foreground/20 hover:bg-foreground/5"
+                  >
+                    Search
+                  </button>
+                  <button
+                    onClick={() => { setTransactionSearch(""); loadTransactions(1, ""); }}
+                    className="text-sm px-3 py-1.5 rounded border border-foreground/20 hover:bg-foreground/5"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              {/* Refund confirm dialog */}
+              {refundConfirmId !== null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-md rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-4">
+                    <h3 className="font-semibold">Confirm Refund</h3>
+                    <p className="text-sm text-foreground/70">
+                      This will return the deducted credits back to the user&apos;s balance. The refund is recorded as a new transaction.
+                    </p>
+                    <div>
+                      <label className="text-xs text-foreground/60 uppercase tracking-wide">Reason (optional)</label>
+                      <input
+                        type="text"
+                        value={refundReason}
+                        onChange={(e) => setRefundReason(e.target.value)}
+                        placeholder="e.g. User error, duplicate charge…"
+                        className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex gap-3 justify-end">
+                      <button
+                        onClick={() => { setRefundConfirmId(null); setRefundReason(""); }}
+                        className="px-4 py-2 text-sm rounded border border-foreground/20 hover:bg-foreground/5"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleRefund(refundConfirmId)}
+                        disabled={refundingId !== null}
+                        className="px-4 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {refundingId !== null ? "Refunding…" : "Confirm refund"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {transactionsLoading ? (
+                <p className="text-sm text-foreground/60">Loading transactions…</p>
+              ) : transactions.length === 0 ? (
+                <p className="text-sm text-foreground/50">No transactions found.</p>
+              ) : (
+                <>
+                  <p className="text-xs text-foreground/50">
+                    {transactionsTotal} total · page {transactionsPage} of {Math.ceil(transactionsTotal / 50)}
+                  </p>
+                  <div className="space-y-2">
+                    {transactions.map((tx) => {
+                      const isDebit = tx.amount < 0;
+                      const canRefund = isDebit && !tx.admin_refunded && tx.transaction_type !== "admin_refund";
+                      return (
+                        <div
+                          key={tx.id}
+                          className={`rounded-lg border p-3 flex items-start justify-between gap-3 ${
+                            tx.admin_refunded
+                              ? "border-foreground/5 bg-foreground/2 opacity-60"
+                              : tx.transaction_type === "admin_refund"
+                              ? "border-emerald-500/20 bg-emerald-500/5"
+                              : isDebit
+                              ? "border-foreground/10 bg-foreground/2"
+                              : "border-emerald-500/10 bg-emerald-500/3"
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-sm font-semibold ${isDebit ? "text-red-500" : "text-emerald-600"}`}>
+                                {tx.amount > 0 ? "+" : ""}{tx.amount} credits
+                              </span>
+                              <span className="text-xs text-foreground/50 font-mono bg-foreground/5 px-1.5 py-0.5 rounded">
+                                {tx.transaction_type}
+                              </span>
+                              {tx.credit_source && (
+                                <span className="text-xs text-foreground/40">
+                                  source: {tx.credit_source}
+                                </span>
+                              )}
+                              {tx.admin_refunded && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-foreground/50">↩ refunded</span>
+                              )}
+                              {tx.transaction_type === "admin_refund" && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600">↩ refund</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-foreground/70 truncate">{tx.description}</p>
+                            <p className="text-xs text-foreground/40">
+                              by <span className="text-foreground/60">{tx.username}</span> · {new Date(tx.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          {canRefund && (
+                            <button
+                              onClick={() => setRefundConfirmId(tx.id)}
+                              className="shrink-0 px-2 py-1 text-xs rounded border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 transition"
+                            >
+                              Refund
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Pagination */}
+                  <div className="flex gap-2 items-center justify-center pt-2">
+                    <button
+                      disabled={transactionsPage <= 1}
+                      onClick={() => loadTransactions(transactionsPage - 1, transactionSearch)}
+                      className="px-3 py-1 text-sm rounded border border-foreground/20 disabled:opacity-30 hover:bg-foreground/5"
+                    >
+                      ← Prev
+                    </button>
+                    <span className="text-xs text-foreground/50">{transactionsPage}</span>
+                    <button
+                      disabled={transactionsPage >= Math.ceil(transactionsTotal / 50)}
+                      onClick={() => loadTransactions(transactionsPage + 1, transactionSearch)}
+                      className="px-3 py-1 text-sm rounded border border-foreground/20 disabled:opacity-30 hover:bg-foreground/5"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           )}
