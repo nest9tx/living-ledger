@@ -110,9 +110,9 @@ export async function POST(req: Request) {
         throw new Error("User's Stripe account is not fully verified");
       }
 
-      // Create transfer to connected account
+      // Create transfer to connected account (1 credit = $1 USD)
       const transfer = await stripe.transfers.create({
-        amount: Math.round(cashout.amount_usd * 100), // Convert to cents
+        amount: cashout.amount_credits * 100, // amount_credits IS the USD amount in cents
         currency: "usd",
         destination: profile.stripe_account_id,
         description: `Living Ledger Cashout #${cashout_id} for ${cashout.amount_credits} credits`,
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
       console.error("Stripe transfer error:", stripeError);
       console.log("\n⚠️ FALLBACK: Manual payout may be required");
       console.log(`Cashout ID: ${cashout_id}`);
-      console.log(`Amount: $${cashout.amount_usd}`);
+      console.log(`Amount: $${cashout.amount_credits}`);
       console.log(`User: ${profile?.username} (${profile?.email})`);
       // Don't fail the approval - admin can handle manually
     }
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
           <p>Great news! Your cashout request has been approved${transferSuccessful ? " and payment has been sent" : ""}.</p>
           
           <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Amount:</strong> $${cashout.amount_usd} USD</p>
+            <p style="margin: 0;"><strong>Amount:</strong> $${cashout.amount_credits} USD</p>
             ${transferSuccessful ? `<p style="margin: 8px 0 0 0;"><strong>Status:</strong> Payment sent to your Stripe account</p>` : ""}
           </div>
           

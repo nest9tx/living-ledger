@@ -642,7 +642,13 @@ export default function AdminDashboard() {
                             ${req.amount_credits} from {req.user?.username || "Unknown user"}
                           </p>
                           <p className="text-xs text-foreground/60 mt-1">
-                            Requested {new Date(req.requested_at).toLocaleDateString()}
+                            {req.user?.email || "No email"} · Requested {new Date(req.requested_at).toLocaleDateString()}
+                          </p>
+                          <p className="text-xs mt-1">
+                            {req.user?.stripe_account_id && req.user?.stripe_onboarding_complete
+                              ? <span className="text-emerald-600">✓ Stripe connected ({req.user.stripe_account_status}) · {req.user.stripe_account_id}</span>
+                              : <span className="text-amber-500">⚠ No Stripe account — manual payout required</span>
+                            }
                           </p>
                           {req.admin_note && (
                             <p className="text-xs text-foreground/70 mt-2 italic">{req.admin_note}</p>
@@ -671,7 +677,11 @@ export default function AdminDashboard() {
                                 return;
                               }
 
-                              alert("✓ Cashout approved");
+                              if (payload.transferSuccessful) {
+                                alert(`✓ Cashout approved and $${req.amount_credits} transferred via Stripe automatically.`);
+                              } else {
+                                alert(`✓ Cashout approved but Stripe transfer failed — manual payout required.\n\nUser: ${req.user?.username} (${req.user?.email})\nAmount: $${req.amount_credits}\nStripe ID: ${req.user?.stripe_account_id || "Not connected"}`);
+                              }
                               await loadCashouts();
                             }}
                             className="px-3 py-1 text-xs rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 hover:bg-emerald-500/20"

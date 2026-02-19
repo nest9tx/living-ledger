@@ -52,7 +52,7 @@ export async function GET(req: Request) {
     const userIds = cashouts?.map((c) => c.user_id) || [];
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, username, earned_credits, purchased_credits")
+      .select("id, username, email, earned_credits, purchased_credits, stripe_account_id, stripe_account_status, stripe_onboarding_complete")
       .in("id", userIds);
 
     const profileMap = (profiles || []).reduce(
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
         acc[p.id] = p;
         return acc;
       },
-      {} as Record<string, { id: string; username: string; earned_credits: number; purchased_credits: number }>
+      {} as Record<string, { id: string; username: string; email: string; earned_credits: number; purchased_credits: number; stripe_account_id: string | null; stripe_account_status: string | null; stripe_onboarding_complete: boolean }>
     );
 
     const items = (cashouts || []).map((c) => ({
