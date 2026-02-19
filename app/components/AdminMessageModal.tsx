@@ -101,9 +101,29 @@ export default function AdminMessageModal({ otherUserId, otherUserName, onClose,
             !msg.listing_id
           ) || [];
 
-          setMessages(adminMessages.sort((a: { created_at: string }, b: { created_at: string }) => 
+          const sorted = adminMessages.sort((a: { created_at: string }, b: { created_at: string }) => 
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          ));
+          );
+          setMessages(sorted);
+
+          // Mark unread messages as read
+          const { data: userData2 } = await supabase.auth.getUser();
+          const unreadIds = sorted
+            .filter((m: { to_user_id: string; is_read: boolean }) =>
+              m.to_user_id === userData2.user?.id && !m.is_read
+            )
+            .map((m: { id: number }) => m.id);
+
+          if (unreadIds.length > 0) {
+            await fetch("/api/messages/mark-read", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ message_ids: unreadIds }),
+            });
+          }
         }
       } catch (error) {
         console.error("Failed to load admin messages:", error);
