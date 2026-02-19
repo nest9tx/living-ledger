@@ -14,6 +14,7 @@ type PostDetailProps = {
   onDelete?: () => void;
   onBoost?: () => void;
   defaultTab?: "details" | "messages";
+  guestMode?: boolean;
 };
 
 type PostDetail = {
@@ -40,7 +41,7 @@ type PostDetail = {
   status?: string;
 };
 
-export default function PostDetailModal({ postId, postType, onClose, onDelete, onBoost, defaultTab = "details" }: PostDetailProps) {
+export default function PostDetailModal({ postId, postType, onClose, onDelete, onBoost, defaultTab = "details", guestMode = false }: PostDetailProps) {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -448,7 +449,22 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           )}
 
           {/* Interaction Section */}
-          {!isOwnPost && (
+          {guestMode ? (
+            <div className="border-t border-foreground/10 pt-6">
+              <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-5 text-center space-y-3">
+                <p className="font-medium">Want to respond to this listing?</p>
+                <p className="text-sm text-foreground/60">Create a free account to message, purchase, or post your own listings.</p>
+                <div className="flex gap-3 justify-center">
+                  <a href="/signup" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90 transition">
+                    Join free
+                  </a>
+                  <a href="/login" className="rounded-md border border-foreground/20 px-4 py-2 text-sm font-medium hover:bg-foreground/5 transition">
+                    Sign in
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : !isOwnPost && (
             <div className="border-t border-foreground/10 pt-6">
               <h3 className="text-sm font-medium text-foreground/60 uppercase tracking-wider mb-4">
                 Interested?

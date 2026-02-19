@@ -19,18 +19,18 @@ export async function GET(req: Request) {
       .single();
     if (!admin?.is_admin) return Response.json({ error: "Forbidden" }, { status: 403 });
 
-    // Fetch all active offers and requests
+    // Fetch all offers and requests (including suspended — admin sees everything)
     const [offersRes, requestsRes, boostsRes] = await Promise.all([
       supabaseAdmin
         .from("offers")
-        .select("id, title, description, price_credits, user_id, created_at")
+        .select("id, title, description, price_credits, user_id, created_at, suspended")
         .order("created_at", { ascending: false })
-        .limit(100),
+        .limit(200),
       supabaseAdmin
         .from("requests")
-        .select("id, title, description, budget_credits, status, user_id, created_at")
+        .select("id, title, description, budget_credits, status, user_id, created_at, suspended")
         .order("created_at", { ascending: false })
-        .limit(100),
+        .limit(200),
       supabaseAdmin
         .from("listing_boosts")
         .select("id, listing_id, listing_type, boost_type, active, created_at")
@@ -65,6 +65,7 @@ export async function GET(req: Request) {
       username: usernameMap[o.user_id] || "Unknown",
       is_boosted: boostedIds.has(`offer:${o.id}`),
       display_credits: o.price_credits,
+      suspended: o.suspended ?? false,
     }));
 
     const requests = (requestsRes.data || []).map((r) => ({
@@ -73,6 +74,7 @@ export async function GET(req: Request) {
       username: usernameMap[r.user_id] || "Unknown",
       is_boosted: boostedIds.has(`request:${r.id}`),
       display_credits: r.budget_credits,
+      suspended: r.suspended ?? false,
     }));
 
     return Response.json({

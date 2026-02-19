@@ -46,6 +46,14 @@ export default function AdminDashboard() {
   const [flagsLoading, setFlagsLoading] = useState(false);
   const [listings, setListings] = useState<{ offers: any[]; requests: any[] }>({ offers: [], requests: [] });
   const [listingsLoading, setListingsLoading] = useState(false);
+  const [editListing, setEditListing] = useState<{
+    id: number;
+    type: string;
+    title: string;
+    description: string;
+    price: number | string;
+  } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [adminMessages, setAdminMessages] = useState<any[]>([]);
@@ -450,6 +458,67 @@ export default function AdminDashboard() {
     await loadListings();
   };
 
+  const handleSaveEdit = async () => {
+    if (!editListing) return;
+    setEditSaving(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    const res = await fetch("/api/admin/listings/edit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        listing_id: editListing.id,
+        listing_type: editListing.type,
+        title: editListing.title,
+        description: editListing.description,
+        price_credits: editListing.price,
+      }),
+    });
+    setEditSaving(false);
+    if (res.ok) {
+      setEditListing(null);
+      await loadListings();
+    } else {
+      const payload = await res.json();
+      alert(payload.error || "Failed to save changes.");
+    }
+  };
+
+  const handleAdminBoost = async (listing_id: number, listing_type: string) => {
+    if (!confirm("Grant a free 30-day homepage boost to this listing?")) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    const res = await fetch("/api/admin/listings/boost", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ listing_id, listing_type }),
+    });
+    if (res.ok) {
+      await loadListings();
+    } else {
+      const payload = await res.json();
+      alert(payload.error || "Failed to apply boost.");
+    }
+  };
+
+  const handleSuspend = async (listing_id: number, listing_type: string, suspend: boolean) => {
+    const action = suspend ? "suspend" : "reinstate";
+    if (!confirm(`Are you sure you want to ${action} this listing?`)) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    const res = await fetch("/api/admin/listings/suspend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ listing_id, listing_type, suspend }),
+    });
+    if (res.ok) {
+      await loadListings();
+    } else {
+      const payload = await res.json();
+      alert(payload.error || `Failed to ${action} listing.`);
+    }
+  };
+
   const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "users", "messages", "settings"] as const;
 
   return (
@@ -790,6 +859,62 @@ export default function AdminDashboard() {
                   Refresh
                 </button>
               </div>
+
+              {/* Edit modal */}
+              {editListing && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-lg rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-4">
+                    <h3 className="font-semibold text-lg">Edit Listing</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-foreground/60 uppercase tracking-wide">Title</label>
+                        <input
+                          type="text"
+                          value={editListing.title}
+                          onChange={(e) => setEditListing({ ...editListing, title: e.target.value })}
+                          className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-foreground/60 uppercase tracking-wide">Description</label>
+                        <textarea
+                          value={editListing.description}
+                          onChange={(e) => setEditListing({ ...editListing, description: e.target.value })}
+                          rows={4}
+                          className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-foreground/60 uppercase tracking-wide">
+                          {editListing.type === "offer" ? "Price" : "Budget"} (credits)
+                        </label>
+                        <input
+                          type="number"
+                          value={editListing.price}
+                          onChange={(e) => setEditListing({ ...editListing, price: e.target.value })}
+                          className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-3 justify-end pt-2">
+                      <button
+                        onClick={() => setEditListing(null)}
+                        className="px-4 py-2 text-sm rounded border border-foreground/20 hover:bg-foreground/5"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveEdit}
+                        disabled={editSaving}
+                        className="px-4 py-2 text-sm rounded bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
+                      >
+                        {editSaving ? "Saving…" : "Save changes"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {listingsLoading ? (
                 <p className="text-foreground/60 text-sm">Loading listings…</p>
               ) : (
@@ -804,18 +929,42 @@ export default function AdminDashboard() {
                     ) : (
                       <div className="space-y-2">
                         {listings.offers.map((item) => (
-                          <div key={item.id} className="rounded-lg border border-foreground/10 bg-foreground/2 p-3 flex items-start justify-between gap-3">
+                          <div
+                            key={item.id}
+                            className={`rounded-lg border p-3 flex items-start justify-between gap-3 ${
+                              item.suspended
+                                ? "border-orange-500/30 bg-orange-500/5"
+                                : "border-foreground/10 bg-foreground/2"
+                            }`}
+                          >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium text-sm truncate">{item.title}</p>
                                 {item.is_boosted && (
                                   <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/20">⚡ Boosted</span>
                                 )}
+                                {item.suspended && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-600 border border-orange-500/20">🚫 Suspended</span>
+                                )}
                                 <span className="text-xs text-foreground/50">{item.display_credits} credits · by {item.username}</span>
                               </div>
                               <p className="text-xs text-foreground/50 mt-0.5">{new Date(item.created_at).toLocaleDateString()}</p>
                             </div>
-                            <div className="flex gap-2 shrink-0">
+                            <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
+                              <button
+                                onClick={() => setEditListing({ id: item.id, type: "offer", title: item.title, description: item.description, price: item.display_credits })}
+                                className="px-2 py-1 text-xs rounded border border-foreground/20 hover:bg-foreground/5"
+                              >
+                                Edit
+                              </button>
+                              {!item.is_boosted && !item.suspended && (
+                                <button
+                                  onClick={() => handleAdminBoost(item.id, "offer")}
+                                  className="px-2 py-1 text-xs rounded border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
+                                >
+                                  ⭐ Boost
+                                </button>
+                              )}
                               {item.is_boosted && (
                                 <button
                                   onClick={() => handleRemoveBoost(item.id, "offer")}
@@ -824,6 +973,16 @@ export default function AdminDashboard() {
                                   Remove boost
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleSuspend(item.id, "offer", !item.suspended)}
+                                className={`px-2 py-1 text-xs rounded border ${
+                                  item.suspended
+                                    ? "border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
+                                    : "border-orange-500/20 text-orange-600 hover:bg-orange-500/5"
+                                }`}
+                              >
+                                {item.suspended ? "Reinstate" : "Suspend"}
+                              </button>
                               <button
                                 onClick={() => handleDeleteListing(item.id, "offer", item.title)}
                                 className="px-2 py-1 text-xs rounded border border-red-500/20 text-red-600 hover:bg-red-500/5"
@@ -846,18 +1005,42 @@ export default function AdminDashboard() {
                     ) : (
                       <div className="space-y-2">
                         {listings.requests.map((item) => (
-                          <div key={item.id} className="rounded-lg border border-foreground/10 bg-foreground/2 p-3 flex items-start justify-between gap-3">
+                          <div
+                            key={item.id}
+                            className={`rounded-lg border p-3 flex items-start justify-between gap-3 ${
+                              item.suspended
+                                ? "border-orange-500/30 bg-orange-500/5"
+                                : "border-foreground/10 bg-foreground/2"
+                            }`}
+                          >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium text-sm truncate">{item.title}</p>
                                 {item.is_boosted && (
                                   <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/20">⚡ Boosted</span>
                                 )}
+                                {item.suspended && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-600 border border-orange-500/20">🚫 Suspended</span>
+                                )}
                                 <span className="text-xs text-foreground/50">Budget: {item.display_credits} credits · by {item.username}</span>
                               </div>
                               <p className="text-xs text-foreground/50 mt-0.5">{new Date(item.created_at).toLocaleDateString()}</p>
                             </div>
-                            <div className="flex gap-2 shrink-0">
+                            <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
+                              <button
+                                onClick={() => setEditListing({ id: item.id, type: "request", title: item.title, description: item.description, price: item.display_credits })}
+                                className="px-2 py-1 text-xs rounded border border-foreground/20 hover:bg-foreground/5"
+                              >
+                                Edit
+                              </button>
+                              {!item.is_boosted && !item.suspended && (
+                                <button
+                                  onClick={() => handleAdminBoost(item.id, "request")}
+                                  className="px-2 py-1 text-xs rounded border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
+                                >
+                                  ⭐ Boost
+                                </button>
+                              )}
                               {item.is_boosted && (
                                 <button
                                   onClick={() => handleRemoveBoost(item.id, "request")}
@@ -866,6 +1049,16 @@ export default function AdminDashboard() {
                                   Remove boost
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleSuspend(item.id, "request", !item.suspended)}
+                                className={`px-2 py-1 text-xs rounded border ${
+                                  item.suspended
+                                    ? "border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
+                                    : "border-orange-500/20 text-orange-600 hover:bg-orange-500/5"
+                                }`}
+                              >
+                                {item.suspended ? "Reinstate" : "Suspend"}
+                              </button>
                               <button
                                 onClick={() => handleDeleteListing(item.id, "request", item.title)}
                                 className="px-2 py-1 text-xs rounded border border-red-500/20 text-red-600 hover:bg-red-500/5"

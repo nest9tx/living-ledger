@@ -45,13 +45,18 @@ type FeedItem = {
   boostExpiresAt?: string | null;
 };
 
-export default function Feed() {
+type FeedProps = {
+  guestMode?: boolean;
+};
+
+export default function Feed({ guestMode = false }: FeedProps) {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "requests" | "offers">("all");
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedPost, setSelectedPost] = useState<{ id: number; type: "request" | "offer" } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -130,6 +135,14 @@ export default function Feed() {
     // Apply category filter
     if (categoryFilter !== null && item.category_id !== categoryFilter) return false;
 
+    // Apply keyword search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const inTitle = item.title.toLowerCase().includes(q);
+      const inDesc = item.description.toLowerCase().includes(q);
+      if (!inTitle && !inDesc) return false;
+    }
+
     return true;
   });
 
@@ -162,6 +175,26 @@ export default function Feed() {
 
   return (
     <div className="space-y-6">
+      {/* Search bar */}
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search listings by keyword…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-md border border-foreground/20 bg-transparent px-4 py-2 pl-9 text-sm placeholder:text-foreground/40 focus:border-foreground/40 focus:outline-none"
+        />
+        <span className="pointer-events-none absolute left-3 top-2.5 text-foreground/40 text-sm">🔍</span>
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-2.5 text-foreground/40 hover:text-foreground text-xs"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* Type filters */}
       <div className="flex gap-2 flex-wrap">
         <button
@@ -227,7 +260,7 @@ export default function Feed() {
 
       {filtered.length === 0 ? (
         <p className="text-sm text-foreground/60">
-          No posts yet. Be the first to contribute!
+          {searchQuery ? `No listings match "${searchQuery}".` : "No posts yet. Be the first to contribute!"}
         </p>
       ) : (
         <div className="space-y-3">
@@ -338,6 +371,7 @@ export default function Feed() {
           onBoost={() => {
             setRefreshKey(prev => prev + 1); // Refresh feed after boost
           }}
+          guestMode={guestMode}
         />
       )}
     </div>

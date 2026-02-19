@@ -123,6 +123,7 @@ export async function fetchRequests() {
          user_id, 
          category_id`
       )
+      .eq("suspended", false)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -273,6 +274,7 @@ export async function fetchOffers() {
          user_id, 
          category_id`
       )
+      .eq("suspended", false)
       .order("created_at", { ascending: false });
 
     if (error) {

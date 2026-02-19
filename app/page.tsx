@@ -65,6 +65,12 @@ export default async function Home() {
           </a>
           <a
             className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-2 text-sm font-medium"
+            href="/browse"
+          >
+            Browse listings
+          </a>
+          <a
+            className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-2 text-sm font-medium"
             href="/login"
           >
             Sign in
