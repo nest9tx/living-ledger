@@ -173,11 +173,32 @@ export async function fetchRequests() {
         map[boost.post_id] = boost;
         return map;
       }, {} as Record<number, any>) || {};
+
+      // Fetch listing images
+      const { data: imageData, error: imageError } = await supabase
+        .from("listing_images")
+        .select("id, listing_id, storage_path, filename, file_size, mime_type, upload_order")
+        .eq("listing_type", "request")
+        .in("listing_id", requestIds)
+        .order("upload_order", { ascending: true });
+
+      if (imageError) {
+        console.error("Error fetching request images:", imageError);
+      }
+
+      const imageMap = imageData?.reduce((map, image) => {
+        if (!map[image.listing_id]) {
+          map[image.listing_id] = [];
+        }
+        map[image.listing_id].push(image);
+        return map;
+      }, {} as Record<number, any[]>) || {};
       
       enrichedData = enrichedData.map(req => ({
         ...req,
         categories: req.category_id ? categoryMap[req.category_id] : null,
         profiles: req.user_id ? profileMap[req.user_id] : null,
+        images: imageMap[req.id] || [],
         isBoosted: !!boostMap[req.id],
         boostTier: boostMap[req.id]?.boost_tier || null,
         boostExpiresAt: boostMap[req.id]?.expires_at || null
