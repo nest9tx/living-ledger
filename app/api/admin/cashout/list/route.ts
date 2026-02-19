@@ -1,5 +1,4 @@
 import supabaseAdmin from "@/lib/supabase-admin";
-import supabase from "@/lib/supabase";
 
 export async function GET(req: Request) {
   try {
@@ -12,7 +11,7 @@ export async function GET(req: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !userData.user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -48,19 +47,28 @@ export async function GET(req: Request) {
       return Response.json({ error: "Failed to load cashout requests" }, { status: 500 });
     }
 
-    // Get user profiles for context
+    // Get user profiles for context (email lives in auth.users, not profiles)
     const userIds = cashouts?.map((c) => c.user_id) || [];
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
-      .select("id, username, email, earned_credits, purchased_credits, stripe_account_id, stripe_account_status, stripe_onboarding_complete")
+      .select("id, username, earned_credits, purchased_credits, stripe_account_id, stripe_account_status, stripe_onboarding_complete")
       .in("id", userIds);
+
+    // Fetch emails from auth.users
+    const emailMap: Record<string, string> = {};
+    await Promise.all(
+      userIds.map(async (uid) => {
+        const { data } = await supabaseAdmin.auth.admin.getUserById(uid);
+        if (data?.user?.email) emailMap[uid] = data.user.email;
+      })
+    );
 
     const profileMap = (profiles || []).reduce(
       (acc, p) => {
-        acc[p.id] = p;
+        acc[p.id] = { ...p, email: emailMap[p.id] ?? null };
         return acc;
       },
-      {} as Record<string, { id: string; username: string; email: string; earned_credits: number; purchased_credits: number; stripe_account_id: string | null; stripe_account_status: string | null; stripe_onboarding_complete: boolean }>
+      {} as Record<string, { id: string; username: string; email: string | null; earned_credits: number; purchased_credits: number; stripe_account_id: string | null; stripe_account_status: string | null; stripe_onboarding_complete: boolean }>
     );
 
     const items = (cashouts || []).map((c) => ({

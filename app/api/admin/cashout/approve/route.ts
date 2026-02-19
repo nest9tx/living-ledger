@@ -53,12 +53,16 @@ export async function POST(req: Request) {
       return Response.json({ error: "Cashout request not found" }, { status: 404 });
     }
 
-    // Get user profile separately
+    // Get user profile separately (email lives in auth.users, not profiles)
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("username, email, stripe_account_id, stripe_account_status")
+      .select("username, stripe_account_id, stripe_account_status")
       .eq("id", cashout.user_id)
       .single();
+
+    // Fetch email from auth.users
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(cashout.user_id);
+    const userEmail = authUser?.user?.email ?? "";
 
     if (cashout.status !== "pending") {
       return Response.json(
@@ -140,7 +144,7 @@ export async function POST(req: Request) {
       console.log("\n⚠️ FALLBACK: Manual payout may be required");
       console.log(`Cashout ID: ${cashout_id}`);
       console.log(`Amount: $${cashout.amount_credits}`);
-      console.log(`User: ${profile?.username} (${profile?.email})`);
+      console.log(`User: ${profile?.username} (${userEmail})`);
       // Don't fail the approval - admin can handle manually
     }
 
@@ -148,7 +152,7 @@ export async function POST(req: Request) {
     try {
       await resend.emails.send({
         from: "Living Ledger <support@livingledger.org>",
-        to: profile?.email ?? "",
+        to: userEmail,
         subject: "✓ Cashout Approved - Payment Processing",
         html: `
           <h2>Your cashout has been approved!</h2>

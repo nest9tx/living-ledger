@@ -48,12 +48,16 @@ export async function POST(req: Request) {
       return Response.json({ error: "Cashout request not found" }, { status: 404 });
     }
 
-    // Get user profile separately
+    // Get user profile separately (email lives in auth.users, not profiles)
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("username, email")
+      .select("username")
       .eq("id", cashout.user_id)
       .single();
+
+    // Fetch email from auth.users
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(cashout.user_id);
+    const userEmail = authUser?.user?.email ?? "";
 
     if (cashout.status !== "pending") {
       return Response.json(
@@ -100,7 +104,7 @@ export async function POST(req: Request) {
     try {
       await resend.emails.send({
         from: "Living Ledger <support@livingledger.org>",
-        to: profile?.email ?? "",
+        to: userEmail,
         subject: "Cashout Request Update",
         html: `
           <h2>Cashout Request Status Update</h2>
