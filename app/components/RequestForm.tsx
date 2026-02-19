@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { createRequest, fetchCategories } from "@/lib/supabase-helpers";
+import ImageUploadComponent from "./ImageUploadComponent";
+import { UploadedImage } from "@/lib/image-upload";
+import supabase from "@/lib/supabase";
 
 type Category = {
   id: number;
@@ -14,6 +17,7 @@ type FormErrors = {
   description?: string;
   categoryId?: string;
   budgetCredits?: string;
+  images?: string;
 };
 
 export default function RequestForm({
@@ -26,6 +30,7 @@ export default function RequestForm({
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [budgetCredits, setBudgetCredits] = useState(5);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -73,6 +78,10 @@ export default function RequestForm({
       errors.budgetCredits = "Budget cannot exceed 10,000 credits";
     }
 
+    if (images.length > 5) {
+      errors.images = "Maximum 5 images allowed";
+    }
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -89,10 +98,45 @@ export default function RequestForm({
     setLoading(true);
 
     try {
-      await createRequest(title, description, categoryId!, budgetCredits);
+      const requestData = await createRequest(title, description, categoryId!, budgetCredits);
+
+      if (!requestData || !requestData[0]) {
+        throw new Error("Failed to create request");
+      }
+
+      const requestId = requestData[0].id;
+
+      // Associate uploaded images with the request
+      if (images.length > 0) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+
+        if (token) {
+          const response = await fetch("/api/uploads/associate-listing", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              imageIds: images.map(img => img.id),
+              listingId: requestId,
+              listingType: "request",
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Failed to associate images with request:", errorData);
+            // Don't fail the whole operation if image association fails
+          }
+        }
+      }
+
       setTitle("");
       setDescription("");
       setBudgetCredits(5);
+      setImages([]);
       setFieldErrors({});
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -104,6 +148,21 @@ export default function RequestForm({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleImageUpload = (uploadedImages: UploadedImage[]) => {
+    setImages(prev => [...prev, ...uploadedImages]);
+    if (fieldErrors.images) {
+      setFieldErrors({ ...fieldErrors, images: undefined });
+    }
+  };
+
+  const handleImageUploadError = (err: string) => {
+    setError(`Image upload error: ${err}`);
+  };
+
+  const removeImage = (imageId: string) => {
+    setImages(prev => prev.filter(img => img.id !== imageId));
   };
 
   return (
@@ -207,7 +266,6 @@ export default function RequestForm({
           <input
             id="budget"
             type="number"
-            min="5"
             max="10000"
             className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
               fieldErrors.budgetCredits
@@ -216,9 +274,18 @@ export default function RequestForm({
             }`}
             value={budgetCredits}
             onChange={(e) => {
-              const value = Math.max(5, parseInt(e.target.value) || 5);
-              setBudgetCredits(value);
+              const rawValue = e.target.value;
+              if (rawValue === "" || rawValue === "0") {
+                setBudgetCredits(0);
+              } else {
+                const value = parseInt(rawValue);
+                if (!isNaN(value)) setBudgetCredits(value);
+              }
               if (fieldErrors.budgetCredits) setFieldErrors({ ...fieldErrors, budgetCredits: undefined });
+            }}
+            onBlur={(e) => {
+              const value = parseInt(e.target.value) || 0;
+              if (value > 0 && value < 5) setBudgetCredits(5);
             }}
           />
           {!fieldErrors.budgetCredits && (
@@ -228,6 +295,61 @@ export default function RequestForm({
             <p className="mt-1 text-xs text-red-600">{fieldErrors.budgetCredits}</p>
           )}
         </div>
+      </div>
+
+      {/* Image Upload Section */}
+      <div>
+        <label className="text-sm font-medium">
+          Images (optional)
+        </label>
+        <div className="mt-1">
+          <ImageUploadComponent
+            type="listing"
+            options={{
+              maxFiles: 5,
+              listingType: "request"
+            }}
+            onUploadComplete={handleImageUpload}
+            onUploadError={handleImageUploadError}
+            disabled={loading}
+            multiple={true}
+          />
+          {fieldErrors.images && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.images}</p>
+          )}
+        </div>
+
+        {images.length > 0 && (
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+            {images.map((image) => (
+              <div key={image.id} className="relative group">
+                <div className="aspect-square rounded-lg border border-foreground/10 bg-foreground/5 p-2">
+                  {image.url ? (
+                    <img
+                      src={image.url}
+                      alt={image.filename}
+                      className="w-full h-full object-cover rounded-md"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg className="w-8 h-8 text-foreground/40" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(image.id)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-foreground/60 truncate">{image.filename}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {error && (
