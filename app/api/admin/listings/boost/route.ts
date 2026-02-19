@@ -42,6 +42,7 @@ export async function POST(req: Request) {
       post_type: listing_type,
       boost_tier: "homepage",
       is_active: true,
+      user_id: userData.user.id,
       started_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
       credits_spent: 0,
