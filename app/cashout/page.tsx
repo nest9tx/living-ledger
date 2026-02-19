@@ -91,15 +91,19 @@ export default function CashoutPage() {
 
       setSubmitting(true);
 
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
         setError("Not authenticated");
         return;
       }
 
       const res = await fetch("/api/cashout/request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           amount_credits: amountNum,
         }),
@@ -116,10 +120,11 @@ export default function CashoutPage() {
       setEarnedCredits(Math.max(0, earnedCredits - amountNum));
 
       // Reload requests
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: updated } = await supabase
         .from("cashout_requests")
         .select("*")
-        .eq("user_id", userData.user.id)
+        .eq("user_id", user!.id)
         .order("requested_at", { ascending: false })
         .limit(20);
 

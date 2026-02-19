@@ -1,4 +1,3 @@
-import supabase from "@/lib/supabase";
 import supabaseAdmin from "@/lib/supabase-admin";
 
 export async function POST(req: Request) {
@@ -12,7 +11,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !userData.user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
