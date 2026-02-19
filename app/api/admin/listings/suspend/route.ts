@@ -41,10 +41,10 @@ export async function POST(req: Request) {
     if (suspend) {
       await supabaseAdmin
         .from("listing_boosts")
-        .update({ active: false })
-        .eq("listing_id", listing_id)
-        .eq("listing_type", listing_type)
-        .eq("active", true);
+        .update({ is_active: false })
+        .eq("post_id", listing_id)
+        .eq("post_type", listing_type)
+        .eq("is_active", true);
     }
 
     return Response.json({ success: true });

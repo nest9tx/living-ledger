@@ -33,8 +33,9 @@ export async function GET(req: Request) {
         .limit(200),
       supabaseAdmin
         .from("listing_boosts")
-        .select("id, listing_id, listing_type, boost_type, active, created_at")
-        .eq("active", true),
+        .select("id, post_id, post_type, boost_tier, is_active, expires_at")
+        .eq("is_active", true)
+        .gt("expires_at", new Date().toISOString()),
     ]);
 
     // Get all unique user IDs to resolve usernames
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
     );
 
     const boostedIds = new Set(
-      (boostsRes.data || []).map((b) => `${b.listing_type}:${b.listing_id}`)
+      (boostsRes.data || []).map((b) => `${b.post_type}:${b.post_id}`)
     );
 
     const offers = (offersRes.data || []).map((o) => ({

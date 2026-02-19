@@ -28,38 +28,29 @@ export async function POST(req: Request) {
     // Deactivate any existing active boosts first to avoid duplicates
     await supabaseAdmin
       .from("listing_boosts")
-      .update({ active: false })
-      .eq("listing_id", listing_id)
-      .eq("listing_type", listing_type)
-      .eq("active", true);
+      .update({ is_active: false })
+      .eq("post_id", listing_id)
+      .eq("post_type", listing_type)
+      .eq("is_active", true);
 
     // Insert a free 24-hour homepage boost
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
     const { error } = await supabaseAdmin.from("listing_boosts").insert({
-      listing_id,
-      listing_type,
-      boost_type: "homepage",
-      active: true,
-      created_at: new Date().toISOString(),
+      post_id: listing_id,
+      post_type: listing_type,
+      boost_tier: "homepage",
+      is_active: true,
+      started_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
       credits_spent: 0,
-      admin_granted: true,
+      duration_hours: 24,
     });
 
     if (error) {
-      // If expires_at or admin_granted columns don't exist, try without them
-      const { error: fallbackError } = await supabaseAdmin
-        .from("listing_boosts")
-        .insert({
-          listing_id,
-          listing_type,
-          boost_type: "homepage",
-          active: true,
-        });
-      if (fallbackError)
-        return Response.json({ error: fallbackError.message }, { status: 500 });
+      console.error("Admin boost insert error:", error);
+      return Response.json({ error: error.message }, { status: 500 });
     }
 
     return Response.json({ success: true });

@@ -485,7 +485,7 @@ export default function AdminDashboard() {
   };
 
   const handleAdminBoost = async (listing_id: number, listing_type: string) => {
-    if (!confirm("Grant a free 30-day homepage boost to this listing?")) return;
+    if (!confirm("Grant a free 24-hour homepage boost to this listing?")) return;
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     const res = await fetch("/api/admin/listings/boost", {
