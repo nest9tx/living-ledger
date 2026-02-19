@@ -41,24 +41,24 @@ export async function POST(req: Request) {
       return Response.json({ error: "Cashout ID required" }, { status: 400 });
     }
 
-    // Get cashout request with user profile
-    const { data: cashout } = await supabaseAdmin
+    // Get cashout request
+    const { data: cashout, error: cashoutError } = await supabaseAdmin
       .from("cashout_requests")
-      .select(`
-        *,
-        profiles!inner(
-          username,
-          email,
-          stripe_account_id,
-          stripe_account_status
-        )
-      `)
+      .select("*")
       .eq("id", cashout_id)
       .single();
 
-    if (!cashout) {
+    if (cashoutError || !cashout) {
+      console.error("Cashout fetch error:", cashoutError);
       return Response.json({ error: "Cashout request not found" }, { status: 404 });
     }
+
+    // Get user profile separately
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("username, email, stripe_account_id, stripe_account_status")
+      .eq("id", cashout.user_id)
+      .single();
 
     if (cashout.status !== "pending") {
       return Response.json(
@@ -102,13 +102,11 @@ export async function POST(req: Request) {
     // Process automated Stripe transfer
     let transferSuccessful = false;
     try {
-      const profile = cashout.profiles;
-      
-      if (!profile.stripe_account_id) {
+      if (!profile?.stripe_account_id) {
         throw new Error("User has not connected a Stripe account");
       }
 
-      if (profile.stripe_account_status !== "active") {
+      if (profile?.stripe_account_status !== "active") {
         throw new Error("User's Stripe account is not fully verified");
       }
 
@@ -121,7 +119,7 @@ export async function POST(req: Request) {
         metadata: {
           cashout_id: cashout_id.toString(),
           user_id: cashout.user_id,
-          username: profile.username,
+          username: profile?.username ?? "",
         },
       });
 
@@ -142,7 +140,7 @@ export async function POST(req: Request) {
       console.log("\n⚠️ FALLBACK: Manual payout may be required");
       console.log(`Cashout ID: ${cashout_id}`);
       console.log(`Amount: $${cashout.amount_usd}`);
-      console.log(`User: ${cashout.profiles.username} (${cashout.profiles.email})`);
+      console.log(`User: ${profile?.username} (${profile?.email})`);
       // Don't fail the approval - admin can handle manually
     }
 
@@ -150,11 +148,11 @@ export async function POST(req: Request) {
     try {
       await resend.emails.send({
         from: "Living Ledger <support@livingledger.org>",
-        to: cashout.profiles.email,
+        to: profile?.email ?? "",
         subject: "✓ Cashout Approved - Payment Processing",
         html: `
           <h2>Your cashout has been approved!</h2>
-          <p>Hi ${cashout.profiles.username},</p>
+          <p>Hi ${profile?.username},</p>
           <p>Great news! Your cashout request has been approved${transferSuccessful ? " and payment has been sent" : ""}.</p>
           
           <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 20px 0;">

@@ -37,18 +37,23 @@ export async function POST(req: Request) {
     }
 
     // Get cashout request with user profile
-    const { data: cashout } = await supabaseAdmin
+    const { data: cashout, error: cashoutError } = await supabaseAdmin
       .from("cashout_requests")
-      .select(`
-        *,
-        profiles!inner(username, email)
-      `)
+      .select("*")
       .eq("id", cashout_id)
       .single();
 
-    if (!cashout) {
+    if (cashoutError || !cashout) {
+      console.error("Cashout fetch error:", cashoutError);
       return Response.json({ error: "Cashout request not found" }, { status: 404 });
     }
+
+    // Get user profile separately
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("username, email")
+      .eq("id", cashout.user_id)
+      .single();
 
     if (cashout.status !== "pending") {
       return Response.json(
@@ -105,11 +110,11 @@ export async function POST(req: Request) {
     try {
       await resend.emails.send({
         from: "Living Ledger <support@livingledger.org>",
-        to: cashout.profiles.email,
+        to: profile?.email ?? "",
         subject: "Cashout Request Update",
         html: `
           <h2>Cashout Request Status Update</h2>
-          <p>Hi ${cashout.profiles.username},</p>
+          <p>Hi ${profile?.username},</p>
           <p>We're writing to inform you about your recent cashout request.</p>
           
           <div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
