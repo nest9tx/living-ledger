@@ -1,6 +1,21 @@
+import Link from "next/link";
+
 export default function GuidelinesPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Site nav */}
+      <nav className="border-b border-foreground/10">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
+          <Link href="/" className="text-sm font-medium hover:text-foreground/70 transition">
+            ← Living Ledger
+          </Link>
+          <div className="flex gap-4">
+            <Link href="/login" className="text-sm text-foreground/60 hover:text-foreground transition">Sign in</Link>
+            <Link href="/signup" className="text-sm font-medium bg-foreground text-background px-3 py-1 rounded-md hover:bg-foreground/90 transition">Join free</Link>
+          </div>
+        </div>
+      </nav>
+
       <div className="mx-auto max-w-2xl px-6 py-12">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-foreground/60">

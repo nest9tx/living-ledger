@@ -33,9 +33,9 @@ export async function POST(req: Request) {
       .eq("listing_type", listing_type)
       .eq("active", true);
 
-    // Insert a free 30-day homepage boost
+    // Insert a free 24-hour homepage boost
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
     const { error } = await supabaseAdmin.from("listing_boosts").insert({
       listing_id,
