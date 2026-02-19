@@ -57,7 +57,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ messages: messages || [] }, { status: 200 });
+    // Generate signed URLs for any messages with attachments
+    const enriched = await Promise.all(
+      (messages || []).map(async (msg) => {
+        if (!msg.attachment_path) return msg;
+        try {
+          const { data: signed } = await supabaseAdmin.storage
+            .from("message-attachments")
+            .createSignedUrl(msg.attachment_path, 3600); // 1 hour expiry
+          return { ...msg, attachment_url: signed?.signedUrl || null };
+        } catch {
+          return { ...msg, attachment_url: null };
+        }
+      })
+    );
+
+    return NextResponse.json({ messages: enriched }, { status: 200 });
   } catch (error) {
     console.error("List messages error:", error);
     return NextResponse.json(

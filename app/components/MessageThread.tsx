@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 import supabase from "@/lib/supabase";
 
 type Message = {
@@ -10,6 +11,10 @@ type Message = {
   content: string;
   is_read: boolean;
   created_at: string;
+  attachment_path?: string | null;
+  attachment_filename?: string | null;
+  attachment_mime_type?: string | null;
+  attachment_url?: string | null;
 };
 
 type MessageThreadProps = {
@@ -26,7 +31,10 @@ export default function MessageThread({ listingId, listingType, listingOwnerId, 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -96,7 +104,8 @@ export default function MessageThread({ listingId, listingType, listingOwnerId, 
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUserId) return;
+    if (!newMessage.trim() && !pendingFile) return;
+    if (!currentUserId) return;
 
     setSending(true);
     setError(null);
@@ -104,6 +113,30 @@ export default function MessageThread({ listingId, listingType, listingOwnerId, 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
+
+      let attachmentPath: string | null = null;
+      let attachmentFilename: string | null = null;
+      let attachmentMimeType: string | null = null;
+
+      // Upload file first if one is pending
+      if (pendingFile) {
+        setUploading(true);
+        const ext = pendingFile.name.split(".").pop();
+        const path = `${currentUserId}/${Date.now()}_${pendingFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("message-attachments")
+          .upload(path, pendingFile, { contentType: pendingFile.type, upsert: false });
+
+        setUploading(false);
+
+        if (uploadError) {
+          throw new Error(`File upload failed: ${uploadError.message}`);
+        }
+
+        attachmentPath = path;
+        attachmentFilename = pendingFile.name;
+        attachmentMimeType = pendingFile.type || (ext ? `application/${ext}` : "application/octet-stream");
+      }
 
       const response = await fetch("/api/messages/send", {
         method: "POST",
@@ -116,24 +149,34 @@ export default function MessageThread({ listingId, listingType, listingOwnerId, 
           content: newMessage.trim(),
           listing_id: listingId,
           listing_type: listingType,
+          attachment_path: attachmentPath,
+          attachment_filename: attachmentFilename,
+          attachment_mime_type: attachmentMimeType,
         }),
       });
 
       if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error || "Failed to send message");
+        const { error: apiErr } = await response.json();
+        throw new Error(apiErr || "Failed to send message");
       }
 
       const { message } = await response.json();
-      
-      // Add message to local state
+
+      // For image attachments, generate a local object URL for immediate display
+      if (pendingFile && attachmentMimeType?.startsWith("image/")) {
+        message.attachment_url = URL.createObjectURL(pendingFile);
+      }
+
       setMessages((prev) => [...prev, message]);
       setNewMessage("");
+      setPendingFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       console.error("Error sending message:", err);
       setError(err instanceof Error ? err.message : "Failed to send message");
     } finally {
       setSending(false);
+      setUploading(false);
     }
   };
 
@@ -161,6 +204,7 @@ export default function MessageThread({ listingId, listingType, listingOwnerId, 
         ) : (
           messages.map((message) => {
             const isOwnMessage = message.from_user_id === currentUserId;
+            const isImage = message.attachment_mime_type?.startsWith("image/");
             return (
               <div
                 key={message.id}
@@ -173,7 +217,38 @@ export default function MessageThread({ listingId, listingType, listingOwnerId, 
                       : "bg-foreground/10 text-foreground"
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  {message.content && (
+                    <p className="text-sm">{message.content}</p>
+                  )}
+                  {/* Attachment */}
+                  {message.attachment_filename && (
+                    <div className={`mt-2 ${message.content ? "border-t border-current/20 pt-2" : ""}`}>
+                      {isImage && message.attachment_url ? (
+                        <a href={message.attachment_url} target="_blank" rel="noopener noreferrer">
+                          <Image
+                            src={message.attachment_url}
+                            alt={message.attachment_filename ?? "attachment"}
+                            width={320}
+                            height={192}
+                            unoptimized
+                            className="rounded-md max-h-48 object-cover w-auto"
+                          />
+                        </a>
+                      ) : (
+                        <a
+                          href={message.attachment_url || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center gap-2 text-xs underline ${
+                            isOwnMessage ? "text-background/80" : "text-foreground/70"
+                          }`}
+                        >
+                          <span>📎</span>
+                          <span className="truncate max-w-45">{message.attachment_filename}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
                   <p className={`text-xs mt-1 ${isOwnMessage ? "text-background/60" : "text-foreground/50"}`}>
                     {new Date(message.created_at).toLocaleString()}
                   </p>
@@ -193,22 +268,62 @@ export default function MessageThread({ listingId, listingType, listingOwnerId, 
       )}
 
       {/* Input */}
-      <form onSubmit={handleSendMessage} className="border-t border-foreground/10 p-4">
+      <form onSubmit={handleSendMessage} className="border-t border-foreground/10 p-4 space-y-2">
+        {/* Pending file preview */}
+        {pendingFile && (
+          <div className="flex items-center gap-2 rounded-lg border border-foreground/20 bg-foreground/5 px-3 py-2">
+            <span className="text-sm">📎</span>
+            <span className="flex-1 text-xs text-foreground/70 truncate">{pendingFile.name}</span>
+            <button
+              type="button"
+              onClick={() => { setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+              className="text-xs text-foreground/50 hover:text-red-500"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 10 * 1024 * 1024) {
+                setError("File must be under 10 MB");
+                return;
+              }
+              setPendingFile(file);
+              setError(null);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploading}
+            title="Attach a file"
+            className="rounded-lg border border-foreground/20 px-3 py-2 text-sm hover:bg-foreground/5 transition disabled:opacity-50"
+          >
+            📎
+          </button>
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
+            placeholder={pendingFile ? "Add a caption (optional)" : "Type your message..."}
             className="flex-1 rounded-lg border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
-            disabled={sending}
+            disabled={sending || uploading}
           />
           <button
             type="submit"
-            disabled={sending || !newMessage.trim()}
+            disabled={sending || uploading || (!newMessage.trim() && !pendingFile)}
             className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sending ? "Sending..." : "Send"}
+            {uploading ? "Uploading..." : sending ? "Sending..." : "Send"}
           </button>
         </div>
       </form>

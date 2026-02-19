@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { to_user_id, content, listing_id, listing_type } = await request.json();
+    const { to_user_id, content, listing_id, listing_type, attachment_path, attachment_filename, attachment_mime_type } = await request.json();
 
     // Get authenticated user
     const authHeader = request.headers.get("authorization");
@@ -25,10 +25,10 @@ export async function POST(request: NextRequest) {
 
     const from_user_id = userData.user.id;
 
-    // Validate required fields
-    if (!to_user_id || !content?.trim()) {
+    // Validate required fields — content OR attachment must be present
+    if (!to_user_id || (!content?.trim() && !attachment_path)) {
       return NextResponse.json(
-        { error: "Missing required fields: to_user_id and content" },
+        { error: "Missing required fields: to_user_id and content or attachment" },
         { status: 400 }
       );
     }
@@ -47,9 +47,12 @@ export async function POST(request: NextRequest) {
       .insert({
         from_user_id,
         to_user_id,
-        content: content.trim(),
+        content: content?.trim() || "",
         listing_id: listing_id || null,
         listing_type: listing_type || null,
+        attachment_path: attachment_path || null,
+        attachment_filename: attachment_filename || null,
+        attachment_mime_type: attachment_mime_type || null,
       })
       .select()
       .single();
