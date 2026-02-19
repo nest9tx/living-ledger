@@ -31,6 +31,12 @@ export default function SettingsPage() {
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [usernameChanging, setUsernameChanging] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+  const [usernameSuccess, setUsernameSuccess] = useState("");
+  const [changeCount, setChangeCount] = useState(0);
+  const [lastChangedAt, setLastChangedAt] = useState<string | null>(null);
 
   const loadUserSettings = useCallback(async () => {
     try {
@@ -47,7 +53,7 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at")
+        .select("username, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at, username_change_count, username_changed_at")
         .eq("id", session.user.id)
         .single();
 
@@ -56,6 +62,8 @@ export default function SettingsPage() {
           ...profile,
           email: fallbackEmail,
         });
+        setChangeCount(profile.username_change_count || 0);
+        setLastChangedAt(profile.username_changed_at || null);
 
         // Check Stripe Connect status if account exists
         if (profile.stripe_account_id) {
@@ -189,6 +197,36 @@ export default function SettingsPage() {
     }
   };
 
+  const handleUsernameChange = async () => {
+    if (!newUsername.trim()) return;
+    setUsernameChanging(true);
+    setUsernameError("");
+    setUsernameSuccess("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch("/api/user/change-username", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ new_username: newUsername.trim() }),
+      });
+      const payload = await res.json();
+      if (!res.ok) {
+        setUsernameError(payload?.error || "Failed to change username");
+      } else {
+        setUsernameSuccess(payload.message);
+        setNewUsername("");
+        setChangeCount((c) => c + 1);
+        setLastChangedAt(new Date().toISOString());
+        if (user) setUser({ ...user, username: payload.username });
+      }
+    } catch {
+      setUsernameError("An error occurred");
+    } finally {
+      setUsernameChanging(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6">
@@ -221,6 +259,37 @@ export default function SettingsPage() {
             <p><span className="text-foreground/60">Email:</span> {user?.email}</p>
             <p><span className="text-foreground/60">Member since:</span> {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}</p>
           </div>
+        </div>
+
+        {/* Change Username */}
+        <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-1">Change Username</h2>
+          <p className="text-sm text-foreground/60 mb-4">
+            {changeCount === 0
+              ? "Your first change is free. After that, each change costs 5 credits (once per 30 days)."
+              : `Cost: 5 credits · Once every 30 days${lastChangedAt ? ` · Last changed: ${new Date(lastChangedAt).toLocaleDateString()}` : ""}`
+            }
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              placeholder={`Current: ${user?.username || ""}`}
+              maxLength={20}
+              className="flex-1 px-3 py-2 rounded-lg border border-foreground/20 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground/30"
+            />
+            <button
+              onClick={handleUsernameChange}
+              disabled={usernameChanging || !newUsername.trim()}
+              className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium disabled:opacity-40"
+            >
+              {usernameChanging ? "Saving…" : changeCount === 0 ? "Change (Free)" : "Change (5 credits)"}
+            </button>
+          </div>
+          <p className="text-xs text-foreground/50 mt-2">3–20 characters · letters, numbers, underscores only</p>
+          {usernameError && <p className="text-xs text-red-500 mt-2">{usernameError}</p>}
+          {usernameSuccess && <p className="text-xs text-emerald-600 mt-2">{usernameSuccess}</p>}
         </div>
 
         {/* Stripe Connect Section */}

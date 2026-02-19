@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "moderation" | "disputes" | "cashouts" | "users" | "messages" | "settings"
+    "overview" | "moderation" | "disputes" | "cashouts" | "listings" | "users" | "messages" | "settings"
   >("overview");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +44,8 @@ export default function AdminDashboard() {
   const [disputeLoading, setDisputeLoading] = useState(false);
   const [flags, setFlags] = useState<any[]>([]);
   const [flagsLoading, setFlagsLoading] = useState(false);
+  const [listings, setListings] = useState<{ offers: any[]; requests: any[] }>({ offers: [], requests: [] });
+  const [listingsLoading, setListingsLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [adminMessages, setAdminMessages] = useState<any[]>([]);
@@ -400,6 +402,56 @@ export default function AdminDashboard() {
     );
   }
 
+  const loadListings = async () => {
+    setListingsLoading(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/admin/listings/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (res.ok) setListings({ offers: payload.offers || [], requests: payload.requests || [] });
+    } finally {
+      setListingsLoading(false);
+    }
+  };
+
+  const handleDeleteListing = async (listing_id: number, listing_type: string, title: string) => {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    const { data: session } = await supabase.auth.getSession();
+    const token = session.session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/admin/listings/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ listing_id, listing_type }),
+    });
+    const payload = await res.json();
+    if (!res.ok) { alert(payload?.error || "Failed to delete"); return; }
+    alert("✓ Listing deleted");
+    await loadListings();
+  };
+
+  const handleRemoveBoost = async (listing_id: number, listing_type: string) => {
+    if (!confirm(`Remove boost from this ${listing_type}?`)) return;
+    const { data: session } = await supabase.auth.getSession();
+    const token = session.session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/admin/listings/remove-boost", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ listing_id, listing_type }),
+    });
+    const payload = await res.json();
+    if (!res.ok) { alert(payload?.error || "Failed to remove boost"); return; }
+    alert("✓ Boost removed");
+    await loadListings();
+  };
+
+  const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "users", "messages", "settings"] as const;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-6xl mx-auto p-6">
@@ -448,12 +500,13 @@ export default function AdminDashboard() {
         {/* Tabs */}
         <div className="border-b border-foreground/10 mb-6">
           <div className="flex gap-8 overflow-x-auto">
-            {(
-              ["overview", "moderation", "disputes", "cashouts", "users", "messages", "settings"] as const
-            ).map((tab) => (
+            {tabList.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as any)}
+                onClick={() => {
+                  setActiveTab(tab as any);
+                  if (tab === "listings") loadListings();
+                }}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition capitalize ${
                   activeTab === tab
                     ? "border-foreground text-foreground"
@@ -722,6 +775,110 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "listings" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Listing Management</h2>
+                <button
+                  onClick={loadListings}
+                  className="text-sm px-3 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
+                >
+                  Refresh
+                </button>
+              </div>
+              {listingsLoading ? (
+                <p className="text-foreground/60 text-sm">Loading listings…</p>
+              ) : (
+                <>
+                  {/* Offers */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground/60 uppercase tracking-wide mb-2">
+                      Offers ({listings.offers.length})
+                    </h3>
+                    {listings.offers.length === 0 ? (
+                      <p className="text-sm text-foreground/50">No offers found.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {listings.offers.map((item) => (
+                          <div key={item.id} className="rounded-lg border border-foreground/10 bg-foreground/2 p-3 flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium text-sm truncate">{item.title}</p>
+                                {item.is_boosted && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/20">⚡ Boosted</span>
+                                )}
+                                <span className="text-xs text-foreground/50">{item.credits} credits · by {item.username}</span>
+                              </div>
+                              <p className="text-xs text-foreground/50 mt-0.5">{new Date(item.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              {item.is_boosted && (
+                                <button
+                                  onClick={() => handleRemoveBoost(item.id, "offer")}
+                                  className="px-2 py-1 text-xs rounded border border-amber-500/20 text-amber-600 hover:bg-amber-500/5"
+                                >
+                                  Remove boost
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteListing(item.id, "offer", item.title)}
+                                className="px-2 py-1 text-xs rounded border border-red-500/20 text-red-600 hover:bg-red-500/5"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Requests */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground/60 uppercase tracking-wide mb-2 mt-4">
+                      Requests ({listings.requests.length})
+                    </h3>
+                    {listings.requests.length === 0 ? (
+                      <p className="text-sm text-foreground/50">No requests found.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {listings.requests.map((item) => (
+                          <div key={item.id} className="rounded-lg border border-foreground/10 bg-foreground/2 p-3 flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium text-sm truncate">{item.title}</p>
+                                {item.is_boosted && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 border border-amber-500/20">⚡ Boosted</span>
+                                )}
+                                <span className="text-xs text-foreground/50">Budget: {item.budget} credits · by {item.username}</span>
+                              </div>
+                              <p className="text-xs text-foreground/50 mt-0.5">{new Date(item.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              {item.is_boosted && (
+                                <button
+                                  onClick={() => handleRemoveBoost(item.id, "request")}
+                                  className="px-2 py-1 text-xs rounded border border-amber-500/20 text-amber-600 hover:bg-amber-500/5"
+                                >
+                                  Remove boost
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteListing(item.id, "request", item.title)}
+                                className="px-2 py-1 text-xs rounded border border-red-500/20 text-red-600 hover:bg-red-500/5"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}
