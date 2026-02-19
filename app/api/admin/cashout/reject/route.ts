@@ -78,17 +78,9 @@ export async function POST(req: Request) {
       return Response.json({ error: "Failed to reject cashout" }, { status: 500 });
     }
 
-    // Return credits to user atomically (reverse the hold)
-    const { error: creditError } = await supabaseAdmin.rpc("increment_earned_credits", {
-      p_user_id: cashout.user_id,
-      p_amount: cashout.amount_credits,
-    });
-
-    if (creditError) {
-      console.error("Credit return error:", creditError);
-    }
-
     // Record transaction for rejected cashout
+    // NOTE: The balance update trigger on transactions automatically restores
+    // earned_credits when this transaction (credit_source='earned', amount>0) is inserted.
     const { error: txError } = await supabaseAdmin
       .from("transactions")
       .insert({
