@@ -272,11 +272,9 @@ export default function Feed() {
                         const imageUrl = `${supabaseUrl}/storage/v1/object/public/listing-images/${image.storage_path}`;
                         return (
                           <div key={image.id} className="w-16 h-16 rounded border border-foreground/10 overflow-hidden bg-foreground/5">
-                            <Image
+                            <img
                               src={imageUrl}
                               alt={image.filename}
-                              width={64}
-                              height={64}
                               className="w-full h-full object-cover"
                             />
                           </div>

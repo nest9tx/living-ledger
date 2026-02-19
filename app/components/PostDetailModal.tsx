@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import supabase from "@/lib/supabase";
 import { deleteRequest, deleteOffer } from "@/lib/supabase-helpers";
@@ -29,6 +30,11 @@ type PostDetail = {
     total_ratings?: number | null;
     total_contributions?: number | null;
   } | null;
+  images?: Array<{
+    id: number;
+    storage_path: string;
+    filename: string;
+  }>;
   price_credits?: number;
   budget_credits?: number;
   status?: string;
@@ -94,6 +100,16 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           
           postData = { ...postData, profile: profileData };
         }
+
+        // Fetch listing images
+        const { data: imageData } = await supabase
+          .from("listing_images")
+          .select("id, storage_path, filename")
+          .eq("listing_type", postType)
+          .eq("listing_id", postId)
+          .order("upload_order", { ascending: true });
+
+        postData = { ...postData, images: imageData || [] };
 
         setPost(postData);
       } catch (err) {
@@ -379,6 +395,32 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
             </h3>
             <p className="text-foreground whitespace-pre-wrap">{post.description}</p>
           </div>
+
+          {/* Images */}
+          {post.images && post.images.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-foreground/60 uppercase tracking-wider mb-2">
+                Images
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {post.images.map((image) => {
+                  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                  if (!supabaseUrl) return null;
+                  const imageUrl = `${supabaseUrl}/storage/v1/object/public/listing-images/${image.storage_path}`;
+                  return (
+                    <div key={image.id} className="relative aspect-square rounded-lg overflow-hidden border border-foreground/10 bg-foreground/5">
+                      <Image
+                        src={imageUrl}
+                        alt={image.filename}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Credits */}
           <div className="flex items-center gap-4 p-4 rounded-lg bg-foreground/5 border border-foreground/10">
