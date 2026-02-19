@@ -78,13 +78,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "Failed to reject cashout" }, { status: 500 });
     }
 
-    // Return credits to user (reverse the hold)
-    const { error: creditError } = await supabaseAdmin
-      .from("profiles")
-      .update({
-        earned_credits: (await supabaseAdmin.from("profiles").select("earned_credits").eq("id", cashout.user_id).single()).data?.earned_credits + cashout.amount_credits,
-      })
-      .eq("id", cashout.user_id);
+    // Return credits to user atomically (reverse the hold)
+    const { error: creditError } = await supabaseAdmin.rpc("increment_earned_credits", {
+      p_user_id: cashout.user_id,
+      p_amount: cashout.amount_credits,
+    });
 
     if (creditError) {
       console.error("Credit return error:", creditError);
