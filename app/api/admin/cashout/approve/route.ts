@@ -1,5 +1,4 @@
 import supabaseAdmin from "@/lib/supabase-admin";
-import supabase from "@/lib/supabase";
 import Stripe from "stripe";
 import { Resend } from "resend";
 
@@ -20,7 +19,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !userData.user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
