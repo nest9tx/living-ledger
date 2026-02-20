@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import HeroCTA from "@/app/components/HeroCTA";
-import supabaseAdmin from "@/lib/supabase-admin";
 
 type FeaturedBoost = {
   boostId: number;
@@ -39,24 +38,8 @@ const loadFeaturedBoosts = async (): Promise<FeaturedBoost[]> => {
   }
 };
 
-const loadStats = async (): Promise<{ members: number; listings: number }> => {
-  try {
-    const [usersRes, offersRes, requestsRes] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("offers").select("id", { count: "exact", head: true }).eq("suspended", false),
-      supabaseAdmin.from("requests").select("id", { count: "exact", head: true }).eq("suspended", false),
-    ]);
-    return {
-      members: usersRes.count ?? 0,
-      listings: (offersRes.count ?? 0) + (requestsRes.count ?? 0),
-    };
-  } catch {
-    return { members: 0, listings: 0 };
-  }
-};
-
 export default async function Home() {
-  const [boosts, stats] = await Promise.all([loadFeaturedBoosts(), loadStats()]);
+  const boosts = await loadFeaturedBoosts();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -72,14 +55,6 @@ export default async function Home() {
             Living Ledger is a community marketplace for micro-acts of assistance. Post what you need,
             share what you have, and earn Gratitude Credits — redeemable for other services or cashed out to USD.
           </p>
-          {stats.members > 0 && (
-            <p className="text-sm text-foreground/50">
-              {stats.members.toLocaleString()} member{stats.members !== 1 ? "s" : ""}
-              {stats.listings > 0 && (
-                <> &middot; {stats.listings.toLocaleString()} active listing{stats.listings !== 1 ? "s" : ""}</>
-              )}
-            </p>
-          )}
         </div>
 
         <HeroCTA />
