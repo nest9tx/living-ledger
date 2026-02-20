@@ -89,12 +89,6 @@ export default async function Home() {
               <p className="text-xs uppercase tracking-[0.35em] text-foreground/60">Featured</p>
               <h2 className="text-2xl font-semibold">Boosted listings</h2>
             </div>
-            <a
-              className="text-sm text-foreground/70 hover:text-foreground"
-              href="/login"
-            >
-              Explore dashboard →
-            </a>
           </div>
 
           {boosts.length === 0 ? (
