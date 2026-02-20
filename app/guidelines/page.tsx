@@ -119,7 +119,7 @@ export default function GuidelinesPage() {
 
               <div>
                 <h3 className="font-semibold text-foreground mb-1">Cashing out earned credits</h3>
-                <p className="mb-2">Minimum: $20 in earned credits. Credits must have cleared the 7-day escrow safety window before they are eligible.</p>
+                <p className="mb-2">Minimum: $20 in earned credits. Credits must have cleared the 7-day escrow safety window before they are eligible. Payouts are sent in your local currency via Stripe.</p>
                 <ol className="list-decimal list-inside space-y-1 pl-2 text-sm">
                   <li>Request cashout from your dashboard</li>
                   <li>Admin reviews within 24–48 hours (fraud prevention)</li>

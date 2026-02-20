@@ -99,12 +99,12 @@ export default function TermsPage() {
               <div>
                 <h3 className="font-semibold text-foreground">Cashing Out Earned Credits</h3>
                 <p>
-                  Earned credits (received through completed services) may be cashed out to USD
-                  via Stripe. The minimum cashout amount is $20. Cashout requests are reviewed by
-                  an admin within 24&ndash;48 hours. Purchased credits cannot be cashed out.
+                  Earned credits (received through completed services) may be cashed out via Stripe. Payouts are delivered in your local currency (Stripe handles conversion). The minimum cashout amount is $20 USD equivalent. Cashout requests are reviewed by
+                  an admin within 24–48 hours. Purchased credits cannot be cashed out.
                   Standard bank transfers are covered by Living Ledger at no additional cost to
                   you. Instant payout options, if offered in the future, may carry a small fee
-                  disclosed at the time of the request.
+                  disclosed at the time of the request. Cross-border transfers may incur a small
+                  Stripe fee (typically 0.25%) absorbed by the platform.
                 </p>
               </div>
             </div>

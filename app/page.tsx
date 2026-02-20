@@ -53,7 +53,7 @@ export default async function Home() {
           </h1>
           <p className="max-w-2xl text-base text-foreground/70 sm:text-lg">
             Living Ledger is a community marketplace for micro-acts of assistance. Post what you need,
-            share what you have, and earn Gratitude Credits — redeemable for other services or cashed out to USD.
+            share what you have, and earn Gratitude Credits — redeemable for other services or cashed out via Stripe.
           </p>
         </div>
 
@@ -169,7 +169,7 @@ export default async function Home() {
             <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
               <h3 className="text-sm font-semibold">3. Complete and get paid</h3>
               <p className="mt-2 text-sm text-foreground/70">
-                Mark delivery complete and credits release. Providers keep 85% (15% platform fee). Earned credits can be cashed out to USD at any time (min $20).
+                Mark delivery complete and credits release. Providers keep 85% (15% platform fee). Earned credits can be cashed out via Stripe at any time (min $20).
               </p>
             </div>
           </div>
