@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
+import HeroCTA from "@/app/components/HeroCTA";
+import supabaseAdmin from "@/lib/supabase-admin";
 
 type FeaturedBoost = {
   boostId: number;
@@ -37,8 +39,24 @@ const loadFeaturedBoosts = async (): Promise<FeaturedBoost[]> => {
   }
 };
 
+const loadStats = async (): Promise<{ members: number; listings: number }> => {
+  try {
+    const [usersRes, offersRes, requestsRes] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("offers").select("id", { count: "exact", head: true }).eq("suspended", false),
+      supabaseAdmin.from("requests").select("id", { count: "exact", head: true }).eq("suspended", false),
+    ]);
+    return {
+      members: usersRes.count ?? 0,
+      listings: (offersRes.count ?? 0) + (requestsRes.count ?? 0),
+    };
+  } catch {
+    return { members: 0, listings: 0 };
+  }
+};
+
 export default async function Home() {
-  const boosts = await loadFeaturedBoosts();
+  const [boosts, stats] = await Promise.all([loadFeaturedBoosts(), loadStats()]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -54,34 +72,17 @@ export default async function Home() {
             Living Ledger is a community marketplace for micro-acts of assistance. Post what you need,
             share what you have, and earn Gratitude Credits — redeemable for other services or cashed out to USD.
           </p>
+          {stats.members > 0 && (
+            <p className="text-sm text-foreground/50">
+              {stats.members.toLocaleString()} member{stats.members !== 1 ? "s" : ""}
+              {stats.listings > 0 && (
+                <> &middot; {stats.listings.toLocaleString()} active listing{stats.listings !== 1 ? "s" : ""}</>
+              )}
+            </p>
+          )}
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <a
-            className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2 text-sm font-medium text-background"
-            href="/signup"
-          >
-            Join free
-          </a>
-          <a
-            className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-2 text-sm font-medium"
-            href="/browse"
-          >
-            Browse listings
-          </a>
-          <a
-            className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-2 text-sm font-medium"
-            href="/login"
-          >
-            Sign in
-          </a>
-          <a
-            className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-2 text-sm font-medium"
-            href="/guidelines"
-          >
-            How it works
-          </a>
-        </div>
+        <HeroCTA />
 
         <section id="featured" className="w-full space-y-4">
           <div className="flex items-center justify-between">

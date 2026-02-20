@@ -1,4 +1,5 @@
 import supabaseAdmin from "@/lib/supabase-admin";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +15,15 @@ export async function POST(req: Request) {
     const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !userData.user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit: 5 cashout requests per user per hour
+    const rl = rateLimit(`cashout:${userData.user.id}`, 5, 60 * 60 * 1000);
+    if (!rl.success) {
+      return Response.json(
+        { error: "Too many cashout requests. Please wait before trying again." },
+        { status: 429 }
+      );
     }
 
     const { amount_credits } = await req.json();

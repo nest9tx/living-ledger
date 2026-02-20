@@ -1,5 +1,6 @@
 import supabase from "@/lib/supabase";
 import supabaseAdmin from "@/lib/supabase-admin";
+import { rateLimit } from "@/lib/rate-limit";
 
 const HOMEPAGE_DAILY_COST = 10;
 const CATEGORY_DAILY_COST = 5;
@@ -22,6 +23,15 @@ export async function POST(req: Request) {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit: 10 boost attempts per user per hour
+    const rl = rateLimit(`boost:${userData.user.id}`, 10, 60 * 60 * 1000);
+    if (!rl.success) {
+      return Response.json(
+        { error: "Too many boost requests. Please wait a moment before trying again." },
+        { status: 429 }
+      );
     }
 
     const body = await req.json();

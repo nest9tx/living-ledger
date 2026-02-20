@@ -99,7 +99,7 @@ export default function GuidelinesPage() {
             <div className="space-y-4 text-foreground/70">
               <div>
                 <h3 className="font-semibold text-foreground mb-1">Buying credits</h3>
-                <p>1 credit = $1 USD. Minimum purchase: 5 credits. <strong className="text-foreground">Purchased credits are non-refundable</strong> — only spend what you intend to use.</p>
+                <p>1 credit = $1 USD. Minimum purchase: 5 credits. <strong className="text-foreground">Purchased credits are non-refundable</strong> — only spend what you intend to use. <strong className="text-foreground">Credits never expire</strong> and remain in your account indefinitely while it is active.</p>
               </div>
 
               <div>
@@ -127,7 +127,7 @@ export default function GuidelinesPage() {
                   <li>Stripe handles tax reporting (1099-K if applicable)</li>
                 </ol>
                 <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm">
-                  <strong className="text-foreground">⚠️ Before requesting cashout:</strong> You must connect a Stripe account and verify your identity with Stripe (including bank account details). This is required by Stripe for payouts. Stripe charges standard processing fees. Set this up in <strong className="text-foreground">Settings → Stripe Connect</strong> before your first cashout request.
+                  <strong className="text-foreground">⚠️ Before requesting cashout:</strong> You must connect a Stripe account and verify your identity with Stripe (including bank account details). Set this up in <strong className="text-foreground">Settings → Stripe Connect</strong> before your first cashout request. Standard bank transfers are covered by Living Ledger — no additional fee is deducted from your payout amount.
                 </div>
               </div>
             </div>
@@ -135,7 +135,7 @@ export default function GuidelinesPage() {
 
           <section className="pt-4 border-t border-foreground/10">
             <p className="text-sm text-foreground/60">
-              <strong>Questions?</strong> Email admin@livingledger.org (24–48 hour response)
+              <strong>Questions?</strong> Email <a href="mailto:support@livingledger.org" className="underline hover:text-foreground">support@livingledger.org</a> (24–48 hour response)
             </p>
           </section>
         </div>
