@@ -16,6 +16,12 @@ export default function GuidelinesPage() {
 
         <div className="mt-8 space-y-8">
           <section>
+            <p className="text-foreground/70 text-base leading-relaxed">
+              Living Ledger is built on reciprocal trust. These guidelines exist to keep the community fair, safe, and worth showing up for. Violations may result in listing removal, account suspension, or permanent ban.
+            </p>
+          </section>
+
+          <section>
             <h2 className="text-2xl font-semibold mb-4">Core Values</h2>
             <ul className="space-y-2 text-foreground/70">
               <li><strong className="text-foreground">Contribution over extraction.</strong> Help others, not yourself alone.</li>
@@ -89,29 +95,40 @@ export default function GuidelinesPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-4">Credit System Rules</h2>
-            <div className="space-y-3 text-foreground/70">
+            <h2 className="text-2xl font-semibold mb-4">How Credits Work</h2>
+            <div className="space-y-4 text-foreground/70">
               <div>
-                <h3 className="font-semibold text-foreground mb-2">Buying credits:</h3>
-                <p>1 credit = $1 USD. Minimum purchase: 5 credits. Non-refundable (platform policy).</p>
+                <h3 className="font-semibold text-foreground mb-1">Buying credits</h3>
+                <p>1 credit = $1 USD. Minimum purchase: 5 credits. <strong className="text-foreground">Purchased credits are non-refundable</strong> — only spend what you intend to use.</p>
               </div>
 
               <div>
-                <h3 className="font-semibold text-foreground mb-2">Using credits:</h3>
-                <p>Credits are held in escrow until work is marked complete. Providers receive 85% (15% platform fee).</p>
+                <h3 className="font-semibold text-foreground mb-1">Using credits for a service</h3>
+                <p>When you agree to a transaction, credits move into escrow immediately. They are released to the provider only after delivery is confirmed — or after admin review if a dispute is opened. Providers receive <strong className="text-foreground">85%</strong> of the agreed amount (15% platform fee).</p>
               </div>
 
               <div>
-                <h3 className="font-semibold text-foreground mb-2">Cashing out earned credits:</h3>
-                <p className="mb-2">Minimum: 20 credits ($20). After escrow releases (7-day hold for chargeback protection).</p>
-                <p className="mb-2"><strong>How it works:</strong></p>
-                <ol className="list-decimal list-inside space-y-1 pl-2">
-                  <li>Request cashout from your dashboard ($20+ earned credits)</li>
-                  <li>Admin reviews request within 24-48 hours (fraud prevention)</li>
-                  <li>Upon approval, payment sent to your connected Stripe account</li>
+                <h3 className="font-semibold text-foreground mb-1">Confirming delivery</h3>
+                <p>Once work is complete, the provider marks it delivered. The buyer then confirms. If no dispute is raised within the allowed window, credits release automatically. <strong className="text-foreground">Do not confirm delivery until you are satisfied.</strong></p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">Disputes</h3>
+                <p>If something goes wrong, open a dispute from the order page. An admin will review the case within 48 hours and make a determination. Both parties may provide context. Admin decisions are final.</p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">Cashing out earned credits</h3>
+                <p className="mb-2">Minimum: $20 in earned credits. Credits must have cleared the 7-day escrow safety window before they are eligible.</p>
+                <ol className="list-decimal list-inside space-y-1 pl-2 text-sm">
+                  <li>Request cashout from your dashboard</li>
+                  <li>Admin reviews within 24–48 hours (fraud prevention)</li>
+                  <li>Payment sent to your connected Stripe account</li>
                   <li>Stripe handles tax reporting (1099-K if applicable)</li>
                 </ol>
-                <p className="mt-2 text-sm"><strong>Note:</strong> You may need to verify your identity with Stripe and connect a bank account before receiving payouts. Stripe charges processing fees (2.9% + $0.30 per transaction).</p>
+                <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm">
+                  <strong className="text-foreground">⚠️ Before requesting cashout:</strong> You must connect a Stripe account and verify your identity with Stripe (including bank account details). This is required by Stripe for payouts. Stripe charges standard processing fees. Set this up in <strong className="text-foreground">Settings → Stripe Connect</strong> before your first cashout request.
+                </div>
               </div>
             </div>
           </section>

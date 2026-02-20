@@ -48,11 +48,11 @@ export default async function Home() {
             Living Ledger
           </p>
           <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-            A community for micro-acts of help.
+            Give help. Receive help. Build credit.
           </h1>
           <p className="max-w-2xl text-base text-foreground/70 sm:text-lg">
-            Post a request, offer your gifts, and earn gratitude credits. Use credits for services,
-            boost your listings, or cash out to USD ($20 minimum, 7-day escrow release required).
+            Living Ledger is a community marketplace for micro-acts of assistance. Post what you need,
+            share what you have, and earn Gratitude Credits — redeemable for other services or cashed out to USD.
           </p>
         </div>
 
@@ -61,7 +61,7 @@ export default async function Home() {
             className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2 text-sm font-medium text-background"
             href="/signup"
           >
-            Join the community
+            Join free
           </a>
           <a
             className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-2 text-sm font-medium"
@@ -79,7 +79,7 @@ export default async function Home() {
             className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-2 text-sm font-medium"
             href="/guidelines"
           >
-            Learn more
+            How it works
           </a>
         </div>
 
@@ -149,15 +149,15 @@ export default async function Home() {
           {[
             {
               title: "Requests",
-              copy: "Ask for help with skills, wisdom, or support and receive focused responses.",
+              copy: "Need a skill, a second opinion, or a creative collaborator? Post a request and let the community respond.",
             },
             {
               title: "Offers",
-              copy: "Share your gifts and grow a trusted reputation through real contributions.",
+              copy: "Share your expertise — writing, code, design, coaching, and more. Build a reputation through real contributions.",
             },
             {
               title: "Gratitude Credits",
-              copy: "Track the value you generate and reinvest it into the ecosystem.",
+              copy: "Credits flow when help is exchanged. Spend them on services, boost your own listings, or cash out to USD.",
             },
           ].map((card) => (
             <div
@@ -181,19 +181,19 @@ export default async function Home() {
             <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
               <h3 className="text-sm font-semibold">1. Post a request or offer</h3>
               <p className="mt-2 text-sm text-foreground/70">
-                Requests are needs you want solved. Offers are skills you can share. Both live in categories.
+                Tell the community what you need or what you can provide. Listings live in categories so the right people find them.
               </p>
             </div>
             <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
-              <h3 className="text-sm font-semibold">2. Match and collaborate</h3>
+              <h3 className="text-sm font-semibold">2. Connect and agree</h3>
               <p className="mt-2 text-sm text-foreground/70">
-                Buyers hold credits in escrow to signal commitment. Providers deliver the help.
+                Message through the platform. When you&apos;re ready, credits are held securely in escrow &mdash; no money changes hands until both sides are satisfied.
               </p>
             </div>
             <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
-              <h3 className="text-sm font-semibold">3. Earn or spend credits</h3>
+              <h3 className="text-sm font-semibold">3. Complete and get paid</h3>
               <p className="mt-2 text-sm text-foreground/70">
-                Providers receive 85% on completion. Use credits for services, boost listings, or cash out to USD ($20 min after 7-day escrow release).
+                Mark delivery complete and credits release. Providers keep 85% (15% platform fee). Earned credits can be cashed out to USD at any time (min $20).
               </p>
             </div>
           </div>

@@ -75,10 +75,10 @@ export default function NavHeader() {
           {user ? (
             <>
               <Link
-                href="/"
+                href="/browse"
                 className="text-sm hover:text-foreground/70"
               >
-                Home
+                Browse
               </Link>
               <Link
                 href="/dashboard"
