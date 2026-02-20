@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "moderation" | "disputes" | "cashouts" | "listings" | "users" | "messages" | "transactions" | "settings"
+    "overview" | "moderation" | "disputes" | "cashouts" | "listings" | "users" | "messages" | "transactions" | "revenue" | "settings"
   >("overview");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +66,16 @@ export default function AdminDashboard() {
   const [refundingId, setRefundingId] = useState<number | null>(null);
   const [refundReason, setRefundReason] = useState("");
   const [refundConfirmId, setRefundConfirmId] = useState<number | null>(null);
+
+  // Revenue tab state
+  const [revenueRange, setRevenueRange] = useState<"1d" | "7d" | "30d" | "mtd" | "all">("30d");
+  const [revenueData, setRevenueData] = useState<{
+    total: number;
+    byType: { platform_fee: number; boost: number };
+    daily: { date: string; amount: number }[];
+    recentTransactions: any[];
+  } | null>(null);
+  const [revenueLoading, setRevenueLoading] = useState(false);
 
   useEffect(() => {
     const checkAdminAndLoadStats = async () => {
@@ -567,7 +577,22 @@ export default function AdminDashboard() {
     }
   };
 
-  const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "transactions", "users", "messages", "settings"] as const;
+  const loadRevenue = async (range: string) => {
+    setRevenueLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) { setRevenueLoading(false); return; }
+    const res = await fetch(`/api/admin/revenue?range=${range}`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setRevenueData(data);
+    }
+    setRevenueLoading(false);
+  };
+
+  const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "transactions", "revenue", "users", "messages", "settings"] as const;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -624,6 +649,7 @@ export default function AdminDashboard() {
                   setActiveTab(tab as any);
                   if (tab === "listings") loadListings();
                   if (tab === "transactions") loadTransactions(1, "");
+                  if (tab === "revenue") loadRevenue(revenueRange);
                 }}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition capitalize ${
                   activeTab === tab
@@ -649,10 +675,140 @@ export default function AdminDashboard() {
                 <ul className="mt-4 space-y-2 text-sm text-foreground/60">
                   <li>• Daily active users trend</li>
                   <li>• Credit flow metrics (total, velocity)</li>
-                  <li>• Revenue & marketplace health</li>
+                  <li>• Revenue &amp; marketplace health</li>
                   <li>• Trust score distribution</li>
                 </ul>
               </div>
+            </div>
+          )}
+
+          {activeTab === "revenue" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-xl font-semibold">Revenue</h2>
+                <div className="flex gap-2">
+                  {(["1d", "7d", "30d", "mtd", "all"] as const).map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => {
+                        setRevenueRange(r);
+                        loadRevenue(r);
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition ${
+                        revenueRange === r
+                          ? "bg-foreground text-background border-foreground"
+                          : "border-foreground/20 text-foreground/60 hover:text-foreground"
+                      }`}
+                    >
+                      {r === "1d" ? "Today" : r === "7d" ? "7 days" : r === "30d" ? "30 days" : r === "mtd" ? "This month" : "All time"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {revenueLoading && (
+                <p className="text-sm text-foreground/60">Loading revenue data…</p>
+              )}
+
+              {!revenueLoading && !revenueData && (
+                <p className="text-sm text-foreground/60">Select a period above to load revenue data.</p>
+              )}
+
+              {!revenueLoading && revenueData && (
+                <>
+                  {/* Summary cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
+                      <p className="text-sm text-foreground/70">Total Revenue</p>
+                      <p className="text-2xl font-semibold mt-2">${revenueData.total}</p>
+                      <p className="text-xs text-foreground/50 mt-1">
+                        {revenueRange === "1d" ? "Last 24 hours" : revenueRange === "7d" ? "Last 7 days" : revenueRange === "30d" ? "Last 30 days" : revenueRange === "mtd" ? "Month to date" : "All time"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
+                      <p className="text-sm text-foreground/70">Platform Fees (15%)</p>
+                      <p className="text-2xl font-semibold mt-2">${revenueData.byType.platform_fee}</p>
+                      <p className="text-xs text-foreground/50 mt-1">From completed transactions</p>
+                    </div>
+                    <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
+                      <p className="text-sm text-foreground/70">Boost Revenue</p>
+                      <p className="text-2xl font-semibold mt-2">${revenueData.byType.boost}</p>
+                      <p className="text-xs text-foreground/50 mt-1">From listing boosts</p>
+                    </div>
+                  </div>
+
+                  {/* Daily breakdown */}
+                  {revenueData.daily.length > 0 && (
+                    <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
+                      <h3 className="text-sm font-semibold mb-3">Daily Breakdown</h3>
+                      <div className="space-y-2">
+                        {revenueData.daily.map(({ date, amount }) => {
+                          const pct = revenueData.total > 0 ? (amount / revenueData.total) * 100 : 0;
+                          return (
+                            <div key={date} className="flex items-center gap-3">
+                              <span className="w-28 shrink-0 text-xs text-foreground/60">{date}</span>
+                              <div className="flex-1 bg-foreground/10 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className="bg-foreground/60 h-2 rounded-full"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="w-16 text-right text-xs font-medium">${amount}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {revenueData.daily.length === 0 && (
+                    <p className="text-sm text-foreground/60">No revenue recorded in this period.</p>
+                  )}
+
+                  {/* Recent revenue transactions */}
+                  {revenueData.recentTransactions.length > 0 && (
+                    <div className="rounded-lg border border-foreground/10 bg-foreground/2 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-foreground/10">
+                        <h3 className="text-sm font-semibold">Recent Revenue Transactions</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-foreground/10 text-left">
+                              <th className="px-4 py-2 text-xs text-foreground/50 font-medium">Date</th>
+                              <th className="px-4 py-2 text-xs text-foreground/50 font-medium">User</th>
+                              <th className="px-4 py-2 text-xs text-foreground/50 font-medium">Type</th>
+                              <th className="px-4 py-2 text-xs text-foreground/50 font-medium">Description</th>
+                              <th className="px-4 py-2 text-xs text-foreground/50 font-medium text-right">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {revenueData.recentTransactions.map((t) => (
+                              <tr key={t.id} className="border-b border-foreground/5 hover:bg-foreground/2">
+                                <td className="px-4 py-2 text-xs text-foreground/60 whitespace-nowrap">
+                                  {new Date(t.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-2 text-xs text-foreground/70">{t.username}</td>
+                                <td className="px-4 py-2">
+                                  <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
+                                    t.transaction_type === "platform_fee"
+                                      ? "bg-emerald-500/10 text-emerald-600"
+                                      : "bg-yellow-500/10 text-yellow-600"
+                                  }`}>
+                                    {t.transaction_type === "platform_fee" ? "Fee (15%)" : "Boost"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 text-xs text-foreground/60 max-w-xs truncate">{t.description}</td>
+                                <td className="px-4 py-2 text-xs font-medium text-right text-emerald-600">+${Math.abs(t.amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 

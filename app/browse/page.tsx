@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Feed from "@/app/components/Feed";
+import BrowseGuestBar, { BrowseGuestCTA } from "@/app/components/BrowseGuestBar";
 
 export default function BrowsePage() {
   return (
@@ -16,36 +17,14 @@ export default function BrowsePage() {
               Browse requests and offers from the community.
             </p>
           </div>
-          <div className="flex gap-2 pt-1">
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-4 py-2 text-sm font-medium hover:bg-foreground/5 transition"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="inline-flex items-center justify-center rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90 transition"
-            >
-              Join free
-            </Link>
-          </div>
+          {/* Auth-aware: only visible when logged out */}
+          <BrowseGuestBar />
         </div>
 
-        {/* Guest CTA strip */}
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-          <p className="text-sm text-foreground/70">
-            💡 <strong className="text-foreground">Sign up free</strong> to post requests, offer your skills, and earn gratitude credits.
-          </p>
-          <Link
-            href="/signup"
-            className="whitespace-nowrap text-sm font-medium text-emerald-700 underline underline-offset-4 hover:text-emerald-800 transition"
-          >
-            Get started →
-          </Link>
-        </div>
+        {/* Auth-aware CTA strip: only visible when logged out */}
+        <BrowseGuestCTA />
 
-        {/* Live feed (guest mode — no delete/buy/message) */}
+        {/* Live feed (guestMode disables action buttons for non-members) */}
         <Feed guestMode />
       </div>
     </div>
