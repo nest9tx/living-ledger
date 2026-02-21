@@ -63,11 +63,9 @@ export async function POST(req: Request) {
       : escrow.request_id
         ? `Request #${escrow.request_id}`
         : "Listing";
-    // Math.round gives closest integer to actual 15% fee.
-    // credit_source: "earned" on BOTH transactions keeps earned_credits and
-    // credits_balance perfectly in sync via the UPDATE_BALANCE_TRIGGER.
-    const fee = Math.round(credits * PLATFORM_FEE_RATE);
-    const providerCredits = Math.max(credits - fee, 0); // for display / emails only
+    // Exact 15% fee — DB columns are NUMERIC(10,2) so 1.50 on a 10-credit sale stores correctly.
+    const platformFee = Math.round(credits * PLATFORM_FEE_RATE * 100) / 100;
+    const providerCredits = Math.round((credits - platformFee) * 100) / 100;
 
     // Step 1: award the FULL escrow amount as earned.
     // The trigger will add `credits` to both earned_credits and credits_balance.
@@ -89,10 +87,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "Failed to credit provider" }, { status: 500 });
     }
 
-    if (fee > 0) {
+    if (platformFee > 0) {
       const { error: feeError } = await supabaseAdmin.from("transactions").insert({
         user_id: escrow.provider_id,
-        amount: -fee,
+        amount: -platformFee,
         description: `Platform fee (15%) for ${listingLabel}`,
         transaction_type: "platform_fee",
         credit_source: "earned", // keeps earned_credits and balance in sync
@@ -149,7 +147,7 @@ export async function POST(req: Request) {
               <div style="margin: 16px 0;">
                 <p><strong>Order:</strong> ${listingTitle}</p>
                 <p><strong>Credits Released:</strong> ${providerCredits} (after 15% platform fee)</p>
-                <p><strong>Platform Fee:</strong> ${fee} credits</p>
+                <p><strong>Platform Fee:</strong> ${platformFee} credits</p>
                 ${adminNote ? `<p><strong>Admin Note:</strong> ${adminNote}</p>` : ''}
               </div>
               

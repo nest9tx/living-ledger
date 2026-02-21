@@ -132,15 +132,13 @@ export async function POST(req: Request) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function releaseEscrow(escrowId: number, userId: string, escrow: any) {
   const credits = (escrow.credits_held || 0) as number;
-  if (credits < 1) {
+  if (credits <= 0) {
     return NextResponse.json({ error: "Invalid escrow amount" }, { status: 400 });
   }
 
-  // Math.round gives the closest integer fee to the actual 15%.
-  // credit_source: "earned" on BOTH transactions keeps earned_credits and
-  // credits_balance perfectly in sync via the UPDATE_BALANCE_TRIGGER.
-  const fee = Math.round(credits * PLATFORM_FEE_RATE);
-  const providerCredits = Math.max(credits - fee, 0); // used in response only
+  // Round to 2 decimal places to avoid floating-point drift (e.g. 10 * 0.15 = 1.4999999...)
+  const platformFee = Math.round(credits * PLATFORM_FEE_RATE * 100) / 100;
+  const providerCredits = Math.round((credits - platformFee) * 100) / 100;
 
   // Update escrow status
   const { error: updateError } = await supabaseAdmin
@@ -177,12 +175,12 @@ async function releaseEscrow(escrowId: number, userId: string, escrow: any) {
 
   // Step 2: deduct platform fee. credit_source: "earned" ensures the trigger
   // removes the fee from BOTH earned_credits and credits_balance — one clean deduction.
-  if (fee > 0) {
+  if (platformFee > 0) {
     const { error: feeError } = await supabaseAdmin
       .from("transactions")
       .insert({
         user_id: escrow.provider_id,
-        amount: -fee,
+        amount: -platformFee,
         transaction_type: "platform_fee",
         credit_source: "earned",
         description: `Platform fee (${Math.round(PLATFORM_FEE_RATE * 100)}%) from escrow release`,
@@ -200,7 +198,7 @@ async function releaseEscrow(escrowId: number, userId: string, escrow: any) {
     success: true,
     escrowId,
     providerCredits,
-    platformFee: fee,
+    platformFee,
     message: "Escrow released successfully",
   });
 }
