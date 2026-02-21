@@ -32,58 +32,58 @@ ALTER TABLE listing_boosts
 ALTER TABLE cashout_requests
   ALTER COLUMN amount_credits TYPE NUMERIC(10, 2);
 
--- 8. Update 'update_balance' function to handle NUMERIC type
--- The function logic remains the same, but this ensures it's re-evaluated
--- with the new column types if there are any dependencies.
+-- 8. Update 'update_balance' function to handle NUMERIC type.
+-- Admin adjustments bypass the trigger entirely (the API does direct profile updates)
+-- to prevent double-counting. All other transaction types are routed normally.
 CREATE OR REPLACE FUNCTION update_balance()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Always update the total credits_balance
-  UPDATE profiles
-  SET credits_balance = credits_balance + NEW.amount
-  WHERE id = NEW.user_id;
+  -- Admin adjustments update profiles directly via the API.
+  -- Return early to prevent double-counting.
+  IF NEW.transaction_type = 'admin_adjustment' THEN
+    RETURN NEW;
+  END IF;
 
-  -- Route the sub-balance update based on credit_source AND sign of amount
   IF NEW.amount > 0 THEN
     IF NEW.credit_source = 'earned' THEN
-      UPDATE profiles SET earned_credits = earned_credits + NEW.amount WHERE id = NEW.user_id;
-    ELSIF NEW.credit_source = 'purchase' THEN
-      UPDATE profiles SET purchased_credits = purchased_credits + NEW.amount WHERE id = NEW.user_id;
-    ELSIF NEW.credit_source = 'refund' THEN
-      UPDATE profiles SET purchased_credits = purchased_credits + NEW.amount WHERE id = NEW.user_id;
+      UPDATE profiles
+        SET earned_credits  = earned_credits  + NEW.amount,
+            credits_balance = credits_balance + NEW.amount
+        WHERE id = NEW.user_id;
+    ELSIF NEW.credit_source IN ('purchase', 'refund') THEN
+      UPDATE profiles
+        SET purchased_credits = purchased_credits + NEW.amount,
+            credits_balance   = credits_balance   + NEW.amount
+        WHERE id = NEW.user_id;
+    ELSE
+      -- No specific source: update total balance only
+      UPDATE profiles
+        SET credits_balance = credits_balance + NEW.amount
+        WHERE id = NEW.user_id;
     END IF;
 
   ELSIF NEW.amount < 0 THEN
-    IF NEW.credit_source = 'earned' THEN
-      -- Debit directly from earned (platform fees, admin earned adjustments)
-      UPDATE profiles SET earned_credits = earned_credits + NEW.amount WHERE id = NEW.user_id;
-    ELSIF NEW.credit_source = 'purchase' THEN
-      -- Debit directly from purchased (admin purchased adjustments)
-      UPDATE profiles SET purchased_credits = purchased_credits + NEW.amount WHERE id = NEW.user_id;
-    ELSE
-      -- General spend with no specific source: waterfall purchased → earned
-      DECLARE
-        v_purchased_balance NUMERIC;
-        v_earned_balance NUMERIC;
-        v_spend_amount NUMERIC;
-      BEGIN
-        v_spend_amount := -NEW.amount;
+    -- General spend: waterfall purchased → earned
+    DECLARE
+      v_purchased NUMERIC;
+      v_earned    NUMERIC;
+      v_debit     NUMERIC := ABS(NEW.amount);
+      v_from_p    NUMERIC;
+      v_from_e    NUMERIC;
+    BEGIN
+      SELECT purchased_credits, earned_credits
+        INTO v_purchased, v_earned
+        FROM profiles WHERE id = NEW.user_id;
 
-        SELECT purchased_credits, earned_credits
-        INTO v_purchased_balance, v_earned_balance
-        FROM profiles
+      v_from_p := LEAST(v_debit, GREATEST(v_purchased, 0));
+      v_from_e := v_debit - v_from_p;
+
+      UPDATE profiles
+        SET purchased_credits = purchased_credits - v_from_p,
+            earned_credits    = earned_credits    - v_from_e,
+            credits_balance   = credits_balance   + NEW.amount
         WHERE id = NEW.user_id;
-
-        IF v_spend_amount <= v_purchased_balance THEN
-          UPDATE profiles SET purchased_credits = purchased_credits - v_spend_amount WHERE id = NEW.user_id;
-        ELSE
-          UPDATE profiles
-          SET purchased_credits = 0,
-              earned_credits = earned_credits - (v_spend_amount - v_purchased_balance)
-          WHERE id = NEW.user_id;
-        END IF;
-      END;
-    END IF;
+    END;
   END IF;
 
   RETURN NEW;

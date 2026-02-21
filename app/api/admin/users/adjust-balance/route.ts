@@ -127,21 +127,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to update balance" }, { status: 500 });
     }
 
-    // Insert an audit transaction with transaction_type = 'admin_adjustment'.
-    // The trigger skips this type (see update_balance trigger) to prevent double-counting.
-    const { error: txError } = await supabaseAdmin.from("transactions").insert({
-      user_id: userId,
-      amount: amountNum,
-      description: `Admin adjustment (${creditType}): ${reason}`,
-      transaction_type: "admin_adjustment",
-      credit_source: creditType === "earned" ? "earned" : "purchase",
-      can_cashout: creditType === "earned",
-    });
-
-    if (txError) {
-      console.error("Transaction insert error:", txError);
-      // Don't fail — profile was already updated. Just log it.
-    }
+    // NOTE: We intentionally do NOT insert a transactions row here.
+    // The trigger on the transactions table fires on every insert and would
+    // re-apply the amount, doubling the adjustment. The direct profile UPDATE
+    // above is the sole source of truth for admin adjustments.
 
     // Fetch the updated profile to return accurate new balances
     const { data: updatedProfile } = await supabaseAdmin
