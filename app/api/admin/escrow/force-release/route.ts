@@ -41,11 +41,7 @@ export async function POST(req: Request) {
 
     const { data: escrow, error: escrowError } = await supabaseAdmin
       .from("credit_escrow")
-      .select(`
-        id, provider_id, payer_id, credits_held, status, offer_id, request_id,
-        payer:profiles!credit_escrow_payer_id_fkey(username),
-        provider:profiles!credit_escrow_provider_id_fkey(username)
-      `)
+      .select("id, provider_id, payer_id, credits_held, status, offer_id, request_id")
       .eq("id", escrowId)
       .maybeSingle();
 
