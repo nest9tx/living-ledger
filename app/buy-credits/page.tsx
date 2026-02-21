@@ -83,6 +83,12 @@ export default function BuyCreditsPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-2xl px-6 py-10 space-y-6">
         <div>
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition mb-4"
+          >
+            ← Back
+          </button>
           <p className="text-xs uppercase tracking-[0.3em] text-foreground/60">
             Living Ledger
           </p>

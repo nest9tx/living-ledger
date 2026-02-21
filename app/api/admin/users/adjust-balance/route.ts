@@ -82,37 +82,51 @@ export async function POST(req: NextRequest) {
     // always correct regardless of how the trigger routes credit_source.
     let profileUpdate: Record<string, number> = {};
 
+    // Always write all 3 columns together so any DB trigger that enforces
+    // credits_balance = earned_credits + purchased_credits sees a fully
+    // consistent row and cannot recompute a stale value.
     if (creditType === "earned") {
-      if (currentEarned + amountNum < 0 || currentTotalBalance + amountNum < 0) {
+      const newEarned = Math.round((currentEarned + amountNum) * 100) / 100;
+      const newBalance = Math.round((newEarned + currentPurchased) * 100) / 100;
+      if (newEarned < 0 || newBalance < 0) {
         return NextResponse.json(
-          { error: `Cannot reduce balance below 0. Current earned: ${currentEarned}, total: ${currentTotalBalance}` },
+          { error: `Cannot reduce below 0. Current earned: ${currentEarned}, total: ${currentTotalBalance}` },
           { status: 400 }
         );
       }
       profileUpdate = {
-        earned_credits: Math.round((currentEarned + amountNum) * 100) / 100,
-        credits_balance: Math.round((currentTotalBalance + amountNum) * 100) / 100,
+        earned_credits: newEarned,
+        purchased_credits: currentPurchased,
+        credits_balance: newBalance,
       };
     } else if (creditType === "purchased") {
-      if (currentPurchased + amountNum < 0 || currentTotalBalance + amountNum < 0) {
+      const newPurchased = Math.round((currentPurchased + amountNum) * 100) / 100;
+      const newBalance = Math.round((currentEarned + newPurchased) * 100) / 100;
+      if (newPurchased < 0 || newBalance < 0) {
         return NextResponse.json(
-          { error: `Cannot reduce balance below 0. Current purchased: ${currentPurchased}, total: ${currentTotalBalance}` },
+          { error: `Cannot reduce below 0. Current purchased: ${currentPurchased}, total: ${currentTotalBalance}` },
           { status: 400 }
         );
       }
       profileUpdate = {
-        purchased_credits: Math.round((currentPurchased + amountNum) * 100) / 100,
-        credits_balance: Math.round((currentTotalBalance + amountNum) * 100) / 100,
+        earned_credits: currentEarned,
+        purchased_credits: newPurchased,
+        credits_balance: newBalance,
       };
     } else {
-      if (currentTotalBalance + amountNum < 0) {
+      // "balance" mode: add delta to purchased so earned stays untouched
+      const newPurchased = Math.round((currentPurchased + amountNum) * 100) / 100;
+      const newBalance = Math.round((currentEarned + newPurchased) * 100) / 100;
+      if (newBalance < 0) {
         return NextResponse.json(
           { error: `Cannot reduce balance below 0. Current total: ${currentTotalBalance}` },
           { status: 400 }
         );
       }
       profileUpdate = {
-        credits_balance: Math.round((currentTotalBalance + amountNum) * 100) / 100,
+        earned_credits: currentEarned,
+        purchased_credits: newPurchased,
+        credits_balance: newBalance,
       };
     }
 
