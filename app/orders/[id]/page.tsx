@@ -220,7 +220,7 @@ export default function OrderDetailPage() {
         status: "released",
         released_at: new Date().toISOString(),
       });
-      setNotice("Funds released. Provider earnings will be available after the 7-day safety window.");
+      setNotice("Funds released successfully. Provider earnings will be available for cashout.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to release escrow");
     } finally {
@@ -376,6 +376,10 @@ export default function OrderDetailPage() {
             <span>Credits held</span>
             <span className="font-medium">{escrow.credits_held}</span>
           </div>
+          <div className="flex items-center justify-between text-sm">
+            <span>Order placed</span>
+            <span className="font-medium">{new Date(escrow.created_at).toLocaleDateString()}</span>
+          </div>
           {escrow.delivered_at && (
             <div className="flex items-center justify-between text-sm">
               <span>Delivered on</span>
@@ -384,7 +388,7 @@ export default function OrderDetailPage() {
           )}
           {releaseDate && (
             <div className="flex items-center justify-between text-sm">
-              <span>Release available</span>
+              <span>Funds release date</span>
               <span className="font-medium">{releaseDate}</span>
             </div>
           )}
@@ -402,7 +406,7 @@ export default function OrderDetailPage() {
           </div>
           
           <p className="text-xs text-foreground/60">
-            Buyers pay the listed price. Providers receive 85% after completion (15% platform fee).
+            Buyers pay the listed price. Providers receive 85% after completion (15% platform fee). Funds release 7 days from the order date once both parties confirm.
           </p>
           {escrow.status === "disputed" && (
             <div className="rounded-lg bg-red-500/10 p-3 border border-red-500/20">

@@ -76,22 +76,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Case 1: Status is "confirmed" (both parties agreed) - IMMEDIATE release
-    if (escrow.status === "confirmed" && bothConfirmed) {
-      return releaseEscrow(escrowId, user.id, escrow);
-    }
+    // Release is allowed when BOTH parties have confirmed AND 7 days have passed
+    // since the order was placed. Confirmation alone does NOT bypass the window —
+    // the safety period runs from purchase, not from delivery or confirmation.
 
-    // Case 2: Both confirmed AND 7 days have passed - Standard release condition
+    // Case 1: Both confirmed AND 7 days have passed → release
     if (bothConfirmed && releaseAvailableAt && now >= releaseAvailableAt) {
       return releaseEscrow(escrowId, user.id, escrow);
     }
 
-    // Case 3: Both confirmed but 7 days hasn't passed yet (non-confirmed status)
-    if (bothConfirmed && releaseAvailableAt && escrow.status !== "confirmed") {
+    // Case 2: Both confirmed but 7-day window still active → tell them how long to wait
+    if (bothConfirmed && releaseAvailableAt && now < releaseAvailableAt) {
       const daysRemaining = Math.ceil((releaseAvailableAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return NextResponse.json(
         {
-          error: `Both parties confirmed! Funds will be released in ${daysRemaining} day(s) (minimum 7-day safety period)`,
+          error: `Both parties confirmed! Funds will be available in ${daysRemaining} day(s) — the 7-day safety window runs from when the order was placed.`,
           status: "confirmed_pending",
           daysRemaining,
         },

@@ -6,8 +6,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const SAFETY_HOLD_DAYS = 7;
-
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization") || "";
@@ -106,16 +104,17 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
-    const releaseAvailableAt = new Date(now.getTime() + SAFETY_HOLD_DAYS * 24 * 60 * 60 * 1000);
+    // Do NOT reset release_available_at here — it was set at purchase time
+    // (purchase date + 7 days) and must not be extended on delivery confirmation.
+    // The safety window runs from when money changed hands, not when delivery happened.
 
-    // Update escrow: mark as delivered and set release availability
+    // Update escrow: mark as delivered, preserve original release date
     const { error: updateError } = await supabaseAdmin
       .from("credit_escrow")
       .update({
         status: "delivered",
         delivered_at: now.toISOString(),
         payer_confirmed_at: now.toISOString(),
-        release_available_at: releaseAvailableAt.toISOString(),
       })
       .eq("id", escrowId);
 
@@ -139,8 +138,8 @@ export async function POST(req: Request) {
       success: true,
       escrowId,
       status: "delivered",
-      releaseAvailableAt: releaseAvailableAt.toISOString(),
-      message: `Delivery confirmed. Funds will auto-release in ${SAFETY_HOLD_DAYS} days unless disputed.`,
+      releaseAvailableAt: escrow.release_available_at,
+      message: `Delivery confirmed. Funds release on the original schedule (7 days from order date).`,
     });
   } catch (error: unknown) {
     console.error("Confirm delivery error:", error);
