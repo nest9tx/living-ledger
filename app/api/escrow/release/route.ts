@@ -136,8 +136,11 @@ async function releaseEscrow(escrowId: number, userId: string, escrow: any) {
     return NextResponse.json({ error: "Invalid escrow amount" }, { status: 400 });
   }
 
-  const fee = Math.floor(credits * PLATFORM_FEE_RATE);
-  const providerCredits = Math.max(credits - fee, 0);
+  // Math.round gives the closest integer fee to the actual 15%.
+  // credit_source: "earned" on BOTH transactions keeps earned_credits and
+  // credits_balance perfectly in sync via the UPDATE_BALANCE_TRIGGER.
+  const fee = Math.round(credits * PLATFORM_FEE_RATE);
+  const providerCredits = Math.max(credits - fee, 0); // used in response only
 
   // Update escrow status
   const { error: updateError } = await supabaseAdmin
@@ -153,31 +156,45 @@ async function releaseEscrow(escrowId: number, userId: string, escrow: any) {
     return NextResponse.json({ error: "Failed to release escrow" }, { status: 500 });
   }
 
-  // Award credits to provider
+  // Step 1: award the FULL escrow amount as earned.
+  // Trigger adds `credits` to both earned_credits AND credits_balance.
   const { error: creditError } = await supabaseAdmin
     .from("transactions")
     .insert({
       user_id: escrow.provider_id,
-      type: "escrow_release",
-      credits: providerCredits,
-      description: `Escrow released for ${escrow.offer_id ? `Offer #${escrow.offer_id}` : `Request #${escrow.request_id}`}. Platform fee: ${fee} credits`,
-      related_escrow_id: escrowId,
+      amount: credits,
+      transaction_type: "earned",
+      credit_source: "earned",
+      description: `Escrow released — ${escrow.offer_id ? `Offer #${escrow.offer_id}` : `Request #${escrow.request_id}`} (${credits} credits held)`,
+      related_offer_id: escrow.offer_id ?? null,
+      related_request_id: escrow.request_id ?? null,
+      can_cashout: true,
     });
 
   if (creditError) {
-    console.error("Failed to create transaction:", creditError);
+    console.error("Failed to create earned transaction:", creditError);
   }
 
-  // Record platform fee
-  await supabaseAdmin
-    .from("transactions")
-    .insert({
-      user_id: escrow.payer_id,
-      type: "platform_fee",
-      credits: -fee,
-      description: `Platform fee (${Math.round(PLATFORM_FEE_RATE * 100)}%) from escrow release`,
-      related_escrow_id: escrowId,
-    });
+  // Step 2: deduct platform fee. credit_source: "earned" ensures the trigger
+  // removes the fee from BOTH earned_credits and credits_balance — one clean deduction.
+  if (fee > 0) {
+    const { error: feeError } = await supabaseAdmin
+      .from("transactions")
+      .insert({
+        user_id: escrow.provider_id,
+        amount: -fee,
+        transaction_type: "platform_fee",
+        credit_source: "earned",
+        description: `Platform fee (${Math.round(PLATFORM_FEE_RATE * 100)}%) from escrow release`,
+        related_offer_id: escrow.offer_id ?? null,
+        related_request_id: escrow.request_id ?? null,
+        can_cashout: false,
+      });
+
+    if (feeError) {
+      console.error("Failed to create platform fee transaction:", feeError);
+    }
+  }
 
   return NextResponse.json({
     success: true,
