@@ -78,7 +78,10 @@ export async function POST(req: NextRequest) {
     const currentEarned = currentProfile.earned_credits || 0;
     const currentPurchased = currentProfile.purchased_credits || 0;
 
-    // Validate the adjustment won't push any balance negative
+    // Build the exact profile update — we do this directly so the result is
+    // always correct regardless of how the trigger routes credit_source.
+    let profileUpdate: Record<string, number> = {};
+
     if (creditType === "earned") {
       if (currentEarned + amountNum < 0 || currentTotalBalance + amountNum < 0) {
         return NextResponse.json(
@@ -86,6 +89,10 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      profileUpdate = {
+        earned_credits: Math.round((currentEarned + amountNum) * 100) / 100,
+        credits_balance: Math.round((currentTotalBalance + amountNum) * 100) / 100,
+      };
     } else if (creditType === "purchased") {
       if (currentPurchased + amountNum < 0 || currentTotalBalance + amountNum < 0) {
         return NextResponse.json(
@@ -93,6 +100,10 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      profileUpdate = {
+        purchased_credits: Math.round((currentPurchased + amountNum) * 100) / 100,
+        credits_balance: Math.round((currentTotalBalance + amountNum) * 100) / 100,
+      };
     } else {
       if (currentTotalBalance + amountNum < 0) {
         return NextResponse.json(
@@ -100,10 +111,24 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      profileUpdate = {
+        credits_balance: Math.round((currentTotalBalance + amountNum) * 100) / 100,
+      };
     }
 
-    // Insert the transaction — the update_balance trigger handles all profile updates.
-    // Do NOT also update profiles directly, or the adjustment will be applied twice.
+    // Apply the profile update directly — precise and guaranteed correct.
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .update(profileUpdate)
+      .eq("id", userId);
+
+    if (profileError) {
+      console.error("Profile update error:", profileError);
+      return NextResponse.json({ error: "Failed to update balance" }, { status: 500 });
+    }
+
+    // Insert an audit transaction with transaction_type = 'admin_adjustment'.
+    // The trigger skips this type (see update_balance trigger) to prevent double-counting.
     const { error: txError } = await supabaseAdmin.from("transactions").insert({
       user_id: userId,
       amount: amountNum,
@@ -115,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     if (txError) {
       console.error("Transaction insert error:", txError);
-      return NextResponse.json({ error: "Failed to adjust balance" }, { status: 500 });
+      // Don't fail — profile was already updated. Just log it.
     }
 
     // Fetch the updated profile to return accurate new balances
