@@ -38,52 +38,52 @@ ALTER TABLE cashout_requests
 CREATE OR REPLACE FUNCTION update_balance()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Update credits_balance (total)
+  -- Always update the total credits_balance
   UPDATE profiles
   SET credits_balance = credits_balance + NEW.amount
   WHERE id = NEW.user_id;
 
-  -- Update earned_credits or purchased_credits based on source
-  IF NEW.credit_source = 'earned' AND NEW.amount > 0 THEN
-    UPDATE profiles
-    SET earned_credits = earned_credits + NEW.amount
-    WHERE id = NEW.user_id;
-  ELSIF NEW.credit_source = 'purchase' AND NEW.amount > 0 THEN
-    UPDATE profiles
-    SET purchased_credits = purchased_credits + NEW.amount
-    WHERE id = NEW.user_id;
-  ELSIF NEW.credit_source = 'refund' AND NEW.amount > 0 THEN
-    -- Refunds go back to purchased_credits
-    UPDATE profiles
-    SET purchased_credits = purchased_credits + NEW.amount
-    WHERE id = NEW.user_id;
+  -- Route the sub-balance update based on credit_source AND sign of amount
+  IF NEW.amount > 0 THEN
+    IF NEW.credit_source = 'earned' THEN
+      UPDATE profiles SET earned_credits = earned_credits + NEW.amount WHERE id = NEW.user_id;
+    ELSIF NEW.credit_source = 'purchase' THEN
+      UPDATE profiles SET purchased_credits = purchased_credits + NEW.amount WHERE id = NEW.user_id;
+    ELSIF NEW.credit_source = 'refund' THEN
+      UPDATE profiles SET purchased_credits = purchased_credits + NEW.amount WHERE id = NEW.user_id;
+    END IF;
+
   ELSIF NEW.amount < 0 THEN
-    -- This is a spend. Deduct from purchased first, then earned.
-    DECLARE
-      v_purchased_balance NUMERIC;
-      v_earned_balance NUMERIC;
-      v_spend_amount NUMERIC;
-    BEGIN
-      v_spend_amount := -NEW.amount;
+    IF NEW.credit_source = 'earned' THEN
+      -- Debit directly from earned (platform fees, admin earned adjustments)
+      UPDATE profiles SET earned_credits = earned_credits + NEW.amount WHERE id = NEW.user_id;
+    ELSIF NEW.credit_source = 'purchase' THEN
+      -- Debit directly from purchased (admin purchased adjustments)
+      UPDATE profiles SET purchased_credits = purchased_credits + NEW.amount WHERE id = NEW.user_id;
+    ELSE
+      -- General spend with no specific source: waterfall purchased → earned
+      DECLARE
+        v_purchased_balance NUMERIC;
+        v_earned_balance NUMERIC;
+        v_spend_amount NUMERIC;
+      BEGIN
+        v_spend_amount := -NEW.amount;
 
-      SELECT purchased_credits, earned_credits
-      INTO v_purchased_balance, v_earned_balance
-      FROM profiles
-      WHERE id = NEW.user_id;
+        SELECT purchased_credits, earned_credits
+        INTO v_purchased_balance, v_earned_balance
+        FROM profiles
+        WHERE id = NEW.user_id;
 
-      IF v_spend_amount <= v_purchased_balance THEN
-        -- Sufficient purchased credits to cover the spend
-        UPDATE profiles
-        SET purchased_credits = purchased_credits - v_spend_amount
-        WHERE id = NEW.user_id;
-      ELSE
-        -- Use all purchased credits and then dip into earned credits
-        UPDATE profiles
-        SET purchased_credits = 0,
-            earned_credits = earned_credits - (v_spend_amount - v_purchased_balance)
-        WHERE id = NEW.user_id;
-      END IF;
-    END;
+        IF v_spend_amount <= v_purchased_balance THEN
+          UPDATE profiles SET purchased_credits = purchased_credits - v_spend_amount WHERE id = NEW.user_id;
+        ELSE
+          UPDATE profiles
+          SET purchased_credits = 0,
+              earned_credits = earned_credits - (v_spend_amount - v_purchased_balance)
+          WHERE id = NEW.user_id;
+        END IF;
+      END;
+    END IF;
   END IF;
 
   RETURN NEW;
