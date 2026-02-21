@@ -26,6 +26,8 @@ export default function DashboardPage() {
   );
   const [feedKey, setFeedKey] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [creditsBalance, setCreditsBalance] = useState<number>(0);
+  const [onboardingRole, setOnboardingRole] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function DashboardPage() {
       // Check if onboarding is complete
       const { data: profile } = await supabase
         .from("profiles")
-        .select("onboarding_complete")
+        .select("onboarding_complete, credits_balance, onboarding_role")
         .eq("id", data.session.user.id)
         .single();
 
@@ -53,6 +55,9 @@ export default function DashboardPage() {
         router.push("/onboarding");
         return;
       }
+
+      setCreditsBalance(profile.credits_balance ?? 0);
+      setOnboardingRole(profile.onboarding_role ?? null);
 
       await seedDefaultCategories();
       setLoading(false);
@@ -254,7 +259,48 @@ export default function DashboardPage() {
 
         {/* Tab Content */}
         <div>
-          {activeTab === "feed" && <Feed key={feedKey} />}
+          {activeTab === "feed" && (
+            <>
+              {creditsBalance <= 0 && (
+                <div className="space-y-3">
+                  {(onboardingRole === "seeker" || onboardingRole === "both") && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium">Want to post a request?</p>
+                        <p className="text-xs text-foreground/60 mt-0.5">
+                          Credits are used to fund your requests and boost your listings. Buy a pack to get started.
+                        </p>
+                      </div>
+                      <a
+                        href="/credits/buy"
+                        className="shrink-0 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                      >
+                        Buy Credits
+                      </a>
+                    </div>
+                  )}
+                  {(onboardingRole === "provider" || onboardingRole === "both") && (
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium">Offering a service?</p>
+                        <p className="text-xs text-foreground/60 mt-0.5">
+                          You earn credits when clients accept your work — cashout via Stripe once you reach 20 credits.
+                          Boost your listing to get more visibility.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab("offer")}
+                        className="shrink-0 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                      >
+                        Post an Offer
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <Feed key={feedKey} />
+            </>
+          )}
           {activeTab === "credits" && <CreditsPanel />}
           {activeTab === "orders" && <OrdersPanel />}
           {activeTab === "listings" && <MyListings />}

@@ -54,6 +54,14 @@ export default function AdminDashboard() {
     price: number | string;
   } | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [adjustModal, setAdjustModal] = useState<{ user: any } | null>(null);
+  const [adjustForm, setAdjustForm] = useState<{ amount: string; creditType: "earned" | "purchased" | "balance"; reason: string }>({
+    amount: "",
+    creditType: "purchased",
+    reason: "",
+  });
+  const [adjustLoading, setAdjustLoading] = useState(false);
+  const [adjustResult, setAdjustResult] = useState<{ success: boolean; message: string; newTotal?: number } | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [adminMessages, setAdminMessages] = useState<any[]>([]);
@@ -474,6 +482,42 @@ export default function AdminDashboard() {
     if (!res.ok) { alert(payload?.error || "Failed to remove boost"); return; }
     alert("✓ Boost removed");
     await loadListings();
+  };
+
+  const handleAdjustCredits = async () => {
+    if (!adjustModal) return;
+    const amountNum = parseFloat(adjustForm.amount);
+    if (isNaN(amountNum)) {
+      setAdjustResult({ success: false, message: "Please enter a valid number." });
+      return;
+    }
+    if (!adjustForm.reason.trim()) {
+      setAdjustResult({ success: false, message: "A reason is required." });
+      return;
+    }
+    setAdjustLoading(true);
+    setAdjustResult(null);
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/admin/users/adjust-balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        userId: adjustModal.user.id,
+        amount: amountNum,
+        reason: adjustForm.reason,
+        creditType: adjustForm.creditType,
+      }),
+    });
+    const payload = await res.json();
+    setAdjustLoading(false);
+    if (!res.ok) {
+      setAdjustResult({ success: false, message: payload?.error || "Failed to adjust balance" });
+      return;
+    }
+    setAdjustResult({ success: true, message: payload.message, newTotal: payload.newTotal });
+    await loadUsers();
   };
 
   const handleSaveEdit = async () => {
@@ -1066,6 +1110,89 @@ export default function AdminDashboard() {
               </div>
 
               {/* Edit modal */}
+              {adjustModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-md rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">Adjust Credits</h3>
+                      <p className="text-sm text-foreground/60 mt-1">{adjustModal.user.username}</p>
+                      <div className="mt-2 flex gap-4 text-xs text-foreground/50">
+                        <span>Total: <span className="font-medium text-foreground">{adjustModal.user.credits_balance ?? 0}</span></span>
+                        <span>Earned: <span className="font-medium text-emerald-500">{adjustModal.user.earned_credits ?? 0}</span></span>
+                        <span>Purchased: <span className="font-medium text-foreground">{adjustModal.user.purchased_credits ?? 0}</span></span>
+                      </div>
+                    </div>
+                    {adjustResult ? (
+                      <div className={`rounded-md p-4 text-sm ${
+                        adjustResult.success
+                          ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600"
+                          : "bg-red-500/10 border border-red-500/20 text-red-600"
+                      }`}>
+                        <p className="font-medium">{adjustResult.success ? "✓ Success" : "✗ Error"}</p>
+                        <p className="mt-1">{adjustResult.message}</p>
+                        {adjustResult.newTotal !== undefined && (
+                          <p className="mt-1 text-foreground/70">New total balance: {adjustResult.newTotal} credits</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Amount</label>
+                          <p className="text-xs text-foreground/40 mb-1">Positive to add, negative to subtract</p>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={adjustForm.amount}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, amount: e.target.value })}
+                            placeholder="e.g. 10 or -5"
+                            className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Credit Type</label>
+                          <select
+                            value={adjustForm.creditType}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, creditType: e.target.value as "earned" | "purchased" | "balance" })}
+                            className="mt-1 w-full rounded-md border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                          >
+                            <option value="earned">Earned (cashout-eligible)</option>
+                            <option value="purchased">Purchased</option>
+                            <option value="balance">Total balance only</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Reason</label>
+                          <input
+                            type="text"
+                            value={adjustForm.reason}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
+                            placeholder="e.g. Promotional credit, error correction"
+                            className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-3 justify-end pt-2">
+                      <button
+                        onClick={() => { setAdjustModal(null); setAdjustForm({ amount: "", creditType: "purchased", reason: "" }); setAdjustResult(null); }}
+                        className="px-4 py-2 text-sm rounded border border-foreground/20 hover:bg-foreground/5"
+                      >
+                        {adjustResult?.success ? "Close" : "Cancel"}
+                      </button>
+                      {!adjustResult && (
+                        <button
+                          onClick={handleAdjustCredits}
+                          disabled={adjustLoading}
+                          className="px-4 py-2 text-sm rounded bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
+                        >
+                          {adjustLoading ? "Saving…" : "Apply Adjustment"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {editListing && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                   <div className="w-full max-w-lg rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-4">
@@ -1348,67 +1475,10 @@ export default function AdminDashboard() {
                             <td className="py-3 px-2">
                               <div className="flex gap-2">
                                 <button
-                                  onClick={async () => {
-                                    // Show current balances first
-                                    alert(
-                                      `Current Balances for ${user.username}:\n\n` +
-                                      `Total: ${user.credits_balance || 0} credits\n` +
-                                      `Earned (cashout-eligible): ${user.earned_credits || 0} credits\n` +
-                                      `Purchased: ${user.purchased_credits || 0} credits`
-                                    );
-
-                                    const amount = prompt(`Adjust credits for ${user.username}:\nEnter amount (positive to add, negative to subtract):`);
-                                    if (!amount) return;
-
-                                    const reason = prompt("Reason for adjustment:");
-                                    if (!reason) return;
-
-                                    // Three-way choice for credit type
-                                    const typeChoice = prompt(
-                                      "Which balance to adjust?\n\n" +
-                                      "1 = Earned credits (cashout-eligible, also updates total)\n" +
-                                      "2 = Purchased credits (also updates total)\n" +
-                                      "3 = Total balance only (legacy/general adjustment)\n\n" +
-                                      "Enter 1, 2, or 3:"
-                                    );
-                                    
-                                    let creditType = "balance";
-                                    if (typeChoice === "1") creditType = "earned";
-                                    else if (typeChoice === "2") creditType = "purchased";
-                                    else if (typeChoice !== "3") {
-                                      alert("Invalid choice. Cancelled.");
-                                      return;
-                                    }
-
-                                    const { data } = await supabase.auth.getSession();
-                                    const token = data.session?.access_token;
-                                    if (!token) return;
-
-                                    const res = await fetch("/api/admin/users/adjust-balance", {
-                                      method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                        Authorization: `Bearer ${token}`,
-                                      },
-                                      body: JSON.stringify({
-                                        userId: user.id,
-                                        amount: parseFloat(amount),
-                                        reason,
-                                        creditType,
-                                      }),
-                                    });
-
-                                    const payload = await res.json();
-                                    if (!res.ok) {
-                                      alert(`Error: ${payload?.error || "Failed to adjust balance"}`);
-                                      return;
-                                    }
-
-                                    alert(
-                                      `✓ Success!\n\n${payload.message}\n\n` +
-                                      `New total balance: ${payload.newTotal} credits`
-                                    );
-                                    await loadUsers();
+                                  onClick={() => {
+                                    setAdjustForm({ amount: "", creditType: "purchased", reason: "" });
+                                    setAdjustResult(null);
+                                    setAdjustModal({ user });
                                   }}
                                   className="text-xs px-2 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
                                 >

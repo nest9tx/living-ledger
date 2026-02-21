@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Don't index admin or auth pages
+Disallow: /admin
+Disallow: /login
+Disallow: /signup
+Disallow: /onboarding
+Disallow: /settings
+Disallow: /dashboard
+Disallow: /cashout
+Disallow: /api/
+
+Sitemap: https://livingledger.org/sitemap.xml

@@ -43,28 +43,99 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <main className="mx-auto flex min-h-screen max-w-5xl flex-col items-start justify-center gap-10 px-6 py-20">
-        <div className="space-y-5">
-          <p className="text-xs uppercase tracking-[0.4em] text-foreground/60">
+      <main className="mx-auto flex max-w-5xl flex-col gap-16 px-6 py-20">
+
+        {/* ── Hero ── */}
+        <div className="flex flex-col gap-6 max-w-3xl">
+          <p className="text-xs uppercase tracking-[0.4em] text-foreground/50">
             Living Ledger
           </p>
           <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-            Give help. Receive help. Build credit.
+            A marketplace built on<br className="hidden sm:block" /> mutual support.
           </h1>
           <p className="max-w-2xl text-base text-foreground/70 sm:text-lg">
-            Living Ledger is a community marketplace for micro-acts of assistance. Post what you need,
-            share what you have, and earn Gratitude Credits — redeemable for other services or cashed out via Stripe.
+            Post what you need. Share what you offer. Every completed exchange generates
+            <strong className="text-foreground font-medium"> Gratitude Credits</strong> — spend them on
+            other services, boost your listings, or cash out real money via Stripe.
           </p>
+          <HeroCTA />
+          <Link
+            href="/browse"
+            className="w-fit text-sm text-foreground/50 underline underline-offset-4 hover:text-foreground/80"
+          >
+            Browse listings without signing up →
+          </Link>
         </div>
 
-        <HeroCTA />
+        {/* ── How it works ── */}
+        <section className="w-full space-y-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-foreground/50">How it works</p>
+            <h2 className="mt-1 text-2xl font-semibold">Three steps to get going</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              {
+                step: "01",
+                title: "Post a request or offer",
+                body: "Describe what you need or what you can do. Set a credit price, pick a category, and go live in under a minute.",
+              },
+              {
+                step: "02",
+                title: "Connect and agree",
+                body: "Message through the platform. Credits are held in escrow the moment a deal is struck — no money moves until both sides are satisfied.",
+              },
+              {
+                step: "03",
+                title: "Complete and get paid",
+                body: "Mark delivery done. Credits release and 85% land in your account instantly. Reach 20 earned credits and cash out to USD via Stripe.",
+              },
+            ].map((item) => (
+              <div key={item.step} className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5 space-y-2">
+                <span className="text-3xl font-bold text-foreground/10">{item.step}</span>
+                <h3 className="text-sm font-semibold">{item.title}</h3>
+                <p className="text-sm text-foreground/65">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
+        {/* ── What you can do ── */}
+        <section className="w-full space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-foreground/50">The marketplace</p>
+            <h2 className="mt-1 text-2xl font-semibold">Requests &amp; Offers</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6 space-y-2">
+              <p className="text-lg font-semibold">📋 Requests</p>
+              <p className="text-sm text-foreground/70">
+                Need a second opinion, a quick design, some code reviewed, or someone to proofread your cover letter?
+                Post a request with your budget and let the community respond.
+              </p>
+              <p className="text-xs text-foreground/50 pt-1">You spend credits → helper earns credits</p>
+            </div>
+            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6 space-y-2">
+              <p className="text-lg font-semibold">🎁 Offers</p>
+              <p className="text-sm text-foreground/70">
+                Got a skill to share? List your offering — writing, tutoring, consulting, creative work — name your price
+                and let clients come to you.
+              </p>
+              <p className="text-xs text-foreground/50 pt-1">Client spends credits → you earn &amp; can cash out</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Featured ── */}
         <section id="featured" className="w-full space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-foreground/60">Featured</p>
+              <p className="text-xs uppercase tracking-[0.35em] text-foreground/50">Featured</p>
               <h2 className="text-2xl font-semibold">Boosted listings</h2>
             </div>
+            <Link href="/browse" className="text-sm text-foreground/50 hover:text-foreground/80">
+              View all →
+            </Link>
           </div>
 
           {boosts.length === 0 ? (
@@ -121,80 +192,28 @@ export default async function Home() {
           )}
         </section>
 
-        <div className="grid w-full gap-4 md:grid-cols-3">
-          {[
-            {
-              title: "Requests",
-              copy: "Need a skill, a second opinion, or a creative collaborator? Post a request and let the community respond.",
-            },
-            {
-              title: "Offers",
-              copy: "Share your expertise — writing, code, design, coaching, and more. Build a reputation through real contributions.",
-            },
-            {
-              title: "Gratitude Credits",
-              copy: "Credits flow when help is exchanged. Spend them on services, boost your own listings, or cash out to USD.",
-            },
-          ].map((card) => (
-            <div
-              key={card.title}
-              className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5"
-            >
-              <h2 className="text-lg font-semibold">{card.title}</h2>
-              <p className="mt-3 text-sm text-foreground/70">{card.copy}</p>
-            </div>
-          ))}
-        </div>
-
-        <section className="w-full space-y-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-foreground/60">
-              How it works
-            </p>
-            <h2 className="text-2xl font-semibold">A simple loop of giving</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
-              <h3 className="text-sm font-semibold">1. Post a request or offer</h3>
-              <p className="mt-2 text-sm text-foreground/70">
-                Tell the community what you need or what you can provide. Listings live in categories so the right people find them.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
-              <h3 className="text-sm font-semibold">2. Connect and agree</h3>
-              <p className="mt-2 text-sm text-foreground/70">
-                Message through the platform. When you&apos;re ready, credits are held securely in escrow &mdash; no money changes hands until both sides are satisfied.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5">
-              <h3 className="text-sm font-semibold">3. Complete and get paid</h3>
-              <p className="mt-2 text-sm text-foreground/70">
-                Mark delivery complete and credits release. Providers keep 85% (15% platform fee). Earned credits can be cashed out via Stripe at any time (min $20).
-              </p>
-            </div>
-          </div>
-        </section>
-
+        {/* ── Trust & Safety ── */}
         <section className="w-full grid gap-4 md:grid-cols-2">
           <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6">
             <h3 className="text-lg font-semibold">Why people use Living Ledger</h3>
             <ul className="mt-3 space-y-2 text-sm text-foreground/70">
-              <li>• Turn your skills into community credit.</li>
+              <li>• Turn your skills into real income.</li>
               <li>• Get help without negotiating cash each time.</li>
-              <li>• Build trust through visible contribution history.</li>
-              <li>• Keep value circulating locally and ethically.</li>
+              <li>• Build trust through a visible contribution history.</li>
+              <li>• Credits are backed by real transactions — 1 credit = $1.</li>
             </ul>
           </div>
           <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6">
-            <h3 className="text-lg font-semibold">Safety & trust</h3>
+            <h3 className="text-lg font-semibold">Safety &amp; trust</h3>
             <ul className="mt-3 space-y-2 text-sm text-foreground/70">
-              <li>• Escrow holds funds until delivery.</li>
-              <li>• 7-day safety delay helps protect against chargebacks.</li>
+              <li>• Escrow holds credits until delivery is confirmed.</li>
+              <li>• 7-day safety window protects against disputes.</li>
               <li>• Admin dispute resolution ensures fairness.</li>
-              <li>• Clear platform fee (15%) keeps the system running.</li>
+              <li>• 15% platform fee keeps the system running.</li>
             </ul>
           </div>
         </section>
+
       </main>
     </div>
   );

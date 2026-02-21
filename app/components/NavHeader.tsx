@@ -8,15 +8,27 @@ import { useState, useEffect } from "react";
 export default function NavHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [user, setUser] = useState<{ email?: string; id?: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creditsBalance, setCreditsBalance] = useState<number | null>(null);
+
+  const fetchBalance = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("credits_balance")
+      .eq("id", userId)
+      .single();
+    if (data) setCreditsBalance(data.credits_balance ?? 0);
+  };
 
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        setUser(data.session?.user ?? null);
+        const sessionUser = data.session?.user ?? null;
+        setUser(sessionUser);
+        if (sessionUser?.id) fetchBalance(sessionUser.id);
       } catch (err) {
         console.error('Auth check failed:', err);
         setUser(null);
@@ -30,11 +42,10 @@ export default function NavHeader() {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (session) {
-          setUser(session.user);
-        } else {
-          setUser(null);
-        }
+        const sessionUser = session?.user ?? null;
+        setUser(sessionUser);
+        if (sessionUser?.id) fetchBalance(sessionUser.id);
+        else setCreditsBalance(null);
       }
     );
 
@@ -43,11 +54,17 @@ export default function NavHeader() {
     };
   }, []);
 
+  // Re-fetch balance when navigating (catches purchases / transactions)
+  useEffect(() => {
+    if (user?.id) fetchBalance(user.id);
+  }, [pathname, user?.id]);
+
   const handleSignOut = async () => {
     try {
       setLoading(true);
       await supabase.auth.signOut();
       setUser(null);
+      setCreditsBalance(null);
       router.push("/");
       router.refresh();
     } catch (err) {
@@ -86,13 +103,22 @@ export default function NavHeader() {
               >
                 Dashboard
               </Link>
+              {creditsBalance !== null && (
+                <Link
+                  href="/credits/buy"
+                  title="Your credit balance — click to buy more"
+                  className="flex items-center gap-1.5 rounded-full border border-foreground/20 bg-foreground/5 px-3 py-1 text-xs font-medium hover:bg-foreground/10 transition"
+                >
+                  <span className="text-amber-500">⚡</span>
+                  <span>{creditsBalance}</span>
+                </Link>
+              )}
               <Link
                 href="/settings"
                 className="text-sm hover:text-foreground/70"
               >
                 Settings
               </Link>
-              <span className="text-sm text-foreground/70">{user.email}</span>
               <button
                 onClick={handleSignOut}
                 disabled={loading}

@@ -15,9 +15,38 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Living Ledger",
+  metadataBase: new URL("https://livingledger.org"),
+  title: {
+    default: "Living Ledger — Give Help. Receive Help. Build Credit.",
+    template: "%s | Living Ledger",
+  },
   description:
-    "A community marketplace for micro-acts of help. Post requests, offer your gifts, and earn gratitude credits.",
+    "A community marketplace for micro-acts of assistance. Post requests, offer your gifts, earn Gratitude Credits, and cash out real money via Stripe.",
+  keywords: ["community marketplace", "micro-services", "gratitude credits", "skill sharing", "freelance", "help exchange"],
+  authors: [{ name: "Living Ledger" }],
+  openGraph: {
+    type: "website",
+    url: "https://livingledger.org",
+    siteName: "Living Ledger",
+    title: "Living Ledger — Give Help. Receive Help. Build Credit.",
+    description:
+      "A community marketplace for micro-acts of assistance. Post requests, offer your gifts, earn Gratitude Credits, and cash out real money via Stripe.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Living Ledger — Community Marketplace",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Living Ledger — Give Help. Receive Help. Build Credit.",
+    description:
+      "A community marketplace for micro-acts of assistance. Earn credits for helping others and cash out via Stripe.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
