@@ -272,7 +272,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <a
-                        href="/credits/buy"
+                        href="/buy-credits"
                         className="shrink-0 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
                       >
                         Buy Credits

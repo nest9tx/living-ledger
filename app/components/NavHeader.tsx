@@ -105,7 +105,7 @@ export default function NavHeader() {
               </Link>
               {creditsBalance !== null && (
                 <Link
-                  href="/credits/buy"
+                  href="/buy-credits"
                   title="Your credit balance — click to buy more"
                   className="flex items-center gap-1.5 rounded-full border border-foreground/20 bg-foreground/5 px-3 py-1 text-xs font-medium hover:bg-foreground/10 transition"
                 >

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * Admin Dashboard
@@ -320,7 +321,7 @@ export default function AdminDashboard() {
         });
 
         // Convert to flat list sorted by latest message per conversation
-        const conversationList = Object.entries(conversationGroups).map(([otherUserId, messages]) => {
+        const conversationList = Object.entries(conversationGroups).map(([, messages]) => {
           const sortedMessages = messages.sort((a, b) => 
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
@@ -1109,90 +1110,7 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              {/* Edit modal */}
-              {adjustModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                  <div className="w-full max-w-md rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-lg">Adjust Credits</h3>
-                      <p className="text-sm text-foreground/60 mt-1">{adjustModal.user.username}</p>
-                      <div className="mt-2 flex gap-4 text-xs text-foreground/50">
-                        <span>Total: <span className="font-medium text-foreground">{adjustModal.user.credits_balance ?? 0}</span></span>
-                        <span>Earned: <span className="font-medium text-emerald-500">{adjustModal.user.earned_credits ?? 0}</span></span>
-                        <span>Purchased: <span className="font-medium text-foreground">{adjustModal.user.purchased_credits ?? 0}</span></span>
-                      </div>
-                    </div>
-                    {adjustResult ? (
-                      <div className={`rounded-md p-4 text-sm ${
-                        adjustResult.success
-                          ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600"
-                          : "bg-red-500/10 border border-red-500/20 text-red-600"
-                      }`}>
-                        <p className="font-medium">{adjustResult.success ? "✓ Success" : "✗ Error"}</p>
-                        <p className="mt-1">{adjustResult.message}</p>
-                        {adjustResult.newTotal !== undefined && (
-                          <p className="mt-1 text-foreground/70">New total balance: {adjustResult.newTotal} credits</p>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Amount</label>
-                          <p className="text-xs text-foreground/40 mb-1">Positive to add, negative to subtract</p>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={adjustForm.amount}
-                            onChange={(e) => setAdjustForm({ ...adjustForm, amount: e.target.value })}
-                            placeholder="e.g. 10 or -5"
-                            className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Credit Type</label>
-                          <select
-                            value={adjustForm.creditType}
-                            onChange={(e) => setAdjustForm({ ...adjustForm, creditType: e.target.value as "earned" | "purchased" | "balance" })}
-                            className="mt-1 w-full rounded-md border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
-                          >
-                            <option value="earned">Earned (cashout-eligible)</option>
-                            <option value="purchased">Purchased</option>
-                            <option value="balance">Total balance only</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Reason</label>
-                          <input
-                            type="text"
-                            value={adjustForm.reason}
-                            onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
-                            placeholder="e.g. Promotional credit, error correction"
-                            className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex gap-3 justify-end pt-2">
-                      <button
-                        onClick={() => { setAdjustModal(null); setAdjustForm({ amount: "", creditType: "purchased", reason: "" }); setAdjustResult(null); }}
-                        className="px-4 py-2 text-sm rounded border border-foreground/20 hover:bg-foreground/5"
-                      >
-                        {adjustResult?.success ? "Close" : "Cancel"}
-                      </button>
-                      {!adjustResult && (
-                        <button
-                          onClick={handleAdjustCredits}
-                          disabled={adjustLoading}
-                          className="px-4 py-2 text-sm rounded bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
-                        >
-                          {adjustLoading ? "Saving…" : "Apply Adjustment"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
+              {/* Edit listing modal */}
               {editListing && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                   <div className="w-full max-w-lg rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-4">
@@ -1419,6 +1337,90 @@ export default function AdminDashboard() {
                   Refresh
                 </button>
               </div>
+
+              {/* Adjust Credits modal */}
+              {adjustModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-md rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">Adjust Credits</h3>
+                      <p className="text-sm text-foreground/60 mt-1">{adjustModal.user.username}</p>
+                      <div className="mt-2 flex gap-4 text-xs text-foreground/50">
+                        <span>Total: <span className="font-medium text-foreground">{adjustModal.user.credits_balance ?? 0}</span></span>
+                        <span>Earned: <span className="font-medium text-emerald-500">{adjustModal.user.earned_credits ?? 0}</span></span>
+                        <span>Purchased: <span className="font-medium text-foreground">{adjustModal.user.purchased_credits ?? 0}</span></span>
+                      </div>
+                    </div>
+                    {adjustResult ? (
+                      <div className={`rounded-md p-4 text-sm ${
+                        adjustResult.success
+                          ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600"
+                          : "bg-red-500/10 border border-red-500/20 text-red-600"
+                      }`}>
+                        <p className="font-medium">{adjustResult.success ? "✓ Success" : "✗ Error"}</p>
+                        <p className="mt-1">{adjustResult.message}</p>
+                        {adjustResult.newTotal !== undefined && (
+                          <p className="mt-1 text-foreground/70">New total balance: {adjustResult.newTotal} credits</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Amount</label>
+                          <p className="text-xs text-foreground/40 mb-1">Positive to add, negative to subtract</p>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={adjustForm.amount}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, amount: e.target.value })}
+                            placeholder="e.g. 10 or -5"
+                            className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Credit Type</label>
+                          <select
+                            value={adjustForm.creditType}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, creditType: e.target.value as "earned" | "purchased" | "balance" })}
+                            className="mt-1 w-full rounded-md border border-foreground/20 bg-background px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                          >
+                            <option value="earned">Earned (cashout-eligible)</option>
+                            <option value="purchased">Purchased</option>
+                            <option value="balance">Total balance only</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-foreground/60 uppercase tracking-wide">Reason</label>
+                          <input
+                            type="text"
+                            value={adjustForm.reason}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
+                            placeholder="e.g. Promotional credit, error correction"
+                            className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-3 justify-end pt-2">
+                      <button
+                        onClick={() => { setAdjustModal(null); setAdjustForm({ amount: "", creditType: "purchased", reason: "" }); setAdjustResult(null); }}
+                        className="px-4 py-2 text-sm rounded border border-foreground/20 hover:bg-foreground/5"
+                      >
+                        {adjustResult?.success ? "Close" : "Cancel"}
+                      </button>
+                      {!adjustResult && (
+                        <button
+                          onClick={handleAdjustCredits}
+                          disabled={adjustLoading}
+                          className="px-4 py-2 text-sm rounded bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
+                        >
+                          {adjustLoading ? "Saving…" : "Apply Adjustment"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {usersLoading ? (
                 <p className="text-foreground/60">Loading users...</p>
