@@ -1392,7 +1392,7 @@ export default function AdminDashboard() {
                                       },
                                       body: JSON.stringify({
                                         userId: user.id,
-                                        amount: parseInt(amount),
+                                        amount: parseFloat(amount),
                                         reason,
                                         creditType,
                                       }),

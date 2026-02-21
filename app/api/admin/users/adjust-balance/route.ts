@@ -44,15 +44,15 @@ export async function POST(req: NextRequest) {
     const { userId, amount, reason } = body;
     const creditType = body.creditType || "balance"; // balance, earned, or purchased
 
-    if (!userId || !amount || !reason) {
+    if (!userId || amount == null || !reason) {
       return NextResponse.json(
         { error: "userId, amount, and reason are required" },
         { status: 400 }
       );
     }
 
-    const amountInt = parseInt(amount);
-    if (isNaN(amountInt)) {
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum)) {
       return NextResponse.json(
         { error: "Amount must be a number" },
         { status: 400 }
@@ -83,9 +83,8 @@ export async function POST(req: NextRequest) {
     let targetBalance = 0;
 
     if (creditType === "earned") {
-      // Adjust earned credits and total balance
-      const newEarned = currentEarned + amountInt;
-      const newTotal = currentTotalBalance + amountInt;
+      const newEarned = currentEarned + amountNum;
+      const newTotal = currentTotalBalance + amountNum;
       
       if (newEarned < 0 || newTotal < 0) {
         return NextResponse.json(
@@ -100,9 +99,8 @@ export async function POST(req: NextRequest) {
       };
       targetBalance = newEarned;
     } else if (creditType === "purchased") {
-      // Adjust purchased credits and total balance
-      const newPurchased = currentPurchased + amountInt;
-      const newTotal = currentTotalBalance + amountInt;
+      const newPurchased = currentPurchased + amountNum;
+      const newTotal = currentTotalBalance + amountNum;
       
       if (newPurchased < 0 || newTotal < 0) {
         return NextResponse.json(
@@ -117,8 +115,7 @@ export async function POST(req: NextRequest) {
       };
       targetBalance = newPurchased;
     } else {
-      // Adjust only total balance (legacy/general adjustment)
-      const newTotal = currentTotalBalance + amountInt;
+      const newTotal = currentTotalBalance + amountNum;
       
       if (newTotal < 0) {
         return NextResponse.json(
@@ -147,7 +144,7 @@ export async function POST(req: NextRequest) {
     // Record transaction for audit trail
     await supabaseAdmin.from("transactions").insert({
       user_id: userId,
-      amount: amountInt,
+      amount: amountNum,
       description: `Admin adjustment (${creditType}): ${reason}`,
       transaction_type: "admin_adjustment",
       credit_source: creditType === "earned" ? "earned" : "purchased",
@@ -159,7 +156,7 @@ export async function POST(req: NextRequest) {
       newBalance: targetBalance,
       newTotal: updateData.credits_balance || currentTotalBalance,
       creditType,
-      message: `${creditType === 'earned' ? 'Earned credits' : creditType === 'purchased' ? 'Purchased credits' : 'Balance'} adjusted by ${amountInt > 0 ? '+' : ''}${amountInt} credits`,
+      message: `${creditType === 'earned' ? 'Earned credits' : creditType === 'purchased' ? 'Purchased credits' : 'Balance'} adjusted by ${amountNum > 0 ? '+' : ''}${amountNum} credits`,
     });
   } catch (error) {
     console.error("Admin adjust balance error:", error);
