@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { fetchRequests, fetchOffers, fetchCategories } from "@/lib/supabase-helpers";
 import { SkeletonFeed } from "./Skeletons";
 import PostDetailModal from "./PostDetailModal";
@@ -140,7 +141,8 @@ export default function Feed({ guestMode = false }: FeedProps) {
       const q = searchQuery.toLowerCase();
       const inTitle = item.title.toLowerCase().includes(q);
       const inDesc = item.description.toLowerCase().includes(q);
-      if (!inTitle && !inDesc) return false;
+      const inUsername = (item.profiles?.username || "").toLowerCase().includes(q);
+      if (!inTitle && !inDesc && !inUsername) return false;
     }
 
     return true;
@@ -321,7 +323,18 @@ export default function Feed({ guestMode = false }: FeedProps) {
                     </div>
                   )}
                   <p className="mt-2 text-xs text-foreground/50">
-                    by {item.profiles?.username || "Anonymous"}
+                    by{" "}
+                    {item.profiles?.username ? (
+                      <Link
+                        href={`/profile/${item.profiles.username}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium hover:underline underline-offset-2"
+                      >
+                        {item.profiles.username}
+                      </Link>
+                    ) : (
+                      "Anonymous"
+                    )}
                     {item.profiles?.total_ratings ? (
                       <>
                         {" "}• ⭐ {Number(item.profiles.average_rating || 0).toFixed(1)} ({item.profiles.total_ratings})

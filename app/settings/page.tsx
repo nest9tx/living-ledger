@@ -37,6 +37,10 @@ export default function SettingsPage() {
   const [usernameSuccess, setUsernameSuccess] = useState("");
   const [changeCount, setChangeCount] = useState(0);
   const [lastChangedAt, setLastChangedAt] = useState<string | null>(null);
+  const [bio, setBio] = useState("");
+  const [bioSaving, setBioSaving] = useState(false);
+  const [bioSuccess, setBioSuccess] = useState("");
+  const [bioError, setBioError] = useState("");
 
   const loadUserSettings = useCallback(async () => {
     try {
@@ -53,7 +57,7 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at, username_change_count, username_changed_at")
+        .select("username, bio, created_at, stripe_account_id, stripe_account_status, stripe_onboarding_complete, stripe_connected_at, username_change_count, username_changed_at")
         .eq("id", session.user.id)
         .single();
 
@@ -64,6 +68,7 @@ export default function SettingsPage() {
         });
         setChangeCount(profile.username_change_count || 0);
         setLastChangedAt(profile.username_changed_at || null);
+        setBio(profile.bio || "");
 
         // Check Stripe Connect status if account exists
         if (profile.stripe_account_id) {
@@ -227,6 +232,27 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveBio = async () => {
+    setBioSaving(true);
+    setBioError("");
+    setBioSuccess("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ bio: bio.trim() || null })
+        .eq("id", session.user.id);
+      if (error) throw error;
+      setBioSuccess("Bio saved!");
+      setTimeout(() => setBioSuccess(""), 3000);
+    } catch {
+      setBioError("Failed to save bio");
+    } finally {
+      setBioSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6">
@@ -259,6 +285,40 @@ export default function SettingsPage() {
             <p><span className="text-foreground/60">Email:</span> {user?.email}</p>
             <p><span className="text-foreground/60">Member since:</span> {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}</p>
           </div>
+        </div>
+
+        {/* About Me / Bio */}
+        <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-1">About Me</h2>
+          <p className="text-sm text-foreground/60 mb-4">
+            Introduce yourself to the community. Shown publicly on your profile page.
+          </p>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            maxLength={300}
+            rows={3}
+            placeholder="Tell the community a little about yourself…"
+            className="w-full px-3 py-2 rounded-lg border border-foreground/20 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-foreground/30 resize-none"
+          />
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-xs text-foreground/40">{bio.length}/300</span>
+            <button
+              onClick={handleSaveBio}
+              disabled={bioSaving}
+              className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium disabled:opacity-40"
+            >
+              {bioSaving ? "Saving…" : "Save Bio"}
+            </button>
+          </div>
+          {bioError && <p className="text-xs text-red-500 mt-2">{bioError}</p>}
+          {bioSuccess && <p className="text-xs text-emerald-600 mt-2">{bioSuccess}</p>}
+          <p className="text-xs text-foreground/40 mt-1">
+            View your public profile at{" "}
+            <Link href={`/profile/${user?.username}`} className="underline hover:text-foreground/70">
+              /profile/{user?.username}
+            </Link>
+          </p>
         </div>
 
         {/* Change Username */}

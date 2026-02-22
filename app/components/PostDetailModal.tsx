@@ -585,7 +585,18 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           {/* Meta info */}
           <div className="text-xs text-foreground/50 text-center border-t border-foreground/10 pt-4 mt-6">
             <div>
-              Posted by <span className="font-medium">{post.profile?.username || "Anonymous"}</span>
+              Posted by{" "}
+              {post.profile?.username ? (
+                <Link
+                  href={`/profile/${post.profile.username}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium hover:underline underline-offset-2"
+                >
+                  {post.profile.username}
+                </Link>
+              ) : (
+                <span className="font-medium">Anonymous</span>
+              )}
               {post.profile?.total_ratings ? (
                 <>
                   {" "}• ⭐ {Number(post.profile.average_rating || 0).toFixed(1)} ({post.profile.total_ratings})
