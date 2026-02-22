@@ -53,6 +53,9 @@ export async function GET(req: NextRequest) {
         total_ratings,
         total_contributions,
         onboarding_complete,
+        account_status,
+        suspension_reason,
+        suspended_at,
         created_at
       `)
       .order("created_at", { ascending: false })

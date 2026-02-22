@@ -76,6 +76,12 @@ export default function AdminDashboard() {
   const [refundReason, setRefundReason] = useState("");
   const [refundConfirmId, setRefundConfirmId] = useState<number | null>(null);
 
+  // User action modal state
+  const [userActionModal, setUserActionModal] = useState<{ user: any } | null>(null);
+  const [userActionReason, setUserActionReason] = useState("");
+  const [userActionLoading, setUserActionLoading] = useState(false);
+  const [userActionResult, setUserActionResult] = useState<{ success: boolean; message: string } | null>(null);
+
   // Revenue tab state
   const [revenueRange, setRevenueRange] = useState<"1d" | "7d" | "30d" | "mtd" | "all">("30d");
   const [revenueData, setRevenueData] = useState<{
@@ -519,6 +525,54 @@ export default function AdminDashboard() {
     }
     setAdjustResult({ success: true, message: payload.message, newTotal: payload.newTotal });
     await loadUsers();
+  };
+
+  const handleUserAction = async (action: "clear-bio" | "suspend" | "unsuspend" | "ban" | "unban") => {
+    if (!userActionModal) return;
+    setUserActionLoading(true);
+    setUserActionResult(null);
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    try {
+      if (action === "clear-bio") {
+        const res = await fetch("/api/admin/users/clear-bio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ userId: userActionModal.user.id }),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload?.error || "Failed to clear bio");
+        setUserActionResult({ success: true, message: payload.message });
+        setUserActionModal({ user: { ...userActionModal.user, bio: null } });
+      } else {
+        const statusMap: Record<string, string> = {
+          suspend: "suspended",
+          unsuspend: "active",
+          ban: "banned",
+          unban: "active",
+        };
+        const res = await fetch("/api/admin/users/set-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            userId: userActionModal.user.id,
+            status: statusMap[action],
+            reason: userActionReason.trim() || undefined,
+          }),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload?.error || "Failed to update status");
+        setUserActionResult({ success: true, message: payload.message });
+        setUserActionModal({ user: { ...userActionModal.user, account_status: statusMap[action], suspension_reason: userActionReason.trim() || null } });
+      }
+      await loadUsers();
+    } catch (err: unknown) {
+      setUserActionResult({ success: false, message: err instanceof Error ? err.message : "An error occurred" });
+    } finally {
+      setUserActionLoading(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -1422,6 +1476,125 @@ export default function AdminDashboard() {
                 </div>
               )}
 
+              {/* Manage Account modal */}
+              {userActionModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-md rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">Manage Account</h3>
+                        <p className="text-sm text-foreground/60 mt-0.5">@{userActionModal.user.username}</p>
+                      </div>
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                        userActionModal.user.account_status === "banned"
+                          ? "bg-red-500/10 border-red-500/25 text-red-500"
+                          : userActionModal.user.account_status === "suspended"
+                          ? "bg-amber-500/10 border-amber-500/25 text-amber-600"
+                          : "bg-emerald-500/10 border-emerald-500/25 text-emerald-600"
+                      }`}>
+                        {(userActionModal.user.account_status || "active").toUpperCase()}
+                      </span>
+                    </div>
+
+                    {userActionResult && (
+                      <div className={`rounded-md p-3 text-sm ${
+                        userActionResult.success
+                          ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600"
+                          : "bg-red-500/10 border border-red-500/20 text-red-600"
+                      }`}>
+                        {userActionResult.message}
+                      </div>
+                    )}
+
+                    {/* Bio section */}
+                    <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">Bio</p>
+                        {userActionModal.user.bio && (
+                          <button
+                            onClick={() => handleUserAction("clear-bio")}
+                            disabled={userActionLoading}
+                            className="text-xs px-2 py-1 rounded border border-red-500/30 text-red-500 hover:bg-red-500/5 disabled:opacity-40"
+                          >
+                            {userActionLoading ? "Clearing…" : "Clear Bio"}
+                          </button>
+                        )}
+                      </div>
+                      {userActionModal.user.bio ? (
+                        <p className="text-sm text-foreground/70 italic">&ldquo;{userActionModal.user.bio}&rdquo;</p>
+                      ) : (
+                        <p className="text-xs text-foreground/40">No bio set.</p>
+                      )}
+                    </div>
+
+                    {/* Account status section */}
+                    <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-foreground/50">Account Status</p>
+                      <div>
+                        <label className="text-xs text-foreground/60">Reason / note (optional)</label>
+                        <input
+                          type="text"
+                          value={userActionReason}
+                          onChange={(e) => setUserActionReason(e.target.value)}
+                          placeholder="Community guideline violation, spam, etc."
+                          className="mt-1 w-full rounded-md border border-foreground/20 bg-transparent px-3 py-2 text-sm focus:border-foreground/40 focus:outline-none"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {userActionModal.user.account_status !== "suspended" && userActionModal.user.account_status !== "banned" && (
+                          <button
+                            onClick={() => handleUserAction("suspend")}
+                            disabled={userActionLoading}
+                            className="text-xs px-3 py-1.5 rounded border border-amber-500/40 text-amber-600 hover:bg-amber-500/5 disabled:opacity-40"
+                          >
+                            {userActionLoading ? "Saving…" : "⚠️ Suspend"}
+                          </button>
+                        )}
+                        {userActionModal.user.account_status === "suspended" && (
+                          <button
+                            onClick={() => handleUserAction("unsuspend")}
+                            disabled={userActionLoading}
+                            className="text-xs px-3 py-1.5 rounded border border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/5 disabled:opacity-40"
+                          >
+                            {userActionLoading ? "Saving…" : "✓ Lift Suspension"}
+                          </button>
+                        )}
+                        {userActionModal.user.account_status !== "banned" && (
+                          <button
+                            onClick={() => handleUserAction("ban")}
+                            disabled={userActionLoading}
+                            className="text-xs px-3 py-1.5 rounded border border-red-500/40 text-red-500 hover:bg-red-500/5 disabled:opacity-40"
+                          >
+                            {userActionLoading ? "Saving…" : "🚫 Ban Account"}
+                          </button>
+                        )}
+                        {userActionModal.user.account_status === "banned" && (
+                          <button
+                            onClick={() => handleUserAction("unban")}
+                            disabled={userActionLoading}
+                            className="text-xs px-3 py-1.5 rounded border border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/5 disabled:opacity-40"
+                          >
+                            {userActionLoading ? "Saving…" : "✓ Unban Account"}
+                          </button>
+                        )}
+                      </div>
+                      {userActionModal.user.suspension_reason && (
+                        <p className="text-xs text-foreground/50">Current reason: <em>{userActionModal.user.suspension_reason}</em></p>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        onClick={() => { setUserActionModal(null); setUserActionResult(null); setUserActionReason(""); }}
+                        className="px-4 py-2 text-sm rounded border border-foreground/20 hover:bg-foreground/5"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {usersLoading ? (
                 <p className="text-foreground/60">Loading users...</p>
               ) : users.length === 0 ? (
@@ -1485,6 +1658,22 @@ export default function AdminDashboard() {
                                   className="text-xs px-2 py-1 rounded border border-foreground/20 hover:bg-foreground/5"
                                 >
                                   Adjust Credits
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setUserActionReason("");
+                                    setUserActionResult(null);
+                                    setUserActionModal({ user });
+                                  }}
+                                  className={`text-xs px-2 py-1 rounded border hover:bg-foreground/5 ${
+                                    user.account_status === "banned"
+                                      ? "border-red-500/40 text-red-500"
+                                      : user.account_status === "suspended"
+                                      ? "border-amber-500/40 text-amber-600"
+                                      : "border-foreground/20"
+                                  }`}
+                                >
+                                  Manage
                                 </button>
                                 
                                 <button
