@@ -327,7 +327,7 @@ export default function ListingDetailPage() {
                 {type === "offer" ? (
                   <>
                     <p>
-                      <strong>You request this service</strong> by clicking the button below.
+                      <strong>Click "Request this service"</strong> at the top right to get started.
                     </p>
                     <p>
                       <strong>Credits are held in escrow</strong> until you confirm completion.
@@ -345,7 +345,7 @@ export default function ListingDetailPage() {
                       <strong>You offer your services</strong> to help with this request.
                     </p>
                     <p>
-                      <strong>Message the requester</strong> to discuss details and agree on terms.
+                      <strong>Message the requester</strong> using the button at the top right to discuss details and agree on terms.
                     </p>
                     <p>
                       <strong>Credits are paid after completion</strong> when both parties agree work is done.
