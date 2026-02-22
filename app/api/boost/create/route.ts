@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     // Rate limit: 10 boost attempts per user per hour
-    const rl = rateLimit(`boost:${userData.user.id}`, 10, 60 * 60 * 1000);
+    const rl = await rateLimit(`boost:${userData.user.id}`, 10, 60 * 60 * 1000);
     if (!rl.success) {
       return Response.json(
         { error: "Too many boost requests. Please wait a moment before trying again." },

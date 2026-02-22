@@ -1,5 +1,8 @@
 import supabase from "@/lib/supabase";
 import supabaseAdmin from "@/lib/supabase-admin";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const ESCROW_DELAY_DAYS = 7;
 
@@ -161,6 +164,88 @@ export async function POST(req: Request) {
     if (notifyError) {
       console.error("Failed to create notification:", notifyError);
       // Don't fail the escrow creation if notification fails
+    }
+
+    // Send new-order email to the provider
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.livingledger.org";
+      const ordersUrl = `${siteUrl}/dashboard`;
+      const listingUrl = postType === "offer"
+        ? `${siteUrl}/listing/offer/${postId}`
+        : `${siteUrl}/listing/request/${postId}`;
+
+      const [{ data: providerAuth }, { data: buyerProfile }, { data: providerProfile }] =
+        await Promise.all([
+          supabaseAdmin.auth.admin.getUserById(post.user_id),
+          supabaseAdmin.from("profiles").select("username").eq("id", userData.user.id).single(),
+          supabaseAdmin.from("profiles").select("username").eq("id", post.user_id).single(),
+        ]);
+
+      const providerEmail = providerAuth?.user?.email;
+      const buyerUsername = buyerProfile?.username || "A buyer";
+      const providerUsername = providerProfile?.username || "there";
+      const listingTitle = post.title || `${postType} #${postId}`;
+
+      if (providerEmail) {
+        await resend.emails.send({
+          from: "Living Ledger <support@livingledger.org>",
+          to: [providerEmail],
+          subject: `📦 New Order – ${listingTitle}`,
+          html: `
+            <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
+              <div style="padding: 32px 0 16px;">
+                <h2 style="font-size: 24px; font-weight: 600; margin: 0 0 8px;">You have a new order! 🎉</h2>
+                <p style="color: #555; margin: 0;">Hey ${providerUsername}, someone just placed an order on your listing.</p>
+              </div>
+
+              <div style="background: #f9f9f9; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 16px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 6px 0; color: #555; font-size: 14px;">Listing</td>
+                    <td style="padding: 6px 0; font-size: 14px; text-align: right; font-weight: 500;">${listingTitle}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #555; font-size: 14px;">Ordered by</td>
+                    <td style="padding: 6px 0; font-size: 14px; text-align: right; font-weight: 500;">${buyerUsername}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #555; font-size: 14px;">Credits in escrow</td>
+                    <td style="padding: 6px 0; font-size: 14px; text-align: right; font-weight: 500; color: #16a34a;">${credits} credits ($${credits}.00)</td>
+                  </tr>
+                </table>
+              </div>
+
+              <p style="font-size: 14px; color: #555; line-height: 1.6;">
+                The credits are safely held in escrow and will be released to you once the work is marked complete.
+                Log in to confirm the order and get started.
+              </p>
+
+              <div style="margin: 24px 0; display: flex; gap: 12px;">
+                <a href="${ordersUrl}"
+                   style="display: inline-block; background: #111; color: #fff; text-decoration: none;
+                          padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 500;">
+                  View your orders
+                </a>
+                &nbsp;&nbsp;
+                <a href="${listingUrl}"
+                   style="display: inline-block; border: 1px solid #ddd; color: #111; text-decoration: none;
+                          padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 500;">
+                  View listing
+                </a>
+              </div>
+
+              <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
+              <p style="font-size: 12px; color: #999; margin: 0;">
+                You're receiving this because you have a listing on
+                <a href="${siteUrl}" style="color: #999;">Living Ledger</a>.
+              </p>
+            </div>
+          `,
+        });
+      }
+    } catch (emailErr) {
+      console.error("new-order email error:", emailErr);
+      // Email failure never blocks the order
     }
 
     return Response.json({

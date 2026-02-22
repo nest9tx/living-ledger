@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     }
 
     // Rate limit: 5 cashout requests per user per hour
-    const rl = rateLimit(`cashout:${userData.user.id}`, 5, 60 * 60 * 1000);
+    const rl = await rateLimit(`cashout:${userData.user.id}`, 5, 60 * 60 * 1000);
     if (!rl.success) {
       return Response.json(
         { error: "Too many cashout requests. Please wait before trying again." },
