@@ -207,9 +207,16 @@ export default function ProfilePage() {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-xs text-foreground/50 uppercase tracking-wide">Active listings</span>
-              <span className="font-semibold">
-                {listings.offers.length + listings.requests.length}
-              </span>
+              {listings.offers.length + listings.requests.length > 0 ? (
+                <a
+                  href="#listings"
+                  className="font-semibold hover:underline underline-offset-2"
+                >
+                  {listings.offers.length + listings.requests.length}
+                </a>
+              ) : (
+                <span className="font-semibold">{listings.offers.length + listings.requests.length}</span>
+              )}
             </div>
           </div>
 
@@ -241,7 +248,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Listings section */}
-        <div className="space-y-4">
+        <div id="listings" className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-lg font-semibold">Listings by @{profile.username}</h2>
             <div className="flex gap-2 text-sm">

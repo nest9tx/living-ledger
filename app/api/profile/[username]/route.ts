@@ -47,25 +47,24 @@ export async function GET(
       tier = "new";
     }
 
-    // Fetch active offers
+    // Fetch active offers (offers table has no status column)
     const { data: offers } = await supabaseAdmin
       .from("offers")
-      .select("id, title, description, price_credits, category_id, created_at, status")
+      .select("id, title, description, price_credits, category_id, created_at")
       .eq("user_id", profile.id)
-      .eq("suspended", false)
-      .neq("status", "closed")
+      .neq("suspended", true)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(50);
 
     // Fetch active requests
     const { data: requests } = await supabaseAdmin
       .from("requests")
       .select("id, title, description, budget_credits, category_id, created_at, status")
       .eq("user_id", profile.id)
-      .eq("suspended", false)
+      .neq("suspended", true)
       .neq("status", "closed")
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(50);
 
     // Enrich listings with category names
     const allCategoryIds = [
