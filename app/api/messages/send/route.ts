@@ -25,6 +25,21 @@ export async function POST(request: NextRequest) {
 
     const from_user_id = userData.user.id;
 
+    // Prevent [ADMIN] prefix spoofing — verify sender is actually an admin
+    if (content?.trim().startsWith("[ADMIN]")) {
+      const { data: senderProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", from_user_id)
+        .single();
+      if (!senderProfile?.is_admin) {
+        return NextResponse.json(
+          { error: "Forbidden: only admins may send admin-prefixed messages" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Validate required fields — content OR attachment must be present
     if (!to_user_id || (!content?.trim() && !attachment_path)) {
       return NextResponse.json(

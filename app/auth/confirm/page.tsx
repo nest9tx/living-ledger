@@ -19,37 +19,53 @@ export default function AuthConfirmPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const handleConfirm = async () => {
-      // Give the Supabase client a moment to auto-process the hash fragment
-      // (it fires onAuthStateChange internally)
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const { data, error } = await supabase.auth.getSession();
-
-      if (error || !data.session) {
-        // Check if the URL has a hash error from Supabase
-        const hash = window.location.hash;
-        if (hash.includes("error=")) {
-          const params = new URLSearchParams(hash.replace("#", "?"));
-          const desc = params.get("error_description") || "Confirmation failed.";
-          setErrorMessage(decodeURIComponent(desc.replace(/\+/g, " ")));
-        } else {
-          setErrorMessage(
-            "We couldn't verify your email. The link may have expired — please request a new one."
-          );
+    // Listen for the SIGNED_IN event that Supabase fires after processing the
+    // hash fragment — more reliable than a fixed setTimeout on slow connections.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" && session) {
+          setStatus("success");
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          router.replace("/onboarding");
         }
-        setStatus("error");
+      }
+    );
+
+    // Fallback: if the session is already present (e.g. hash was processed
+    // before this component mounted), check immediately.
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error || !data.session) return; // wait for the event above
+      subscription.unsubscribe();
+      setStatus("success");
+      setTimeout(() => router.replace("/onboarding"), 1500);
+    });
+
+    // Safety net: after 8 seconds with no session, show the error state.
+    const timeout = setTimeout(async () => {
+      subscription.unsubscribe();
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setStatus("success");
+        router.replace("/onboarding");
         return;
       }
+      const hash = window.location.hash;
+      if (hash.includes("error=")) {
+        const params = new URLSearchParams(hash.replace("#", "?"));
+        const desc = params.get("error_description") || "Confirmation failed.";
+        setErrorMessage(decodeURIComponent(desc.replace(/\+/g, " ")));
+      } else {
+        setErrorMessage(
+          "We couldn't verify your email. The link may have expired — please request a new one."
+        );
+      }
+      setStatus("error");
+    }, 8000);
 
-      setStatus("success");
-
-      // Brief pause so the user sees the success message, then go to onboarding
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      router.replace("/onboarding");
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
     };
-
-    handleConfirm();
   }, [router]);
 
   return (

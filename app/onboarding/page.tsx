@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 import { recordTransaction } from "@/lib/supabase-helpers";
@@ -15,6 +15,24 @@ export default function OnboardingPage() {
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guidelinesAccepted, setGuidelinesAccepted] = useState(false);
+
+  // Redirect already-onboarded users straight to their dashboard
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_complete")
+        .eq("id", user.id)
+        .single();
+      if (profile?.onboarding_complete) {
+        router.replace("/dashboard");
+      }
+    };
+    checkOnboarding();
+  }, [router]);
 
   const handleGuidelinesAccept = () => {
     setStep("role");
@@ -168,7 +186,8 @@ export default function OnboardingPage() {
               <label className="flex items-start gap-3">
                 <input
                   type="checkbox"
-                  required
+                  checked={guidelinesAccepted}
+                  onChange={(e) => setGuidelinesAccepted(e.target.checked)}
                   className="mt-1"
                 />
                 <span className="text-sm text-foreground/70">
@@ -186,7 +205,8 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={handleGuidelinesAccept}
-                className="flex-1 rounded-md bg-foreground px-4 py-3 text-sm font-medium text-background"
+                disabled={!guidelinesAccepted}
+                className="flex-1 rounded-md bg-foreground px-4 py-3 text-sm font-medium text-background disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 I agree, continue
               </button>
