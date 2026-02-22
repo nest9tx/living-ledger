@@ -1,5 +1,10 @@
 import Stripe from "stripe";
-import supabase from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -31,7 +36,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !userData.user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -40,12 +45,27 @@ export async function POST(req: Request) {
     const credits = Number(body.credits);
     const coverFees = body.coverFees !== false;
 
-    // Maximum 500 credits per transaction to reduce fraud risk
-    // Users can make multiple purchases if needed
+    // Maximum 500 credits per transaction
     if (!Number.isFinite(credits) || credits < 1 || credits > 500) {
       return Response.json(
         { error: "Invalid credits amount (min: 1, max: 500 per purchase)" },
         { status: 400 }
+      );
+    }
+
+    // Rate limit: max 3 purchases per 24 hours to reduce card fraud risk
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: recentPurchases } = await supabaseAdmin
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userData.user.id)
+      .eq("transaction_type", "purchase")
+      .gte("created_at", since);
+
+    if ((recentPurchases ?? 0) >= 3) {
+      return Response.json(
+        { error: "Purchase limit reached. You can make up to 3 credit purchases every 24 hours. Please try again later or contact support@livingledger.org if you need assistance." },
+        { status: 429 }
       );
     }
 
