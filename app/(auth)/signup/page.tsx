@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 
 export default function SignUpPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +20,9 @@ export default function SignUpPage() {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        },
       });
 
       setLoading(false);
@@ -32,10 +33,6 @@ export default function SignUpPage() {
       }
 
       setShowConfirmation(true);
-      
-      setTimeout(() => {
-        router.push("/login");
-      }, 3000);
     } catch (err) {
       setLoading(false);
       const errorMsg = err instanceof Error ? err.message : 'Failed to connect to the server. Please check your internet connection and try again.';
@@ -54,12 +51,21 @@ export default function SignUpPage() {
 
         {showConfirmation ? (
           <div className="mt-8 space-y-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-6">
-            <h2 className="font-semibold text-emerald-700">Check your email</h2>
+            <h2 className="font-semibold text-emerald-700">Check your email ✉️</h2>
             <p className="text-sm text-emerald-700">
-              We&apos;ve sent a confirmation link to <strong>{email}</strong>. Click it to verify your account, then you&apos;ll be able to log in.
+              We&apos;ve sent a confirmation link to <strong>{email}</strong>.
+            </p>
+            <p className="text-sm text-emerald-700">
+              Click the link in that email to verify your account. You&apos;ll be taken directly to your profile setup — no separate login needed.
             </p>
             <p className="text-xs text-emerald-600">
-              Redirecting to login in 3 seconds…
+              Didn&apos;t get it? Check your spam folder, or{" "}
+              <button
+                onClick={() => setShowConfirmation(false)}
+                className="underline underline-offset-2 font-medium"
+              >
+                try again
+              </button>.
             </p>
           </div>
         ) : (
