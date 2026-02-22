@@ -1,31 +1,17 @@
--- Daily post limits + duplicate prevention
--- Run in Supabase SQL Editor
-
--- Add content hash columns
-alter table offers
-add column if not exists content_hash text;
-
-alter table requests
-add column if not exists content_hash text;
-
--- Indexes for fast checks
-create index if not exists idx_offers_user_created_at
-  on offers(user_id, created_at desc);
-
-create index if not exists idx_requests_user_created_at
-  on requests(user_id, created_at desc);
-
-create index if not exists idx_offers_user_content_hash
-  on offers(user_id, content_hash, created_at desc);
-
-create index if not exists idx_requests_user_content_hash
-  on requests(user_id, content_hash, created_at desc);
-
--- Enforce tiered daily limit + duplicate detection
+-- ============================================================
+-- Tiered daily post limits
+-- Run this in the Supabase SQL Editor to update the trigger.
+-- ============================================================
 -- Tiers:
---   New member (0 completed orders):  5 posts/day
---   Active member (1+ completed orders): 10 posts/day
---   Trusted member (5+ ratings received): unlimited
+--   New member     (0 completed orders)  →  5 posts / day
+--   Active member  (1+ completed orders) → 10 posts / day
+--   Trusted member (5+ ratings received) → unlimited
+--
+-- "Completed order" = any credit_escrow row with status = 'released'
+--   where the user is either the buyer (payer_id) or provider.
+-- "5+ ratings" = profiles.total_ratings >= 5
+-- ============================================================
+
 create or replace function enforce_post_limits_and_dedup()
 returns trigger as $$
 declare
@@ -39,13 +25,13 @@ begin
   normalized := md5(lower(coalesce(new.title, '') || '|' || coalesce(new.description, '')));
   new.content_hash := normalized;
 
-  -- Look up how many ratings this user has received
+  -- How many ratings has this user received?
   select coalesce(total_ratings, 0)
     into user_ratings
     from profiles
    where id = new.user_id;
 
-  -- Count completed orders (released escrows) for this user as buyer or provider
+  -- How many completed (released) orders has this user participated in?
   select count(*)
     into completed_count
     from credit_escrow
@@ -61,6 +47,7 @@ begin
     daily_limit := 5;
   end if;
 
+  -- Check today's post count for this table
   execute format(
     'select count(*) from %I where user_id = $1 and created_at >= date_trunc(''day'', now())',
     TG_TABLE_NAME
@@ -74,6 +61,7 @@ begin
     end if;
   end if;
 
+  -- Duplicate detection (same title+description within 7 days)
   execute format(
     'select count(*) from %I where user_id = $1 and content_hash = $2 and created_at >= now() - interval ''7 days''',
     TG_TABLE_NAME
@@ -87,18 +75,5 @@ begin
 end;
 $$ language plpgsql;
 
--- Attach triggers
-drop trigger if exists trg_offers_post_limits on offers;
-create trigger trg_offers_post_limits
-  before insert on offers
-  for each row
-  execute function enforce_post_limits_and_dedup();
-
-drop trigger if exists trg_requests_post_limits on requests;
-create trigger trg_requests_post_limits
-  before insert on requests
-  for each row
-  execute function enforce_post_limits_and_dedup();
-
--- Refresh schema cache
-notify pgrst, 'reload schema';
+-- Triggers already exist from the original setup — no need to recreate them.
+-- The function replacement above is all that's needed.
