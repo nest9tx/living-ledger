@@ -9,6 +9,7 @@ type MyListing = {
   title: string;
   description: string;
   created_at: string;
+  expires_at: string | null;
   category_id: number | null;
   type: "request" | "offer";
   status?: string;
@@ -27,6 +28,40 @@ export default function MyListings() {
   const [filter, setFilter] = useState<"all" | "requests" | "offers">("all");
   const [selectedPost, setSelectedPost] = useState<{ id: number; type: "request" | "offer" } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [renewingId, setRenewingId] = useState<string | null>(null);
+
+  // Returns label + colour class for expiry state
+  function expiryInfo(expiresAt: string | null): { label: string; cls: string; isExpired: boolean } | null {
+    if (!expiresAt) return null;
+    const ms = new Date(expiresAt).getTime() - Date.now();
+    const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
+    if (days <= 0) return { label: "Expired", cls: "bg-red-500/15 text-red-600 border-red-500/30", isExpired: true };
+    if (days <= 3) return { label: `Expires in ${days}d`, cls: "bg-orange-500/15 text-orange-600 border-orange-500/30", isExpired: false };
+    if (days <= 7) return { label: `Expires in ${days}d`, cls: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30", isExpired: false };
+    return { label: `${days}d left`, cls: "bg-foreground/5 text-foreground/50 border-foreground/10", isExpired: false };
+  }
+
+  const renewListing = async (e: React.MouseEvent, id: number, type: "request" | "offer") => {
+    e.stopPropagation();
+    const key = `${type}-${id}`;
+    if (renewingId === key) return;
+    setRenewingId(key);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/listing/renew", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, type }),
+      });
+      if (res.ok) setRefreshKey(prev => prev + 1);
+    } catch {
+      // silent — user can retry
+    } finally {
+      setRenewingId(null);
+    }
+  };
 
   useEffect(() => {
     const loadMyListings = async () => {
@@ -51,6 +86,7 @@ export default function MyListings() {
             status,
             budget_credits,
             created_at,
+            expires_at,
             category_id,
             categories:category_id (name, icon)
           `)
@@ -68,6 +104,7 @@ export default function MyListings() {
             description,
             price_credits,
             created_at,
+            expires_at,
             category_id,
             categories:category_id (name, icon)
           `)
@@ -101,6 +138,7 @@ export default function MyListings() {
               ...r,
               type: "request" as const,
               categories: category,
+              expires_at: r.expires_at || null,
               isBoosted: !!boostMap[`request-${r.id}`],
               boostTier: boostMap[`request-${r.id}`]?.boost_tier as "homepage" | "category" | null,
               boostExpiresAt: boostMap[`request-${r.id}`]?.expires_at || null,
@@ -112,6 +150,7 @@ export default function MyListings() {
               ...o,
               type: "offer" as const,
               categories: category,
+              expires_at: o.expires_at || null,
               isBoosted: !!boostMap[`offer-${o.id}`],
               boostTier: boostMap[`offer-${o.id}`]?.boost_tier as "homepage" | "category" | null,
               boostExpiresAt: boostMap[`offer-${o.id}`]?.expires_at || null,
@@ -210,14 +249,20 @@ export default function MyListings() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((listing) => (
+          {filtered.map((listing) => {
+            const expiry = expiryInfo(listing.expires_at);
+            const isExpired = expiry?.isExpired ?? false;
+            const renewKey = `${listing.type}-${listing.id}`;
+            return (
             <div
               key={`${listing.type}-${listing.id}`}
-              onClick={() => setSelectedPost({ id: listing.id, type: listing.type })}
-              className={`rounded-lg border p-4 transition hover:border-foreground/20 hover:bg-foreground/5 cursor-pointer ${
-                listing.isBoosted
-                  ? "border-emerald-500/40 bg-emerald-500/5"
-                  : "border-foreground/10 bg-foreground/2"
+              onClick={() => !isExpired && setSelectedPost({ id: listing.id, type: listing.type })}
+              className={`rounded-lg border p-4 transition ${
+                isExpired
+                  ? "border-foreground/10 bg-foreground/2 opacity-60"
+                  : listing.isBoosted
+                  ? "border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500/60 cursor-pointer"
+                  : "border-foreground/10 bg-foreground/2 hover:border-foreground/20 hover:bg-foreground/5 cursor-pointer"
               }`}
             >
               <div className="flex items-start justify-between gap-4">
@@ -231,14 +276,19 @@ export default function MyListings() {
                         {listing.categories.icon} {listing.categories.name}
                       </span>
                     )}
-                    {listing.isBoosted && (
+                    {listing.isBoosted && !isExpired && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-500/30">
                         ⭐ {listing.boostTier === "homepage" ? "Homepage" : "Category"}
                       </span>
                     )}
-                    {listing.status && (
+                    {listing.status && !isExpired && (
                       <span className="text-xs capitalize px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
                         {listing.status}
+                      </span>
+                    )}
+                    {expiry && (
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${expiry.cls}`}>
+                        {expiry.isExpired ? "⚠️ " : "⏳ "}{expiry.label}
                       </span>
                     )}
                   </div>
@@ -246,9 +296,20 @@ export default function MyListings() {
                   <p className="mt-1 text-sm text-foreground/70 line-clamp-2">
                     {listing.description}
                   </p>
-                  <p className="mt-2 text-xs text-foreground/50">
-                    Created {new Date(listing.created_at).toLocaleDateString()}
-                  </p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <p className="text-xs text-foreground/50">
+                      Created {new Date(listing.created_at).toLocaleDateString()}
+                    </p>
+                    {expiry && (expiry.isExpired || expiry.label.includes("d left") === false) && (
+                      <button
+                        onClick={(e) => renewListing(e, listing.id, listing.type)}
+                        disabled={renewingId === renewKey}
+                        className="text-xs px-2 py-0.5 rounded border border-foreground/20 hover:border-foreground/40 hover:bg-foreground/5 transition disabled:opacity-50"
+                      >
+                        {renewingId === renewKey ? "Renewing…" : isExpired ? "Renew listing" : "Renew (+30 days)"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   {listing.type === "offer" && listing.price_credits !== undefined && (
@@ -264,7 +325,8 @@ export default function MyListings() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
