@@ -59,12 +59,6 @@ export default async function Home() {
             other services, boost your listings, or cash out real money via Stripe.
           </p>
           <HeroCTA />
-          <Link
-            href="/browse"
-            className="w-fit text-sm text-foreground/50 underline underline-offset-4 hover:text-foreground/80"
-          >
-            Browse listings without signing up →
-          </Link>
         </div>
 
         {/* ── How it works ── */}

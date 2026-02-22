@@ -78,12 +78,15 @@ const getStatusBadge = (status: string) => {
   }
 };
 
+type FilterKey = "all" | "disputed" | "held" | "delivered" | "completed";
+
 export default function OrdersPanel() {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [requestMap, setRequestMap] = useState<Record<number, Listing>>({});
   const [offerMap, setOfferMap] = useState<Record<number, Listing>>({});
+  const [filterStatus, setFilterStatus] = useState<FilterKey>("all");
 
   // Mark order-related notifications as read when component loads
   const markOrderNotificationsAsRead = async () => {
@@ -202,6 +205,15 @@ export default function OrdersPanel() {
 
   const emptyState = useMemo(() => !loading && escrows.length === 0, [loading, escrows]);
 
+  const filteredEscrows = useMemo(() => {
+    if (filterStatus === "all") return escrows;
+    if (filterStatus === "disputed") return escrows.filter((e) => e.status === "disputed");
+    if (filterStatus === "held") return escrows.filter((e) => e.status === "held" || e.status === "confirmed");
+    if (filterStatus === "delivered") return escrows.filter((e) => e.status === "delivered");
+    if (filterStatus === "completed") return escrows.filter((e) => e.status === "released" || e.status === "refunded");
+    return escrows;
+  }, [escrows, filterStatus]);
+
   if (loading) {
     return <div className="text-sm text-foreground/60">Loading orders…</div>;
   }
@@ -216,18 +228,70 @@ export default function OrdersPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Status Legend */}
+      {/* Status Filter Bar */}
       <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-3">
-        <p className="text-xs text-foreground/70 mb-2">Status indicators:</p>
+        <p className="text-xs text-foreground/70 mb-2">Filter by status — tap to show only that type:</p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="bg-red-500 text-white px-2 py-1 rounded-full font-bold">⚠️ DISPUTE</span>
-          <span className="bg-yellow-500 text-white px-2 py-1 rounded-full font-bold">⏳ PENDING</span>
-          <span className="bg-blue-500 text-white px-2 py-1 rounded-full font-bold">✅ DELIVERED</span>
-          <span className="bg-emerald-500 text-white px-2 py-1 rounded-full font-bold">💰 COMPLETED</span>
+          <button
+            onClick={() => setFilterStatus("all")}
+            className={`px-2 py-1 rounded-full font-bold border-2 transition ${
+              filterStatus === "all"
+                ? "bg-foreground text-background border-foreground"
+                : "bg-foreground/10 text-foreground/60 border-transparent hover:bg-foreground/20"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setFilterStatus(filterStatus === "disputed" ? "all" : "disputed")}
+            className={`px-2 py-1 rounded-full font-bold border-2 transition ${
+              filterStatus === "disputed"
+                ? "bg-red-500 text-white border-red-300 ring-2 ring-red-300"
+                : "bg-red-500 text-white border-transparent opacity-70 hover:opacity-100"
+            }`}
+          >
+            ⚠️ DISPUTE
+          </button>
+          <button
+            onClick={() => setFilterStatus(filterStatus === "held" ? "all" : "held")}
+            className={`px-2 py-1 rounded-full font-bold border-2 transition ${
+              filterStatus === "held"
+                ? "bg-yellow-500 text-white border-yellow-200 ring-2 ring-yellow-200"
+                : "bg-yellow-500 text-white border-transparent opacity-70 hover:opacity-100"
+            }`}
+          >
+            ⏳ PENDING
+          </button>
+          <button
+            onClick={() => setFilterStatus(filterStatus === "delivered" ? "all" : "delivered")}
+            className={`px-2 py-1 rounded-full font-bold border-2 transition ${
+              filterStatus === "delivered"
+                ? "bg-blue-500 text-white border-blue-200 ring-2 ring-blue-200"
+                : "bg-blue-500 text-white border-transparent opacity-70 hover:opacity-100"
+            }`}
+          >
+            ✅ DELIVERED
+          </button>
+          <button
+            onClick={() => setFilterStatus(filterStatus === "completed" ? "all" : "completed")}
+            className={`px-2 py-1 rounded-full font-bold border-2 transition ${
+              filterStatus === "completed"
+                ? "bg-emerald-500 text-white border-emerald-200 ring-2 ring-emerald-200"
+                : "bg-emerald-500 text-white border-transparent opacity-70 hover:opacity-100"
+            }`}
+          >
+            💰 COMPLETED
+          </button>
         </div>
       </div>
 
-      {escrows.map((escrow) => {
+      {filteredEscrows.length === 0 && (
+        <div className="rounded-2xl border border-foreground/10 bg-foreground/2 p-6 text-sm text-foreground/60">
+          No orders match that filter.
+        </div>
+      )}
+
+      {filteredEscrows.map((escrow) => {
         const listingTitle = escrow.offer_id
           ? offerMap[escrow.offer_id]?.title
           : escrow.request_id
@@ -245,14 +309,31 @@ export default function OrdersPanel() {
 
         const statusBadge = getStatusBadge(escrow.status);
 
+        // Late order: held (not yet delivered) and past the 7-day release window
+        const isLate =
+          escrow.status === "held" &&
+          escrow.release_available_at !== null &&
+          new Date(escrow.release_available_at) < new Date();
+
         return (
           <div
             key={escrow.id}
-            className="rounded-2xl border border-foreground/10 bg-foreground/2 p-5 relative"
+            className={`rounded-2xl border p-5 relative ${
+              isLate
+                ? "border-orange-500/40 bg-orange-500/5"
+                : "border-foreground/10 bg-foreground/2"
+            }`}
           >
             {/* Status Badge */}
-            <div className={`absolute top-3 right-3 px-2 py-1 text-xs font-bold rounded-full ${statusBadge.color}`}>
-              {statusBadge.text}
+            <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+              <div className={`px-2 py-1 text-xs font-bold rounded-full ${statusBadge.color}`}>
+                {statusBadge.text}
+              </div>
+              {isLate && (
+                <div className="px-2 py-1 text-xs font-bold rounded-full bg-orange-500 text-white">
+                  ⏰ LATE
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pr-24">
