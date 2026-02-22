@@ -45,10 +45,10 @@ export async function POST(req: Request) {
     const credits = Number(body.credits);
     const coverFees = body.coverFees !== false;
 
-    // Maximum 500 credits per transaction
-    if (!Number.isFinite(credits) || credits < 1 || credits > 500) {
+    // Minimum 5 credits, maximum 100 credits per transaction
+    if (!Number.isFinite(credits) || credits < 5 || credits > 100) {
       return Response.json(
-        { error: "Invalid credits amount (min: 1, max: 500 per purchase)" },
+        { error: "Invalid credits amount (min: 5, max: 100 per purchase)" },
         { status: 400 }
       );
     }

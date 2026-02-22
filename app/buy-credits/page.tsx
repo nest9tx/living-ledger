@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 
 const CREDIT_PACKS = [5, 10, 25, 50, 100];
+const MIN_CREDITS = 5;
+const MAX_CREDITS = 100;
 const STRIPE_FEE_PERCENT = 0.029;
 const STRIPE_FEE_FLAT_CENTS = 30;
 
@@ -18,6 +20,7 @@ const calculateProcessingFee = (creditCents: number) => {
 export default function BuyCreditsPage() {
   const router = useRouter();
   const [credits, setCredits] = useState(25);
+  const [rawInput, setRawInput] = useState("25");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -106,7 +109,7 @@ export default function BuyCreditsPage() {
             {CREDIT_PACKS.map((pack) => (
               <button
                 key={pack}
-                onClick={() => setCredits(pack)}
+                onClick={() => { setCredits(pack); setRawInput(String(pack)); }}
                 className={`rounded-full px-4 py-2 text-sm font-medium border transition ${
                   credits === pack
                     ? "bg-foreground text-background border-foreground"
@@ -121,13 +124,28 @@ export default function BuyCreditsPage() {
             <label className="text-sm text-foreground/70">Custom amount:</label>
             <input
               type="number"
-              min={1}
-              max={500}
-              value={credits}
-              onChange={(e) => setCredits(Number(e.target.value || 1))}
+              min={MIN_CREDITS}
+              max={MAX_CREDITS}
+              value={rawInput}
+              onChange={(e) => {
+                setRawInput(e.target.value);
+                // Update live total only when value is in range so preview stays sensible
+                const n = parseInt(e.target.value, 10);
+                if (!isNaN(n) && n >= MIN_CREDITS && n <= MAX_CREDITS) {
+                  setCredits(n);
+                }
+              }}
+              onBlur={() => {
+                const n = parseInt(rawInput, 10);
+                const clamped = isNaN(n)
+                  ? MIN_CREDITS
+                  : Math.min(MAX_CREDITS, Math.max(MIN_CREDITS, n));
+                setCredits(clamped);
+                setRawInput(String(clamped));
+              }}
               className="w-28 rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm"
             />
-            <span className="text-xs text-foreground/60">(max: 500)</span>
+            <span className="text-xs text-foreground/60">(min: {MIN_CREDITS}, max: {MAX_CREDITS})</span>
           </div>
         </div>
 
