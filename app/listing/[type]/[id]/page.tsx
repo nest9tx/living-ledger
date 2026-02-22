@@ -327,7 +327,7 @@ export default function ListingDetailPage() {
                 {type === "offer" ? (
                   <>
                     <p>
-                      <strong>Click "Request this service"</strong> at the top right to get started.
+                      <strong>Click &ldquo;Request this service&rdquo;</strong> at the top right to get started.
                     </p>
                     <p>
                       <strong>Credits are held in escrow</strong> until you confirm completion.
