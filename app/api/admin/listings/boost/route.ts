@@ -20,10 +20,15 @@ export async function POST(req: Request) {
     if (!admin?.is_admin)
       return Response.json({ error: "Forbidden" }, { status: 403 });
 
-    const { listing_id, listing_type } = await req.json();
+    const { listing_id, listing_type, boost_tier, category_id } = await req.json();
 
     if (!listing_id || !listing_type)
       return Response.json({ error: "Missing listing_id or listing_type" }, { status: 400 });
+
+    const tier = boost_tier === "category" ? "category" : "homepage";
+
+    if (tier === "category" && !category_id)
+      return Response.json({ error: "category_id is required for a category boost" }, { status: 400 });
 
     // Deactivate any existing active boosts first to avoid duplicates
     await supabaseAdmin
@@ -40,7 +45,8 @@ export async function POST(req: Request) {
     const { error } = await supabaseAdmin.from("listing_boosts").insert({
       post_id: listing_id,
       post_type: listing_type,
-      boost_tier: "homepage",
+      boost_tier: tier,
+      category_id: tier === "category" ? category_id : null,
       is_active: true,
       user_id: userData.user.id,
       started_at: now.toISOString(),

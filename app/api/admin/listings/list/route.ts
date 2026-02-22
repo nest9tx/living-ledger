@@ -23,12 +23,12 @@ export async function GET(req: Request) {
     const [offersRes, requestsRes, boostsRes] = await Promise.all([
       supabaseAdmin
         .from("offers")
-        .select("id, title, description, price_credits, user_id, created_at, suspended")
+        .select("id, title, description, price_credits, category_id, user_id, created_at, suspended")
         .order("created_at", { ascending: false })
         .limit(200),
       supabaseAdmin
         .from("requests")
-        .select("id, title, description, budget_credits, status, user_id, created_at, suspended")
+        .select("id, title, description, budget_credits, category_id, status, user_id, created_at, suspended")
         .order("created_at", { ascending: false })
         .limit(200),
       supabaseAdmin

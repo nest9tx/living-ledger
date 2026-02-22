@@ -82,6 +82,11 @@ export default function AdminDashboard() {
   const [userActionLoading, setUserActionLoading] = useState(false);
   const [userActionResult, setUserActionResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Boost picker modal state
+  const [boostPickerModal, setBoostPickerModal] = useState<{ id: number; type: string; category_id: number | null } | null>(null);
+  const [boostPickerTier, setBoostPickerTier] = useState<"homepage" | "category">("homepage");
+  const [boostPickerLoading, setBoostPickerLoading] = useState(false);
+
   // Revenue tab state
   const [revenueRange, setRevenueRange] = useState<"1d" | "7d" | "30d" | "mtd" | "all">("30d");
   const [revenueData, setRevenueData] = useState<{
@@ -601,15 +606,28 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAdminBoost = async (listing_id: number, listing_type: string) => {
-    if (!confirm("Grant a free 24-hour homepage boost to this listing?")) return;
+  const handleAdminBoost = (listing_id: number, listing_type: string, category_id: number | null) => {
+    setBoostPickerTier("homepage");
+    setBoostPickerModal({ id: listing_id, type: listing_type, category_id });
+  };
+
+  const handleAdminBoostConfirm = async () => {
+    if (!boostPickerModal) return;
+    setBoostPickerLoading(true);
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     const res = await fetch("/api/admin/listings/boost", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ listing_id, listing_type }),
+      body: JSON.stringify({
+        listing_id: boostPickerModal.id,
+        listing_type: boostPickerModal.type,
+        boost_tier: boostPickerTier,
+        category_id: boostPickerModal.category_id,
+      }),
     });
+    setBoostPickerLoading(false);
+    setBoostPickerModal(null);
     if (res.ok) {
       await loadListings();
     } else {
@@ -1164,6 +1182,62 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
+              {/* Boost tier picker modal */}
+              {boostPickerModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-sm rounded-lg border border-foreground/20 bg-background shadow-xl p-6 space-y-5">
+                    <div>
+                      <h3 className="font-semibold text-lg">Grant Free Boost</h3>
+                      <p className="text-sm text-foreground/60 mt-1">Choose 24-hour boost type</p>
+                    </div>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => setBoostPickerTier("homepage")}
+                        className={`w-full text-left rounded-lg border px-4 py-3 transition ${
+                          boostPickerTier === "homepage"
+                            ? "border-emerald-500/50 bg-emerald-500/10"
+                            : "border-foreground/15 hover:border-foreground/30"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">🏠 Front Page</p>
+                        <p className="text-xs text-foreground/50 mt-0.5">Shown in the homepage featured section for all visitors</p>
+                      </button>
+                      <button
+                        onClick={() => setBoostPickerTier("category")}
+                        disabled={!boostPickerModal.category_id}
+                        className={`w-full text-left rounded-lg border px-4 py-3 transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                          boostPickerTier === "category"
+                            ? "border-emerald-500/50 bg-emerald-500/10"
+                            : "border-foreground/15 hover:border-foreground/30"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">🗂️ Category</p>
+                        <p className="text-xs text-foreground/50 mt-0.5">
+                          {boostPickerModal.category_id
+                            ? "Pinned to the top of this listing's category"
+                            : "Not available — this listing has no category set"}
+                        </p>
+                      </button>
+                    </div>
+                    <div className="flex gap-3 justify-end pt-1">
+                      <button
+                        onClick={() => setBoostPickerModal(null)}
+                        className="px-4 py-2 text-sm rounded border border-foreground/20 hover:bg-foreground/5"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleAdminBoostConfirm}
+                        disabled={boostPickerLoading}
+                        className="px-4 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
+                      >
+                        {boostPickerLoading ? "Applying…" : "Grant Boost"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Edit listing modal */}
               {editListing && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -1263,7 +1337,7 @@ export default function AdminDashboard() {
                               </button>
                               {!item.is_boosted && !item.suspended && (
                                 <button
-                                  onClick={() => handleAdminBoost(item.id, "offer")}
+                                  onClick={() => handleAdminBoost(item.id, "offer", item.category_id ?? null)}
                                   className="px-2 py-1 text-xs rounded border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
                                 >
                                   ⭐ Boost
@@ -1339,7 +1413,7 @@ export default function AdminDashboard() {
                               </button>
                               {!item.is_boosted && !item.suspended && (
                                 <button
-                                  onClick={() => handleAdminBoost(item.id, "request")}
+                                  onClick={() => handleAdminBoost(item.id, "request", item.category_id ?? null)}
                                   className="px-2 py-1 text-xs rounded border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
                                 >
                                   ⭐ Boost
