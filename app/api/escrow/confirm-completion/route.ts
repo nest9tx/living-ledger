@@ -47,10 +47,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Must be in "delivered" status to confirm completion
-    if (escrow.status !== "delivered") {
+    // Must be in "held" or "delivered" status to confirm completion
+    if (escrow.status !== "held" && escrow.status !== "delivered") {
       return NextResponse.json(
-        { error: "Escrow must be in 'delivered' status to confirm completion" },
+        { error: "Cannot confirm completion for this order" },
         { status: 400 }
       );
     }
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
+    // If buyer already confirmed, go straight to "confirmed"; otherwise move to "delivered"
     const newStatus = escrow.payer_confirmed_at ? "confirmed" : "delivered";
 
     // Update escrow: mark provider as confirmed

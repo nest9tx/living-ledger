@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import supabase from "@/lib/supabase";
 import { seedDefaultCategories } from "@/lib/supabase-helpers";
 import Feed from "@/app/components/Feed";
@@ -29,6 +29,14 @@ export default function DashboardPage() {
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
   const [onboardingRole, setOnboardingRole] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Honour ?tab=<name> deep-link (e.g. from order page message button)
+  useEffect(() => {
+    const tab = searchParams.get("tab") as typeof activeTab | null;
+    const valid: (typeof activeTab)[] = ["feed", "orders", "request", "offer", "credits", "listings", "history", "messages"];
+    if (tab && valid.includes(tab)) setActiveTab(tab);
+  }, [searchParams]);
 
   useEffect(() => {
     let isMounted = true;

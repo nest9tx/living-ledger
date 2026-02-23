@@ -565,7 +565,7 @@ export default function OrderDetailPage() {
           {/* Quick message link to the other party */}
           {role === "buyer" && provider && (
             <a
-              href={`/messages?with=${provider.username}`}
+              href={`/dashboard?tab=messages`}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-foreground/15 px-3 py-1.5 text-xs font-medium hover:bg-foreground/5"
             >
               💬 Message {provider.username}
@@ -573,7 +573,7 @@ export default function OrderDetailPage() {
           )}
           {role === "provider" && buyer && (
             <a
-              href={`/messages?with=${buyer.username}`}
+              href={`/dashboard?tab=messages`}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-foreground/15 px-3 py-1.5 text-xs font-medium hover:bg-foreground/5"
             >
               💬 Message {buyer.username}
@@ -626,13 +626,24 @@ export default function OrderDetailPage() {
                       {(d.file_size / 1024).toFixed(0)} KB
                     </span>
                     {d.signed_url && (
-                      <a
-                        href={d.signed_url}
-                        download={d.filename}
+                      <button
+                        onClick={async () => {
+                          try {
+                            const blob = await fetch(d.signed_url!).then((r) => r.blob());
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = d.filename;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch {
+                            window.open(d.signed_url!, "_blank");
+                          }
+                        }}
                         className="shrink-0 rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background hover:opacity-80"
                       >
                         Download
-                      </a>
+                      </button>
                     )}
                   </li>
                 ))}
