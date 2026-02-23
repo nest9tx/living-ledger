@@ -60,6 +60,21 @@ export default function Feed({ guestMode = false }: FeedProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPost, setSelectedPost] = useState<{ id: number; type: "request" | "offer" } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Detect auth state so logged-in users on the browse page get full interaction UI
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Effective guest mode: only when prop says so AND user is not logged in
+  const effectiveGuestMode = guestMode && !isLoggedIn;
 
   useEffect(() => {
     const loadFeed = async () => {
@@ -384,7 +399,7 @@ export default function Feed({ guestMode = false }: FeedProps) {
           onBoost={() => {
             setRefreshKey(prev => prev + 1); // Refresh feed after boost
           }}
-          guestMode={guestMode}
+          guestMode={effectiveGuestMode}
         />
       )}
     </div>

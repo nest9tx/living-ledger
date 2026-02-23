@@ -25,7 +25,7 @@ export default function BrowsePage() {
         <BrowseGuestCTA />
 
         {/* Live feed (guestMode disables action buttons for non-members) */}
-        <Feed guestMode />
+        <Feed guestMode={true} />
       </div>
     </div>
   );
