@@ -34,11 +34,11 @@ export async function POST(req: Request) {
     const secondaryTable = requestedType === "offer" ? "requests" : "offers";
 
     const primarySelect = requestedType === "offer"
-      ? "id, user_id, price_credits, title"
-      : "id, user_id, budget_credits, title";
+      ? "id, user_id, price_credits, title, quantity"
+      : "id, user_id, budget_credits, title, quantity";
     const secondarySelect = requestedType === "offer"
-      ? "id, user_id, budget_credits, title"
-      : "id, user_id, price_credits, title";
+      ? "id, user_id, budget_credits, title, quantity"
+      : "id, user_id, price_credits, title, quantity";
 
     const { data: primaryPost, error: primaryError } = await supabaseAdmin
       .from(primaryTable)
@@ -87,6 +87,19 @@ export async function POST(req: Request) {
 
     if (post.user_id === userData.user.id) {
       return Response.json({ error: "Cannot purchase your own post" }, { status: 400 });
+    }
+
+    // Enforce quantity limit — count active (non-refunded/cancelled) escrows
+    if (post.quantity != null) {
+      const escrowField = postType === "offer" ? "offer_id" : "request_id";
+      const { count: soldCount } = await supabaseAdmin
+        .from("credit_escrow")
+        .select("id", { count: "exact", head: true })
+        .eq(escrowField, postId)
+        .not("status", "in", '("refunded","cancelled")');
+      if ((soldCount || 0) >= post.quantity) {
+        return Response.json({ error: "This listing is sold out" }, { status: 400 });
+      }
     }
 
     const credits = "price_credits" in post ? post.price_credits : post.budget_credits;

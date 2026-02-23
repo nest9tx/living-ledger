@@ -64,6 +64,20 @@ export async function GET(req: Request) {
       .eq("listing_id", listingId)
       .order("upload_order", { ascending: true });
 
+    // Derive quantity_remaining from active escrows when listing has a quantity cap
+    let quantitySold = 0;
+    let quantityRemaining: number | null = null;
+    if (listing.quantity != null) {
+      const escrowFilter = type === "offer" ? "offer_id" : "request_id";
+      const { count: soldCount } = await supabaseAdmin
+        .from("credit_escrow")
+        .select("id", { count: "exact", head: true })
+        .eq(escrowFilter, listingId)
+        .not("status", "in", '("refunded","cancelled")');
+      quantitySold = soldCount || 0;
+      quantityRemaining = Math.max(0, listing.quantity - quantitySold);
+    }
+
     return Response.json({
       listing: {
         ...listing,
@@ -73,6 +87,8 @@ export async function GET(req: Request) {
         isBoosted: !!boost,
         boostTier: boost?.boost_tier || null,
         boostExpiresAt: boost?.expires_at || null,
+        quantity_sold: quantitySold,
+        quantity_remaining: quantityRemaining,
       },
     });
   } catch (error) {

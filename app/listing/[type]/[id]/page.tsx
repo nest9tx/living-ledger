@@ -16,6 +16,9 @@ type ListingDetail = {
   price_credits?: number;
   budget_credits?: number;
   status?: string;
+  quantity?: number | null;
+  quantity_sold?: number;
+  quantity_remaining?: number | null;
   user?: {
     id: string;
     username: string;
@@ -232,6 +235,7 @@ export default function ListingDetailPage() {
 
   const credits = type === "offer" ? listing.price_credits : listing.budget_credits;
   const isOwnPost = currentUserId === listing.user_id;
+  const isSoldOut = listing.quantity != null && listing.quantity_remaining === 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -281,6 +285,17 @@ export default function ListingDetailPage() {
                 <span className="font-medium text-foreground">
                   {credits ?? 0} credits
                 </span>
+                {listing.quantity != null && (
+                  isSoldOut ? (
+                    <span className="inline-flex items-center rounded-full bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-600">
+                      🚫 Sold Out
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      📦 {listing.quantity_remaining} of {listing.quantity} remaining
+                    </span>
+                  )
+                )}
               </div>
             </div>
 
@@ -410,6 +425,13 @@ export default function ListingDetailPage() {
               <p className="text-xs text-foreground/60 mt-2">
                 1 credit = $1 USD
               </p>
+              {listing.quantity != null && (
+                <div className={`mt-3 text-sm font-medium ${isSoldOut ? "text-red-600" : "text-amber-700"}`}>
+                  {isSoldOut
+                    ? "🚫 Sold Out"
+                    : `📦 ${listing.quantity_remaining} of ${listing.quantity} available`}
+                </div>
+              )}
             </div>
 
             {/* Action button */}
@@ -417,10 +439,16 @@ export default function ListingDetailPage() {
               <>
                 <button
                   onClick={handleRequestClick}
-                  disabled={purchaseLoading || showConfirmModal}
-                  className="w-full rounded-lg bg-foreground px-4 py-3 font-medium text-background hover:bg-foreground/90 transition disabled:opacity-50"
+                  disabled={purchaseLoading || showConfirmModal || isSoldOut}
+                  className={`w-full rounded-lg px-4 py-3 font-medium transition disabled:opacity-50 ${
+                    isSoldOut
+                      ? "bg-foreground/20 text-foreground/50 cursor-not-allowed"
+                      : "bg-foreground text-background hover:bg-foreground/90"
+                  }`}
                 >
-                  {purchaseLoading
+                  {isSoldOut
+                    ? "Sold Out"
+                    : purchaseLoading
                     ? "Processing..."
                     : type === "offer"
                     ? "Request this service"

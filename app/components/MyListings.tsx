@@ -15,6 +15,8 @@ type MyListing = {
   status?: string;
   price_credits?: number;
   budget_credits?: number;
+  quantity?: number | null;
+  quantity_remaining?: number | null;
   categories: { name: string; icon: string } | null;
   isBoosted?: boolean;
   boostTier?: "homepage" | "category" | null;
@@ -29,6 +31,7 @@ export default function MyListings() {
   const [selectedPost, setSelectedPost] = useState<{ id: number; type: "request" | "offer" } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [renewingId, setRenewingId] = useState<string | null>(null);
+  const [restockingId, setRestockingId] = useState<string | null>(null);
 
   // Returns label + colour class for expiry state
   function expiryInfo(expiresAt: string | null): { label: string; cls: string; isExpired: boolean } | null {
@@ -63,6 +66,44 @@ export default function MyListings() {
     }
   };
 
+  const restockListing = async (e: React.MouseEvent, id: number, type: "request" | "offer") => {
+    e.stopPropagation();
+    const key = `${type}-${id}`;
+    if (restockingId === key) return;
+
+    const input = prompt("How many units would you like to add?\n(You can also extend 30 days at the same time — type a number, optionally followed by \"+30\" e.g. \"5+30\")");
+    if (!input) return;
+
+    const match = input.trim().match(/^(\d+)(\+30)?$/);
+    if (!match) {
+      alert("Invalid input. Enter a number like '5' or '5+30'.");
+      return;
+    }
+    const addQuantity = parseInt(match[1], 10);
+    const extendDays = match[2] ? 30 : 0;
+
+    setRestockingId(key);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/listing/restock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, type, addQuantity, extendDays }),
+      });
+      if (res.ok) setRefreshKey(prev => prev + 1);
+      else {
+        const payload = await res.json();
+        alert(payload?.error || "Restock failed. Please try again.");
+      }
+    } catch {
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setRestockingId(null);
+    }
+  };
+
   useEffect(() => {
     const loadMyListings = async () => {
       try {
@@ -85,6 +126,7 @@ export default function MyListings() {
             description,
             status,
             budget_credits,
+            quantity,
             created_at,
             expires_at,
             category_id,
@@ -103,6 +145,7 @@ export default function MyListings() {
             title,
             description,
             price_credits,
+            quantity,
             created_at,
             expires_at,
             category_id,
@@ -130,15 +173,60 @@ export default function MyListings() {
           return map;
         }, {} as Record<string, { post_id: number; post_type: string; boost_tier: string; expires_at: string }>);
 
+        // Count active (non-refunded/cancelled) escrows per listing to derive quantity_remaining
+        const quantityLimitedRequestIds = (requests || []).filter(r => r.quantity != null).map(r => r.id);
+        const quantityLimitedOfferIds = (offers || []).filter(o => o.quantity != null).map(o => o.id);
+
+        const soldCountMap: Record<string, number> = {};
+
+        if (quantityLimitedRequestIds.length > 0 || quantityLimitedOfferIds.length > 0) {
+          const escrowQueries: PromiseLike<void>[] = [];
+
+          if (quantityLimitedRequestIds.length > 0) {
+            escrowQueries.push(
+              supabase
+                .from("credit_escrow")
+                .select("request_id", { count: "exact" })
+                .in("request_id", quantityLimitedRequestIds)
+                .not("status", "in", '("refunded","cancelled")')
+                .then(({ data: rows }) => {
+                  (rows || []).forEach(row => {
+                    if (row.request_id) soldCountMap[`request-${row.request_id}`] = (soldCountMap[`request-${row.request_id}`] || 0) + 1;
+                  });
+                })
+            );
+          }
+
+          if (quantityLimitedOfferIds.length > 0) {
+            escrowQueries.push(
+              supabase
+                .from("credit_escrow")
+                .select("offer_id", { count: "exact" })
+                .in("offer_id", quantityLimitedOfferIds)
+                .not("status", "in", '("refunded","cancelled")')
+                .then(({ data: rows }) => {
+                  (rows || []).forEach(row => {
+                    if (row.offer_id) soldCountMap[`offer-${row.offer_id}`] = (soldCountMap[`offer-${row.offer_id}`] || 0) + 1;
+                  });
+                })
+            );
+          }
+
+          await Promise.all(escrowQueries);
+        }
+
         // Combine and enrich
         const combined: MyListing[] = [
           ...(requests || []).map(r => {
             const category = r.categories ? (Array.isArray(r.categories) ? r.categories[0] : r.categories) : null;
+            const sold = soldCountMap[`request-${r.id}`] || 0;
             return {
               ...r,
               type: "request" as const,
               categories: category,
               expires_at: r.expires_at || null,
+              quantity: r.quantity ?? null,
+              quantity_remaining: r.quantity != null ? Math.max(0, r.quantity - sold) : null,
               isBoosted: !!boostMap[`request-${r.id}`],
               boostTier: boostMap[`request-${r.id}`]?.boost_tier as "homepage" | "category" | null,
               boostExpiresAt: boostMap[`request-${r.id}`]?.expires_at || null,
@@ -146,11 +234,14 @@ export default function MyListings() {
           }),
           ...(offers || []).map(o => {
             const category = o.categories ? (Array.isArray(o.categories) ? o.categories[0] : o.categories) : null;
+            const sold = soldCountMap[`offer-${o.id}`] || 0;
             return {
               ...o,
               type: "offer" as const,
               categories: category,
               expires_at: o.expires_at || null,
+              quantity: o.quantity ?? null,
+              quantity_remaining: o.quantity != null ? Math.max(0, o.quantity - sold) : null,
               isBoosted: !!boostMap[`offer-${o.id}`],
               boostTier: boostMap[`offer-${o.id}`]?.boost_tier as "homepage" | "category" | null,
               boostExpiresAt: boostMap[`offer-${o.id}`]?.expires_at || null,
@@ -309,6 +400,15 @@ export default function MyListings() {
                         {renewingId === renewKey ? "Renewing…" : isExpired ? "Renew listing" : "Renew (+30 days)"}
                       </button>
                     )}
+                    {listing.quantity != null && !isExpired && (
+                      <button
+                        onClick={(e) => restockListing(e, listing.id, listing.type)}
+                        disabled={restockingId === renewKey}
+                        className="text-xs px-2 py-0.5 rounded border border-amber-500/30 text-amber-700 hover:border-amber-500/60 hover:bg-amber-500/5 transition disabled:opacity-50"
+                      >
+                        {restockingId === renewKey ? "Restocking…" : "📦 Restock"}
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -320,6 +420,13 @@ export default function MyListings() {
                   {listing.type === "request" && listing.budget_credits !== undefined && (
                     <div className="text-sm font-semibold text-foreground">
                       {listing.budget_credits} 💰
+                    </div>
+                  )}
+                  {listing.quantity != null && !isExpired && (
+                    <div className={`text-xs mt-1 font-medium ${listing.quantity_remaining === 0 ? "text-red-600" : "text-amber-700"}`}>
+                      {listing.quantity_remaining === 0
+                        ? "🚫 Sold Out"
+                        : `📦 ${listing.quantity_remaining}/${listing.quantity}`}
                     </div>
                   )}
                 </div>

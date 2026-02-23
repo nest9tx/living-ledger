@@ -39,6 +39,7 @@ type PostDetail = {
   price_credits?: number;
   budget_credits?: number;
   status?: string;
+  quantity?: number | null;
 };
 
 export default function PostDetailModal({ postId, postType, onClose, onDelete, onBoost, defaultTab = "details", guestMode = false }: PostDetailProps) {
@@ -55,6 +56,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
   const [flagError, setFlagError] = useState<string | null>(null);
   const [flagSuccess, setFlagSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "messages">(defaultTab);
+  const [quantityRemaining, setQuantityRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     // Get current user
@@ -113,6 +115,17 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
         postData = { ...postData, images: imageData || [] };
 
         setPost(postData);
+
+        // Derive quantity remaining from active escrows if listing has a quantity cap
+        if (postData.quantity != null) {
+          const escrowField = postType === "offer" ? "offer_id" : "request_id";
+          const { count: soldCount } = await supabase
+            .from("credit_escrow")
+            .select("id", { count: "exact", head: true })
+            .eq(escrowField, postId)
+            .not("status", "in", '("refunded","cancelled")');
+          setQuantityRemaining(Math.max(0, postData.quantity - (soldCount || 0)));
+        }
       } catch (err) {
         console.error("Error loading post:", err);
       } finally {
@@ -426,13 +439,22 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           {/* Credits */}
           <div className="flex items-center gap-4 p-4 rounded-lg bg-foreground/5 border border-foreground/10">
             <div className="text-3xl">💰</div>
-            <div>
+            <div className="flex-1">
               <div className="text-sm text-foreground/60">
                 {postType === "offer" ? "Price" : "Budget"}
               </div>
               <div className="text-2xl font-semibold">
                 {postType === "offer" ? post.price_credits : post.budget_credits} credits
               </div>
+              {post.quantity != null && (
+                quantityRemaining === 0 ? (
+                  <div className="mt-1 text-sm font-medium text-red-600">🚫 Sold Out</div>
+                ) : quantityRemaining != null ? (
+                  <div className="mt-1 text-sm font-medium text-amber-700">
+                    📦 {quantityRemaining} of {post.quantity} remaining
+                  </div>
+                ) : null
+              )}
             </div>
           </div>
 
@@ -481,14 +503,20 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
                   </button>
                   <button
                     onClick={handlePurchase}
-                    disabled={purchaseLoading}
-                    className="flex-1 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background hover:bg-foreground/90 transition"
+                    disabled={purchaseLoading || (post.quantity != null && quantityRemaining === 0)}
+                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                      post.quantity != null && quantityRemaining === 0
+                        ? "bg-foreground/20 text-foreground/50 cursor-not-allowed"
+                        : "bg-foreground text-background hover:bg-foreground/90"
+                    }`}
                   >
-                    {purchaseLoading
-                      ? "Holding credits..."
-                      : postType === "offer"
-                        ? "Purchase"
-                        : "Accept & Pay"}
+                    {post.quantity != null && quantityRemaining === 0
+                      ? "Sold Out"
+                      : purchaseLoading
+                        ? "Holding credits..."
+                        : postType === "offer"
+                          ? "Purchase"
+                          : "Accept & Pay"}
                   </button>
                 </div>
               </div>
