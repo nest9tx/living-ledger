@@ -30,12 +30,13 @@ export async function POST(req: Request) {
     if (tier === "category" && !category_id)
       return Response.json({ error: "category_id is required for a category boost" }, { status: 400 });
 
-    // Deactivate any existing active boosts first to avoid duplicates
+    // Deactivate any existing boost of the SAME tier only (so homepage + category can coexist)
     await supabaseAdmin
       .from("listing_boosts")
       .update({ is_active: false })
       .eq("post_id", listing_id)
       .eq("post_type", listing_type)
+      .eq("boost_tier", tier)
       .eq("is_active", true);
 
     // Insert a free 24-hour homepage boost

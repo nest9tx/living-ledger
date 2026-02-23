@@ -57,6 +57,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
   const [flagSuccess, setFlagSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "messages">(defaultTab);
   const [quantityRemaining, setQuantityRemaining] = useState<number | null>(null);
+  const [lastBoostTier, setLastBoostTier] = useState<"homepage" | "category" | null>(null);
 
   useEffect(() => {
     // Get current user
@@ -255,6 +256,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
         throw new Error(payload?.error || "Failed to create boost");
       }
 
+      setLastBoostTier(tier);
       setBoostSuccess(
         `Success! ${payload.creditsSpent} credits deducted. Boost active until ${new Date(
           payload.expiresAt
@@ -587,10 +589,12 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
                   <div className="mt-3 text-xs text-emerald-600 space-y-2">
                     <p>{boostSuccess}</p>
                     <Link
-                      href="/#featured"
+                      href={lastBoostTier === "category" ? "/browse" : "/#featured"}
                       className="inline-flex items-center gap-1 text-emerald-700 underline underline-offset-4 hover:text-emerald-800"
                     >
-                      View boosted listing on homepage
+                      {lastBoostTier === "category"
+                        ? "View boosted listing in category"
+                        : "View boosted listing on homepage"}
                     </Link>
                   </div>
                 )}

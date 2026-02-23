@@ -56,15 +56,20 @@ export async function GET(req: Request) {
       {} as Record<string, string>
     );
 
-    const boostedIds = new Set(
-      (boostsRes.data || []).map((b) => `${b.post_type}:${b.post_id}`)
+    const homepageBoostedIds = new Set(
+      (boostsRes.data || []).filter(b => b.boost_tier === "homepage").map((b) => `${b.post_type}:${b.post_id}`)
+    );
+    const categoryBoostedIds = new Set(
+      (boostsRes.data || []).filter(b => b.boost_tier === "category").map((b) => `${b.post_type}:${b.post_id}`)
     );
 
     const offers = (offersRes.data || []).map((o) => ({
       ...o,
       listing_type: "offer",
       username: usernameMap[o.user_id] || "Unknown",
-      is_boosted: boostedIds.has(`offer:${o.id}`),
+      is_boosted: homepageBoostedIds.has(`offer:${o.id}`) || categoryBoostedIds.has(`offer:${o.id}`),
+      has_homepage_boost: homepageBoostedIds.has(`offer:${o.id}`),
+      has_category_boost: categoryBoostedIds.has(`offer:${o.id}`),
       display_credits: o.price_credits,
       suspended: o.suspended ?? false,
     }));
@@ -73,7 +78,9 @@ export async function GET(req: Request) {
       ...r,
       listing_type: "request",
       username: usernameMap[r.user_id] || "Unknown",
-      is_boosted: boostedIds.has(`request:${r.id}`),
+      is_boosted: homepageBoostedIds.has(`request:${r.id}`) || categoryBoostedIds.has(`request:${r.id}`),
+      has_homepage_boost: homepageBoostedIds.has(`request:${r.id}`),
+      has_category_boost: categoryBoostedIds.has(`request:${r.id}`),
       display_credits: r.budget_credits,
       suspended: r.suspended ?? false,
     }));

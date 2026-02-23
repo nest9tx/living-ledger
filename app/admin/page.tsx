@@ -606,11 +606,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAdminBoost = (listing_id: number, listing_type: string, category_id: number | null) => {
-    setBoostPickerTier("homepage");
-    setBoostPickerModal({ id: listing_id, type: listing_type, category_id });
-  };
-
   const handleAdminBoostConfirm = async () => {
     if (!boostPickerModal) return;
     setBoostPickerLoading(true);
@@ -1335,12 +1330,20 @@ export default function AdminDashboard() {
                               >
                                 Edit
                               </button>
-                              {!item.is_boosted && !item.suspended && (
+                              {!item.has_homepage_boost && !item.suspended && (
                                 <button
-                                  onClick={() => handleAdminBoost(item.id, "offer", item.category_id ?? null)}
+                                  onClick={() => { setBoostPickerTier("homepage"); setBoostPickerModal({ id: item.id, type: "offer", category_id: item.category_id ?? null }); }}
                                   className="px-2 py-1 text-xs rounded border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
                                 >
-                                  ⭐ Boost
+                                  🏠 Homepage
+                                </button>
+                              )}
+                              {!item.has_category_boost && !item.suspended && item.category_id && (
+                                <button
+                                  onClick={() => { setBoostPickerTier("category"); setBoostPickerModal({ id: item.id, type: "offer", category_id: item.category_id ?? null }); }}
+                                  className="px-2 py-1 text-xs rounded border border-blue-500/20 text-blue-600 hover:bg-blue-500/5"
+                                >
+                                  🗂️ Category
                                 </button>
                               )}
                               {item.is_boosted && (
@@ -1411,12 +1414,20 @@ export default function AdminDashboard() {
                               >
                                 Edit
                               </button>
-                              {!item.is_boosted && !item.suspended && (
+                              {!item.has_homepage_boost && !item.suspended && (
                                 <button
-                                  onClick={() => handleAdminBoost(item.id, "request", item.category_id ?? null)}
+                                  onClick={() => { setBoostPickerTier("homepage"); setBoostPickerModal({ id: item.id, type: "request", category_id: item.category_id ?? null }); }}
                                   className="px-2 py-1 text-xs rounded border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5"
                                 >
-                                  ⭐ Boost
+                                  🏠 Homepage
+                                </button>
+                              )}
+                              {!item.has_category_boost && !item.suspended && item.category_id && (
+                                <button
+                                  onClick={() => { setBoostPickerTier("category"); setBoostPickerModal({ id: item.id, type: "request", category_id: item.category_id ?? null }); }}
+                                  className="px-2 py-1 text-xs rounded border border-blue-500/20 text-blue-600 hover:bg-blue-500/5"
+                                >
+                                  🗂️ Category
                                 </button>
                               )}
                               {item.is_boosted && (
