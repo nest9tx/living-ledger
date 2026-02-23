@@ -175,10 +175,19 @@ export async function fetchRequests() {
         .eq("is_active", true)
         .gt("expires_at", new Date().toISOString());
 
-      const boostMap = boostData?.reduce((map, boost) => {
-        map[boost.post_id] = boost;
+      // Group ALL active boosts per listing (a listing can have homepage + category simultaneously)
+      const boostMap = (boostData || []).reduce((map, boost) => {
+        if (!map[boost.post_id]) map[boost.post_id] = [];
+        map[boost.post_id].push(boost);
         return map;
-      }, {} as Record<number, any>) || {};
+      }, {} as Record<number, any[]>);
+
+      // Helper: prefer homepage tier in single-tier contexts; otherwise pick first
+      const primaryBoost = (id: number) => {
+        const boosts = boostMap[id];
+        if (!boosts || boosts.length === 0) return null;
+        return boosts.find((b: any) => b.boost_tier === "homepage") || boosts[0];
+      };
 
       // Fetch listing images
       const { data: imageData, error: imageError } = await supabase
@@ -205,9 +214,11 @@ export async function fetchRequests() {
         categories: req.category_id ? categoryMap[req.category_id] : null,
         profiles: req.user_id ? profileMap[req.user_id] : null,
         images: imageMap[req.id] || [],
-        isBoosted: !!boostMap[req.id],
-        boostTier: boostMap[req.id]?.boost_tier || null,
-        boostExpiresAt: boostMap[req.id]?.expires_at || null
+        isBoosted: (boostMap[req.id]?.length || 0) > 0,
+        boostTier: primaryBoost(req.id)?.boost_tier || null,
+        boostExpiresAt: primaryBoost(req.id)?.expires_at || null,
+        hasHomepageBoost: (boostMap[req.id] || []).some((b: any) => b.boost_tier === "homepage"),
+        hasCategoryBoost: (boostMap[req.id] || []).some((b: any) => b.boost_tier === "category"),
       }));
     }
 
@@ -331,10 +342,17 @@ export async function fetchOffers() {
         .eq("is_active", true)
         .gt("expires_at", new Date().toISOString());
 
-      const boostMap = boostData?.reduce((map, boost) => {
-        map[boost.post_id] = boost;
+      const boostMap = (boostData || []).reduce((map, boost) => {
+        if (!map[boost.post_id]) map[boost.post_id] = [];
+        map[boost.post_id].push(boost);
         return map;
-      }, {} as Record<number, any>) || {};
+      }, {} as Record<number, any[]>);
+
+      const primaryBoost = (id: number) => {
+        const boosts = boostMap[id];
+        if (!boosts || boosts.length === 0) return null;
+        return boosts.find((b: any) => b.boost_tier === "homepage") || boosts[0];
+      };
 
       // Fetch listing images
       const { data: imageData, error: imageError } = await supabase
@@ -361,9 +379,11 @@ export async function fetchOffers() {
         categories: offer.category_id ? categoryMap[offer.category_id] : null,
         profiles: offer.user_id ? profileMap[offer.user_id] : null,
         images: imageMap[offer.id] || [],
-        isBoosted: !!boostMap[offer.id],
-        boostTier: boostMap[offer.id]?.boost_tier || null,
-        boostExpiresAt: boostMap[offer.id]?.expires_at || null
+        isBoosted: (boostMap[offer.id]?.length || 0) > 0,
+        boostTier: primaryBoost(offer.id)?.boost_tier || null,
+        boostExpiresAt: primaryBoost(offer.id)?.expires_at || null,
+        hasHomepageBoost: (boostMap[offer.id] || []).some((b: any) => b.boost_tier === "homepage"),
+        hasCategoryBoost: (boostMap[offer.id] || []).some((b: any) => b.boost_tier === "category"),
       }));
     }
 

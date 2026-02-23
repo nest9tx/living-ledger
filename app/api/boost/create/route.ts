@@ -82,6 +82,24 @@ export async function POST(req: Request) {
       }
     }
 
+    // Block purchase if an active boost of the same tier already exists for this listing
+    // (e.g. admin granted a free homepage boost — user shouldn't be able to pay for another)
+    const { count: activeSameTier } = await supabaseAdmin
+      .from("listing_boosts")
+      .select("id", { count: "exact", head: true })
+      .eq("post_id", postId)
+      .eq("post_type", postType)
+      .eq("boost_tier", tier)
+      .eq("is_active", true)
+      .gt("expires_at", new Date().toISOString());
+
+    if ((activeSameTier || 0) > 0) {
+      const tierLabel = tier === "homepage" ? "homepage" : "category";
+      return Response.json({
+        error: `This listing already has an active ${tierLabel} boost. Wait for it to expire before purchasing another.`,
+      }, { status: 400 });
+    }
+
     // Calculate cost
     let creditsSpent = 0;
     if (tier === "homepage") {

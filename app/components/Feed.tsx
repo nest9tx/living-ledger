@@ -44,6 +44,8 @@ type FeedItem = {
   isBoosted?: boolean;
   boostTier?: "homepage" | "category" | null;
   boostExpiresAt?: string | null;
+  hasHomepageBoost?: boolean;
+  hasCategoryBoost?: boolean;
 };
 
 type FeedProps = {
@@ -303,9 +305,18 @@ export default function Feed({ guestMode = false }: FeedProps) {
                       </span>
                     )}
                     {item.isBoosted && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-500/30">
-                        ⭐ Featured
-                      </span>
+                      <>
+                        {item.hasHomepageBoost && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-500/30">
+                            ⭐ Featured
+                          </span>
+                        )}
+                        {item.hasCategoryBoost && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-500/25">
+                            📌 Category Pick
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                   <h3 className="mt-2 font-semibold">{item.title}</h3>

@@ -21,6 +21,8 @@ type MyListing = {
   isBoosted?: boolean;
   boostTier?: "homepage" | "category" | null;
   boostExpiresAt?: string | null;
+  hasHomepageBoost?: boolean;
+  hasCategoryBoost?: boolean;
 };
 
 export default function MyListings() {
@@ -169,9 +171,16 @@ export default function MyListings() {
 
         const boostMap = (boostData || []).reduce((map, boost) => {
           const key = `${boost.post_type}-${boost.post_id}`;
-          map[key] = boost;
+          if (!map[key]) map[key] = [];
+          map[key].push(boost);
           return map;
-        }, {} as Record<string, { post_id: number; post_type: string; boost_tier: string; expires_at: string }>);
+        }, {} as Record<string, { post_id: number; post_type: string; boost_tier: string; expires_at: string }[]>);
+
+        const primaryBoost = (key: string) => {
+          const boosts = boostMap[key];
+          if (!boosts || boosts.length === 0) return null;
+          return boosts.find(b => b.boost_tier === "homepage") || boosts[0];
+        };
 
         // Count active (non-refunded/cancelled) escrows per listing to derive quantity_remaining
         const quantityLimitedRequestIds = (requests || []).filter(r => r.quantity != null).map(r => r.id);
@@ -227,9 +236,11 @@ export default function MyListings() {
               expires_at: r.expires_at || null,
               quantity: r.quantity ?? null,
               quantity_remaining: r.quantity != null ? Math.max(0, r.quantity - sold) : null,
-              isBoosted: !!boostMap[`request-${r.id}`],
-              boostTier: boostMap[`request-${r.id}`]?.boost_tier as "homepage" | "category" | null,
-              boostExpiresAt: boostMap[`request-${r.id}`]?.expires_at || null,
+              isBoosted: (boostMap[`request-${r.id}`]?.length || 0) > 0,
+              boostTier: primaryBoost(`request-${r.id}`)?.boost_tier as "homepage" | "category" | null,
+              boostExpiresAt: primaryBoost(`request-${r.id}`)?.expires_at || null,
+              hasHomepageBoost: (boostMap[`request-${r.id}`] || []).some(b => b.boost_tier === "homepage"),
+              hasCategoryBoost: (boostMap[`request-${r.id}`] || []).some(b => b.boost_tier === "category"),
             };
           }),
           ...(offers || []).map(o => {
@@ -242,9 +253,11 @@ export default function MyListings() {
               expires_at: o.expires_at || null,
               quantity: o.quantity ?? null,
               quantity_remaining: o.quantity != null ? Math.max(0, o.quantity - sold) : null,
-              isBoosted: !!boostMap[`offer-${o.id}`],
-              boostTier: boostMap[`offer-${o.id}`]?.boost_tier as "homepage" | "category" | null,
-              boostExpiresAt: boostMap[`offer-${o.id}`]?.expires_at || null,
+              isBoosted: (boostMap[`offer-${o.id}`]?.length || 0) > 0,
+              boostTier: primaryBoost(`offer-${o.id}`)?.boost_tier as "homepage" | "category" | null,
+              boostExpiresAt: primaryBoost(`offer-${o.id}`)?.expires_at || null,
+              hasHomepageBoost: (boostMap[`offer-${o.id}`] || []).some(b => b.boost_tier === "homepage"),
+              hasCategoryBoost: (boostMap[`offer-${o.id}`] || []).some(b => b.boost_tier === "category"),
             };
           }),
         ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -368,9 +381,18 @@ export default function MyListings() {
                       </span>
                     )}
                     {listing.isBoosted && !isExpired && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-500/30">
-                        ⭐ {listing.boostTier === "homepage" ? "Homepage" : "Category"}
-                      </span>
+                      <>
+                        {listing.hasHomepageBoost && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-500/30">
+                            ⭐ Homepage
+                          </span>
+                        )}
+                        {listing.hasCategoryBoost && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-500/25">
+                            📌 Category
+                          </span>
+                        )}
+                      </>
                     )}
                     {listing.status && !isExpired && (
                       <span className="text-xs capitalize px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
