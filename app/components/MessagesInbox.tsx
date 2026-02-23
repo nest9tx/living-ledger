@@ -17,13 +17,64 @@ type MessageGroup = {
   is_sender: boolean;
 };
 
-export default function MessagesInbox() {
+export default function MessagesInbox({
+  composeWithUserId,
+  composeWithUsername,
+  onComposeDone,
+}: {
+  composeWithUserId?: string;
+  composeWithUsername?: string;
+  onComposeDone?: () => void;
+}) {
   const [messageGroups, setMessageGroups] = useState<MessageGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedListing, setSelectedListing] = useState<{ id: number; type: "request" | "offer" } | null>(null);
   const [selectedAdminConversation, setSelectedAdminConversation] = useState<{ userId: string; userName: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Compose-to-user state
+  const [composeMessage, setComposeMessage] = useState("");
+  const [composeSending, setComposeSending] = useState(false);
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [composeSent, setComposeSent] = useState(false);
+  // Show compose panel when a target user is provided
+  const [showCompose, setShowCompose] = useState(!!composeWithUserId);
+
+  // If compose target changes externally, reset
+  useEffect(() => {
+    if (composeWithUserId) {
+      setShowCompose(true);
+      setComposeSent(false);
+      setComposeMessage("");
+      setComposeError(null);
+    }
+  }, [composeWithUserId]);
+
+  const handleSendComposeMessage = async () => {
+    if (!composeMessage.trim() || !composeWithUserId) return;
+    setComposeSending(true);
+    setComposeError(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ to_user_id: composeWithUserId, content: composeMessage.trim() }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || "Failed to send");
+      setComposeSent(true);
+      setComposeMessage("");
+      setRefreshKey((k) => k + 1);
+      onComposeDone?.();
+    } catch (err) {
+      setComposeError(err instanceof Error ? err.message : "Failed to send message");
+    } finally {
+      setComposeSending(false);
+    }
+  };
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -257,6 +308,42 @@ export default function MessagesInbox() {
           All your conversations in one place
         </p>
       </div>
+
+      {/* ── Compose Panel ─────────────────────────────────────── */}
+      {composeWithUserId && composeWithUsername && showCompose && !composeSent && (
+        <div className="rounded-2xl border border-foreground/15 bg-foreground/3 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">New message to <span className="font-semibold">@{composeWithUsername}</span></p>
+            <button
+              onClick={() => { setShowCompose(false); onComposeDone?.(); }}
+              className="text-xs text-foreground/50 hover:text-foreground"
+            >
+              ✕ Cancel
+            </button>
+          </div>
+          <textarea
+            value={composeMessage}
+            onChange={(e) => setComposeMessage(e.target.value)}
+            rows={4}
+            placeholder={`Write your message to @${composeWithUsername}…`}
+            className="w-full rounded-lg border border-foreground/15 bg-background px-3 py-2 text-sm placeholder:text-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/30"
+          />
+          {composeError && <p className="text-xs text-red-600">{composeError}</p>}
+          <button
+            onClick={handleSendComposeMessage}
+            disabled={composeSending || !composeMessage.trim()}
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
+          >
+            {composeSending ? "Sending…" : "Send Message"}
+          </button>
+        </div>
+      )}
+
+      {composeSent && composeWithUsername && (
+        <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-700">
+          Message sent to @{composeWithUsername}! You can now find the conversation below.
+        </div>
+      )}
 
       {messageGroups.length === 0 ? (
         <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-8 text-center">

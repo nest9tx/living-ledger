@@ -62,6 +62,7 @@ export default function OrderDetailPage() {
   const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Dispute reason state (replaces prompt())
@@ -150,8 +151,7 @@ export default function OrderDetailPage() {
     return null;
   }, [escrow, currentUserId]);
 
-  const handleUploadDeliverable = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleUploadDeliverable = async (file: File) => {
     if (!file || !escrow) return;
 
     const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -184,6 +184,7 @@ export default function OrderDetailPage() {
 
       // Add the new deliverable (already has a signed URL) to the list
       setDeliverables((prev) => [...prev, payload.deliverable]);
+      setPendingFile(null);
 
       // Reset file input
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -565,7 +566,7 @@ export default function OrderDetailPage() {
           {/* Quick message link to the other party */}
           {role === "buyer" && provider && (
             <a
-              href={`/dashboard?tab=messages`}
+              href={`/dashboard?tab=messages&compose=${provider.id}:${provider.username}`}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-foreground/15 px-3 py-1.5 text-xs font-medium hover:bg-foreground/5"
             >
               💬 Message {provider.username}
@@ -573,7 +574,7 @@ export default function OrderDetailPage() {
           )}
           {role === "provider" && buyer && (
             <a
-              href={`/dashboard?tab=messages`}
+              href={`/dashboard?tab=messages&compose=${buyer.id}:${buyer.username}`}
               className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-foreground/15 px-3 py-1.5 text-xs font-medium hover:bg-foreground/5"
             >
               💬 Message {buyer.username}
@@ -593,20 +594,49 @@ export default function OrderDetailPage() {
             {role === "provider" && (escrow.status === "held" || escrow.status === "delivered") && (
               <div className="space-y-2">
                 <p className="text-sm text-foreground/70">
-                  Upload your completed deliverable below before confirming work. The buyer will be able to download it.
+                  Upload your completed deliverable. The buyer will be able to download it.
                 </p>
-                <label className="block">
-                  <span className="sr-only">Choose file</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,application/pdf,text/plain,application/zip,application/x-zip-compressed,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    disabled={uploadLoading}
-                    onChange={handleUploadDeliverable}
-                    className="block w-full text-sm text-foreground/70 file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-background hover:file:opacity-80 disabled:opacity-60"
-                  />
-                </label>
-                {uploadLoading && (
+                {!pendingFile ? (
+                  <label className="block">
+                    <span className="sr-only">Choose file</span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,application/pdf,text/plain,application/zip,application/x-zip-compressed,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      disabled={uploadLoading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setPendingFile(f);
+                        setUploadError(null);
+                      }}
+                      className="block w-full text-sm text-foreground/70 file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-background hover:file:opacity-80 disabled:opacity-60"
+                    />
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-lg border border-foreground/15 px-3 py-2 text-sm">
+                    <span className="flex-1 truncate text-foreground/80">{pendingFile.name}</span>
+                    <span className="shrink-0 text-xs text-foreground/50">{(pendingFile.size / 1024).toFixed(0)} KB</span>
+                    <button
+                      onClick={() => {
+                        setPendingFile(null);
+                        setUploadError(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="shrink-0 rounded px-2 py-0.5 text-xs text-red-500 hover:bg-red-500/10"
+                      title="Remove file"
+                    >
+                      ✕ Clear
+                    </button>
+                    <button
+                      onClick={() => handleUploadDeliverable(pendingFile)}
+                      disabled={uploadLoading}
+                      className="shrink-0 rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background disabled:opacity-60"
+                    >
+                      {uploadLoading ? "Uploading…" : "Upload"}
+                    </button>
+                  </div>
+                )}
+                {uploadLoading && !pendingFile && (
                   <p className="text-xs text-foreground/60">Uploading…</p>
                 )}
                 {uploadError && (

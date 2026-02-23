@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
   const [onboardingRole, setOnboardingRole] = useState<string | null>(null);
+  const [composeWithUser, setComposeWithUser] = useState<{ userId: string; username: string } | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -154,7 +155,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Reads ?tab= query param — must be inside Suspense for Next.js SSR */}
       <Suspense fallback={null}>
-        <TabSyncer setActiveTab={setActiveTab} />
+        <TabSyncer setActiveTab={setActiveTab} setComposeWithUser={setComposeWithUser} />
       </Suspense>
       <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-6 py-8">
         {/* Header */}
@@ -309,7 +310,7 @@ export default function DashboardPage() {
           {activeTab === "credits" && <CreditsPanel />}
           {activeTab === "orders" && <OrdersPanel />}
           {activeTab === "listings" && <MyListings />}
-          {activeTab === "messages" && <MessagesInbox />}
+          {activeTab === "messages" && <MessagesInbox composeWithUserId={composeWithUser?.userId} composeWithUsername={composeWithUser?.username} onComposeDone={() => setComposeWithUser(null)} />}
           {activeTab === "history" && <ContributionHistory />}
           {activeTab === "request" && (
             <RequestForm
@@ -345,11 +346,21 @@ export default function DashboardPage() {
 type TabName = "feed" | "orders" | "request" | "offer" | "credits" | "listings" | "history" | "messages";
 const VALID_TABS: TabName[] = ["feed", "orders", "request", "offer", "credits", "listings", "history", "messages"];
 
-function TabSyncer({ setActiveTab }: { setActiveTab: (tab: TabName) => void }) {
+function TabSyncer({ setActiveTab, setComposeWithUser }: {
+  setActiveTab: (tab: TabName) => void;
+  setComposeWithUser: (u: { userId: string; username: string } | null) => void;
+}) {
   const searchParams = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get("tab") as TabName | null;
     if (tab && VALID_TABS.includes(tab)) setActiveTab(tab);
-  }, [searchParams, setActiveTab]);
+    // ?compose=userId:username  →  open compose panel for that user
+    const compose = searchParams.get("compose");
+    if (compose) {
+      const [userId, ...rest] = compose.split(":");
+      const username = rest.join(":");
+      if (userId && username) setComposeWithUser({ userId, username });
+    }
+  }, [searchParams, setActiveTab, setComposeWithUser]);
   return null;
 }
