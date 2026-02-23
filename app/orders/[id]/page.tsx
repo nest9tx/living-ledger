@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 
@@ -29,6 +29,16 @@ type Listing = {
   description?: string | null;
 };
 
+type Deliverable = {
+  id: number;
+  storage_path: string;
+  filename: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+  signed_url: string | null;
+};
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -40,6 +50,16 @@ export default function OrderDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Delivery file state
+  const [deliverables, setDeliverables] = useState<Deliverable[]>([]);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dispute reason state (replaces prompt())
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -87,6 +107,19 @@ export default function OrderDetailPage() {
             .maybeSingle();
           setListing(data || null);
         }
+
+        // Load deliverables
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          const res = await fetch(`/api/escrow/deliverables?escrowId=${escrowData.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const payload = await res.json();
+            setDeliverables(payload.deliverables || []);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -101,6 +134,74 @@ export default function OrderDetailPage() {
     if (escrow.provider_id === currentUserId) return "provider";
     return null;
   }, [escrow, currentUserId]);
+
+  const handleUploadDeliverable = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !escrow) return;
+
+    const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+    if (file.size > MAX_SIZE) {
+      setUploadError("File exceeds the 50 MB limit.");
+      return;
+    }
+
+    setUploadLoading(true);
+    setUploadError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) { router.push("/login"); return; }
+
+      // Upload to Supabase Storage
+      const ext = file.name.split(".").pop() || "bin";
+      const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const storagePath = `${escrow.id}/${uniqueName}`;
+
+      const { error: storageError } = await supabase.storage
+        .from("delivery-files")
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
+
+      if (storageError) {
+        throw new Error(storageError.message || "Upload failed");
+      }
+
+      // Record in order_deliverables
+      const res = await fetch("/api/escrow/deliverables", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          escrowId: escrow.id,
+          storage_path: storagePath,
+          filename: file.name,
+          file_size: file.size,
+          mime_type: file.type,
+        }),
+      });
+
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || "Failed to record upload");
+
+      // Refresh deliverables list
+      const listRes = await fetch(`/api/escrow/deliverables?escrowId=${escrow.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (listRes.ok) {
+        const listPayload = await listRes.json();
+        setDeliverables(listPayload.deliverables || []);
+      }
+
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadLoading(false);
+    }
+  };
 
   const handleConfirmDelivery = async () => {
     if (!escrow) return;
@@ -230,11 +331,11 @@ export default function OrderDetailPage() {
 
   const handleReportIssue = async () => {
     if (!escrow) return;
-    const reason = prompt("Describe the issue in detail (required for admin review):") || "";
-    if (!reason.trim()) {
+    if (!disputeReason.trim()) {
       setError("Please provide a detailed description of the issue.");
       return;
     }
+    const reason = disputeReason.trim();
     
     setActionLoading(true);
     setError(null);
@@ -269,6 +370,8 @@ export default function OrderDetailPage() {
         dispute_reason: reason,
       } as Escrow);
       setNotice("Dispute submitted successfully! An admin will review within 48 hours. Both parties will have 48 hours to respond to admin requests.");
+      setShowDisputeForm(false);
+      setDisputeReason("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to open dispute");
     } finally {
@@ -437,6 +540,70 @@ export default function OrderDetailPage() {
           </div>
         )}
 
+        {/* ── Delivery Files Section ─────────────────────────────── */}
+        {(role === "provider" || (role === "buyer" && deliverables.length > 0)) &&
+         escrow.status !== "released" && escrow.status !== "refunded" && (
+          <div className="rounded-2xl border border-foreground/10 bg-foreground/2 p-6 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-foreground/60">
+              Delivery Files
+            </h2>
+
+            {/* Provider upload */}
+            {role === "provider" && (escrow.status === "held" || escrow.status === "delivered") && (
+              <div className="space-y-2">
+                <p className="text-sm text-foreground/70">
+                  Upload your completed deliverable below before confirming work. The buyer will be able to download it.
+                </p>
+                <label className="block">
+                  <span className="sr-only">Choose file</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf,text/plain,application/zip,application/x-zip-compressed,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    disabled={uploadLoading}
+                    onChange={handleUploadDeliverable}
+                    className="block w-full text-sm text-foreground/70 file:mr-3 file:rounded-md file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-background hover:file:opacity-80 disabled:opacity-60"
+                  />
+                </label>
+                {uploadLoading && (
+                  <p className="text-xs text-foreground/60">Uploading…</p>
+                )}
+                {uploadError && (
+                  <p className="text-xs text-red-600">{uploadError}</p>
+                )}
+                <p className="text-xs text-foreground/50">Max 50 MB · Images, PDF, ZIP, Word, Excel, plain text</p>
+              </div>
+            )}
+
+            {/* File list — visible to both parties */}
+            {deliverables.length > 0 ? (
+              <ul className="space-y-2">
+                {deliverables.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-3 rounded-lg border border-foreground/10 px-3 py-2 text-sm">
+                    <span className="truncate text-foreground/80">{d.filename}</span>
+                    <span className="shrink-0 text-xs text-foreground/50">
+                      {(d.file_size / 1024).toFixed(0)} KB
+                    </span>
+                    {d.signed_url && (
+                      <a
+                        href={d.signed_url}
+                        download={d.filename}
+                        className="shrink-0 rounded-md bg-foreground px-3 py-1 text-xs font-medium text-background hover:opacity-80"
+                      >
+                        Download
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              role === "buyer" && (
+                <p className="text-sm text-foreground/50">No delivery files uploaded yet.</p>
+              )
+            )}
+          </div>
+        )}
+
         {/* Provider Actions */}
         {role === "provider" && escrow.status === "held" && (
           <button
@@ -495,13 +662,47 @@ export default function OrderDetailPage() {
 
         {/* Dispute Button - Available to both parties when not resolved */}
         {escrow.status !== "released" && escrow.status !== "refunded" && escrow.status !== "disputed" && (
-          <button
-            onClick={handleReportIssue}
-            disabled={actionLoading}
-            className="w-full rounded-md border border-red-500/40 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-500/5 disabled:opacity-60"
-          >
-            {actionLoading ? "Submitting…" : "Report Issue / Dispute"}
-          </button>
+          <>
+            {!showDisputeForm ? (
+              <button
+                onClick={() => { setShowDisputeForm(true); setError(null); }}
+                disabled={actionLoading}
+                className="w-full rounded-md border border-red-500/40 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-500/5 disabled:opacity-60"
+              >
+                Report Issue / Dispute
+              </button>
+            ) : (
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5 space-y-3">
+                <p className="text-sm font-medium text-red-700">Describe the issue</p>
+                <p className="text-xs text-red-600/80">
+                  Provide as much detail as possible. An admin will review within 48 hours.
+                </p>
+                <textarea
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  rows={4}
+                  placeholder="Explain what went wrong…"
+                  className="w-full rounded-lg border border-red-500/20 bg-background px-3 py-2 text-sm placeholder:text-foreground/40 focus:outline-none focus:ring-1 focus:ring-red-400"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleReportIssue}
+                    disabled={actionLoading || !disputeReason.trim()}
+                    className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  >
+                    {actionLoading ? "Submitting…" : "Submit Dispute"}
+                  </button>
+                  <button
+                    onClick={() => { setShowDisputeForm(false); setDisputeReason(""); setError(null); }}
+                    disabled={actionLoading}
+                    className="rounded-md border border-foreground/20 px-4 py-2 text-sm font-medium disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Cancel Dispute Button - Available only to the person who reported it */}

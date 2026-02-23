@@ -76,6 +76,10 @@ export async function createRequest(
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) throw new Error("Not authenticated");
 
+    if (budgetCredits < 5 || budgetCredits > 100) {
+      throw new Error("Budget must be between 5 and 100 credits");
+    }
+
     const { data, error } = await supabase
       .from("requests")
       .insert([{ 
@@ -226,6 +230,10 @@ export async function createOffer(
   try {
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) throw new Error("Not authenticated");
+
+    if (priceCredits < 5 || priceCredits > 100) {
+      throw new Error("Price must be between 5 and 100 credits");
+    }
 
     const { data, error } = await supabase
       .from("offers")

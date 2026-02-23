@@ -74,8 +74,8 @@ export default function RequestForm({
 
     if (!budgetCredits || budgetCredits < 5) {
       errors.budgetCredits = "Budget must be at least 5 credits ($5)";
-    } else if (budgetCredits > 10000) {
-      errors.budgetCredits = "Budget cannot exceed 10,000 credits";
+    } else if (budgetCredits > 100) {
+      errors.budgetCredits = "Budget cannot exceed 100 credits ($100 max per transaction)";
     }
 
     if (images.length > 5) {
@@ -266,7 +266,7 @@ export default function RequestForm({
           <input
             id="budget"
             type="number"
-            max="10000"
+            max="100"
             className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
               fieldErrors.budgetCredits
                 ? "border-red-500/50 bg-red-500/5"
@@ -289,7 +289,7 @@ export default function RequestForm({
             }}
           />
           {!fieldErrors.budgetCredits && (
-            <p className="mt-1 text-xs text-foreground/60">Minimum: 5 credits ($5)</p>
+            <p className="mt-1 text-xs text-foreground/60">5–100 credits ($5–$100 max per transaction)</p>
           )}
           {fieldErrors.budgetCredits && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.budgetCredits}</p>
