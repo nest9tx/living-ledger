@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import supabase from "@/lib/supabase";
 import { seedDefaultCategories } from "@/lib/supabase-helpers";
@@ -29,14 +29,6 @@ export default function DashboardPage() {
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
   const [onboardingRole, setOnboardingRole] = useState<string | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // Honour ?tab=<name> deep-link (e.g. from order page message button)
-  useEffect(() => {
-    const tab = searchParams.get("tab") as typeof activeTab | null;
-    const valid: (typeof activeTab)[] = ["feed", "orders", "request", "offer", "credits", "listings", "history", "messages"];
-    if (tab && valid.includes(tab)) setActiveTab(tab);
-  }, [searchParams]);
 
   useEffect(() => {
     let isMounted = true;
@@ -160,6 +152,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Reads ?tab= query param — must be inside Suspense for Next.js SSR */}
+      <Suspense fallback={null}>
+        <TabSyncer setActiveTab={setActiveTab} />
+      </Suspense>
       <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-6 py-8">
         {/* Header */}
         <div>
@@ -343,4 +339,17 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+// Separate component so useSearchParams is inside a Suspense boundary
+type TabName = "feed" | "orders" | "request" | "offer" | "credits" | "listings" | "history" | "messages";
+const VALID_TABS: TabName[] = ["feed", "orders", "request", "offer", "credits", "listings", "history", "messages"];
+
+function TabSyncer({ setActiveTab }: { setActiveTab: (tab: TabName) => void }) {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const tab = searchParams.get("tab") as TabName | null;
+    if (tab && VALID_TABS.includes(tab)) setActiveTab(tab);
+  }, [searchParams, setActiveTab]);
+  return null;
 }
