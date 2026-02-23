@@ -286,6 +286,7 @@ export default function RequestForm({
             onBlur={(e) => {
               const value = parseInt(e.target.value) || 0;
               if (value > 0 && value < 5) setBudgetCredits(5);
+              else if (value > 100) setBudgetCredits(100);
             }}
           />
           {!fieldErrors.budgetCredits && (

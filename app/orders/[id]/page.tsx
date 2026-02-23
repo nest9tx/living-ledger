@@ -29,6 +29,11 @@ type Listing = {
   description?: string | null;
 };
 
+type Profile = {
+  id: string;
+  username: string;
+};
+
 type Deliverable = {
   id: number;
   storage_path: string;
@@ -45,6 +50,8 @@ export default function OrderDetailPage() {
   const orderId = Number(params?.id);
   const [escrow, setEscrow] = useState<Escrow | null>(null);
   const [listing, setListing] = useState<Listing | null>(null);
+  const [buyer, setBuyer] = useState<Profile | null>(null);
+  const [provider, setProvider] = useState<Profile | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -89,6 +96,14 @@ export default function OrderDetailPage() {
         }
 
         setEscrow(escrowData);
+
+        // Fetch both party profiles in parallel
+        const [{ data: buyerProfile }, { data: providerProfile }] = await Promise.all([
+          supabase.from("profiles").select("id, username").eq("id", escrowData.payer_id).maybeSingle(),
+          supabase.from("profiles").select("id, username").eq("id", escrowData.provider_id).maybeSingle(),
+        ]);
+        setBuyer(buyerProfile || null);
+        setProvider(providerProfile || null);
 
         if (escrowData.offer_id) {
           const { data } = await supabase
@@ -153,46 +168,22 @@ export default function OrderDetailPage() {
       const token = sessionData.session?.access_token;
       if (!token) { router.push("/login"); return; }
 
-      // Upload to Supabase Storage
-      const ext = file.name.split(".").pop() || "bin";
-      const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const storagePath = `${escrow.id}/${uniqueName}`;
+      // Send file to server-side upload route (uses admin client to bypass storage RLS)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("escrowId", String(escrow.id));
 
-      const { error: storageError } = await supabase.storage
-        .from("delivery-files")
-        .upload(storagePath, file, { contentType: file.type, upsert: false });
-
-      if (storageError) {
-        throw new Error(storageError.message || "Upload failed");
-      }
-
-      // Record in order_deliverables
-      const res = await fetch("/api/escrow/deliverables", {
+      const res = await fetch("/api/escrow/deliverables/upload", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          escrowId: escrow.id,
-          storage_path: storagePath,
-          filename: file.name,
-          file_size: file.size,
-          mime_type: file.type,
-        }),
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error || "Failed to record upload");
+      if (!res.ok) throw new Error(payload?.error || "Upload failed");
 
-      // Refresh deliverables list
-      const listRes = await fetch(`/api/escrow/deliverables?escrowId=${escrow.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (listRes.ok) {
-        const listPayload = await listRes.json();
-        setDeliverables(listPayload.deliverables || []);
-      }
+      // Add the new deliverable (already has a signed URL) to the list
+      setDeliverables((prev) => [...prev, payload.deliverable]);
 
       // Reset file input
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -539,6 +530,56 @@ export default function OrderDetailPage() {
             {error}
           </div>
         )}
+
+        {/* ── Parties Card ──────────────────────────────────────── */}
+        <div className="rounded-2xl border border-foreground/10 bg-foreground/2 p-6 space-y-3">
+          <h2 className="text-xs uppercase tracking-[0.3em] text-foreground/60">Order Parties</h2>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-foreground/70">Buyer</span>
+            {buyer ? (
+              <a
+                href={`/profile/${buyer.username}`}
+                className="font-medium hover:underline"
+              >
+                @{buyer.username}
+                {role === "buyer" && <span className="ml-1 text-xs text-foreground/50">(you)</span>}
+              </a>
+            ) : (
+              <span className="text-foreground/40">Unknown</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-foreground/70">Seller / Provider</span>
+            {provider ? (
+              <a
+                href={`/profile/${provider.username}`}
+                className="font-medium hover:underline"
+              >
+                @{provider.username}
+                {role === "provider" && <span className="ml-1 text-xs text-foreground/50">(you)</span>}
+              </a>
+            ) : (
+              <span className="text-foreground/40">Unknown</span>
+            )}
+          </div>
+          {/* Quick message link to the other party */}
+          {role === "buyer" && provider && (
+            <a
+              href={`/messages?with=${provider.username}`}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-foreground/15 px-3 py-1.5 text-xs font-medium hover:bg-foreground/5"
+            >
+              💬 Message {provider.username}
+            </a>
+          )}
+          {role === "provider" && buyer && (
+            <a
+              href={`/messages?with=${buyer.username}`}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-foreground/15 px-3 py-1.5 text-xs font-medium hover:bg-foreground/5"
+            >
+              💬 Message {buyer.username}
+            </a>
+          )}
+        </div>
 
         {/* ── Delivery Files Section ─────────────────────────────── */}
         {(role === "provider" || (role === "buyer" && deliverables.length > 0)) &&

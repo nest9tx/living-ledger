@@ -334,10 +334,11 @@ export default function OfferForm({
               if (fieldErrors.priceCredits) setFieldErrors({ ...fieldErrors, priceCredits: undefined });
             }}
             onBlur={(e) => {
-              // Apply minimum validation on blur to ensure final value is valid
               const value = parseInt(e.target.value) || 0;
               if (value > 0 && value < 5) {
                 setPriceCredits(5);
+              } else if (value > 100) {
+                setPriceCredits(100);
               }
             }}
           />
