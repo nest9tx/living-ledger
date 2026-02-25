@@ -21,12 +21,15 @@ type Escrow = {
   dispute_reported_at: string | null;
   dispute_status?: string | null;
   dispute_reason?: string | null;
+  tracking_carrier?: string | null;
+  tracking_number?: string | null;
 };
 
 type Listing = {
   id: number;
   title: string;
   description?: string | null;
+  is_physical?: boolean;
 };
 
 type Profile = {
@@ -68,6 +71,9 @@ export default function OrderDetailPage() {
   // Dispute reason state (replaces prompt())
   const [showDisputeForm, setShowDisputeForm] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
+  const [trackingCarrier, setTrackingCarrier] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [trackingOtherCarrier, setTrackingOtherCarrier] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -109,7 +115,7 @@ export default function OrderDetailPage() {
         if (escrowData.offer_id) {
           const { data } = await supabase
             .from("offers")
-            .select("id, title, description")
+            .select("id, title, description, is_physical")
             .eq("id", escrowData.offer_id)
             .maybeSingle();
           setListing(data || null);
@@ -118,7 +124,7 @@ export default function OrderDetailPage() {
         if (escrowData.request_id) {
           const { data } = await supabase
             .from("requests")
-            .select("id, title, description")
+            .select("id, title, description, is_physical")
             .eq("id", escrowData.request_id)
             .maybeSingle();
           setListing(data || null);
@@ -239,6 +245,18 @@ export default function OrderDetailPage() {
 
   const handleConfirmCompletion = async () => {
     if (!escrow) return;
+
+    // Validate tracking for physical orders
+    const finalCarrier = listing?.is_physical
+      ? (trackingCarrier === "other" ? trackingOtherCarrier.trim() : trackingCarrier)
+      : null;
+    if (listing?.is_physical && !finalCarrier) {
+      setError("Please select a carrier or shipping method before confirming.");
+      return;
+    }
+    const finalTrackingNumber = (finalCarrier && !["local_pickup", "service"].includes(finalCarrier))
+      ? trackingNumber.trim() || null : null;
+
     setActionLoading(true);
     setError(null);
     setNotice(null);
@@ -256,7 +274,7 @@ export default function OrderDetailPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ escrowId: escrow.id }),
+        body: JSON.stringify({ escrowId: escrow.id, trackingCarrier: finalCarrier, trackingNumber: finalTrackingNumber }),
       });
 
       const payload = await res.json();
@@ -499,6 +517,24 @@ export default function OrderDetailPage() {
               <span className="font-medium">{escrow.provider_confirmed_at ? "✓ Yes" : "○ No"}</span>
             </div>
           </div>
+          {escrow.tracking_carrier && (
+            <div className="border-t border-foreground/10 pt-3 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span>Carrier</span>
+                <span className="font-medium">
+                  {escrow.tracking_carrier === "local_pickup" ? "🤝 Local Pickup"
+                    : escrow.tracking_carrier === "service" ? "🔧 Service / No Shipment"
+                    : `📦 ${escrow.tracking_carrier}`}
+                </span>
+              </div>
+              {escrow.tracking_number && (
+                <div className="flex items-center justify-between text-sm">
+                  <span>Tracking #</span>
+                  <span className="font-mono text-xs font-medium">{escrow.tracking_number}</span>
+                </div>
+              )}
+            </div>
+          )}
           
           <p className="text-xs text-foreground/60">
             Buyers pay the listed price. Providers receive 90% after completion (10% platform fee). Funds release 7 days from the order date once both parties confirm.
@@ -686,14 +722,73 @@ export default function OrderDetailPage() {
           </div>
         )}
 
+        {/* Tracking Form — physical orders only, provider fills before confirming */}
+        {role === "provider" && escrow.status === "held" && listing?.is_physical && !escrow.tracking_carrier && (
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-amber-700">
+              📦 Shipping Details Required
+            </h2>
+            <p className="text-sm text-foreground/70">
+              This is a physical order. Enter shipping info before confirming so the buyer can track their package.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Carrier / Method</label>
+                <select
+                  value={trackingCarrier}
+                  onChange={(e) => setTrackingCarrier(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-foreground/15 bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">— Select —</option>
+                  <option value="USPS">📮 USPS</option>
+                  <option value="UPS">📦 UPS</option>
+                  <option value="FedEx">✈️ FedEx</option>
+                  <option value="DHL">🌍 DHL</option>
+                  <option value="local_pickup">🤝 Local Pickup</option>
+                  <option value="service">🔧 Service / No Shipment Needed</option>
+                  <option value="other">🏷️ Other</option>
+                </select>
+              </div>
+              {trackingCarrier === "other" && (
+                <div>
+                  <label className="text-sm font-medium">Carrier Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. OnTrac, LaserShip"
+                    value={trackingOtherCarrier}
+                    onChange={(e) => setTrackingOtherCarrier(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-foreground/15 bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
+              {trackingCarrier && !["local_pickup", "service"].includes(trackingCarrier) && (
+                <div>
+                  <label className="text-sm font-medium">Tracking Number</label>
+                  <input
+                    type="text"
+                    placeholder="Enter tracking number"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-foreground/15 bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Provider Actions */}
         {role === "provider" && escrow.status === "held" && (
           <button
             onClick={handleConfirmCompletion}
-            disabled={actionLoading}
+            disabled={
+              actionLoading ||
+              (listing?.is_physical && !trackingCarrier) ||
+              (listing?.is_physical && trackingCarrier === "other" && !trackingOtherCarrier.trim())
+            }
             className="w-full rounded-md bg-foreground px-4 py-3 text-sm font-medium text-background disabled:opacity-60"
           >
-            {actionLoading ? "Updating…" : "Confirm Work Completed"}
+            {actionLoading ? "Updating…" : listing?.is_physical ? "Confirm Shipped" : "Confirm Work Completed"}
           </button>
         )}
 

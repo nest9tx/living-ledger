@@ -33,9 +33,10 @@ export async function GET(req: Request) {
     let query = supabaseAdmin
       .from("credit_escrow")
       .select(
-        "id, request_id, offer_id, payer_id, provider_id, credits_held, status, release_available_at, buyer_confirmed_at, provider_marked_complete_at, dispute_status, dispute_reason, disputed_at, resolved_at, admin_note, created_at"
+        "id, request_id, offer_id, payer_id, provider_id, credits_held, status, release_available_at, buyer_confirmed_at, provider_marked_complete_at, dispute_status, dispute_reason, disputed_at, resolved_at, admin_note, tracking_carrier, tracking_number, created_at"
       )
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(200);
 
     if (status) {
       query = query.eq("status", status);

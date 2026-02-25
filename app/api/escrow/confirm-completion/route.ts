@@ -27,6 +27,8 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const escrowId = Number(body?.escrowId);
+    const trackingCarrier: string | null = body?.trackingCarrier || null;
+    const trackingNumber: string | null = body?.trackingNumber || null;
 
     if (!Number.isFinite(escrowId)) {
       return NextResponse.json({ error: "Invalid escrow ID" }, { status: 400 });
@@ -75,6 +77,8 @@ export async function POST(req: Request) {
       .update({
         status: newStatus,
         provider_confirmed_at: now.toISOString(),
+        ...(trackingCarrier ? { tracking_carrier: trackingCarrier } : {}),
+        ...(trackingNumber ? { tracking_number: trackingNumber } : {}),
       })
       .eq("id", escrowId);
 

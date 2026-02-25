@@ -34,11 +34,11 @@ export async function POST(req: Request) {
     const secondaryTable = requestedType === "offer" ? "requests" : "offers";
 
     const primarySelect = requestedType === "offer"
-      ? "id, user_id, price_credits, title, quantity"
-      : "id, user_id, budget_credits, title, quantity";
+      ? "id, user_id, price_credits, title, quantity, is_physical, shipping_credits"
+      : "id, user_id, budget_credits, title, quantity, is_physical, shipping_credits";
     const secondarySelect = requestedType === "offer"
-      ? "id, user_id, budget_credits, title, quantity"
-      : "id, user_id, price_credits, title, quantity";
+      ? "id, user_id, budget_credits, title, quantity, is_physical, shipping_credits"
+      : "id, user_id, price_credits, title, quantity, is_physical, shipping_credits";
 
     const { data: primaryPost, error: primaryError } = await supabaseAdmin
       .from(primaryTable)
@@ -102,9 +102,14 @@ export async function POST(req: Request) {
       }
     }
 
-    const credits = "price_credits" in post ? post.price_credits : post.budget_credits;
+    const baseCredits = ("price_credits" in post ? post.price_credits : post.budget_credits) as number;
+    const physicalPost = post as { is_physical?: boolean | null; shipping_credits?: number | null };
+    const shippingCredits = physicalPost.is_physical && physicalPost.shipping_credits
+      ? physicalPost.shipping_credits : 0;
+    const credits = (baseCredits || 0) + shippingCredits;
     const postTitle = "title" in post ? post.title : null;
     const titleSuffix = postTitle ? `: ${postTitle}` : "";
+    const shippingSuffix = shippingCredits > 0 ? ` (${baseCredits} item + ${shippingCredits} shipping)` : "";
     if (!credits || credits < 1) {
       return Response.json({ error: "Invalid credit amount" }, { status: 400 });
     }
@@ -151,7 +156,7 @@ export async function POST(req: Request) {
     const { error: txError } = await supabaseAdmin.from("transactions").insert({
       user_id: userData.user.id,
       amount: -credits,
-      description: `Escrow hold for ${postType} #${postId}${titleSuffix}`,
+      description: `Escrow hold for ${postType} #${postId}${titleSuffix}${shippingSuffix}`,
       transaction_type: "escrow_hold",
       related_offer_id: postType === "offer" ? postId : null,
       related_request_id: postType === "request" ? postId : null,

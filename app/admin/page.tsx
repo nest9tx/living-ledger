@@ -35,7 +35,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "moderation" | "disputes" | "cashouts" | "listings" | "users" | "messages" | "transactions" | "revenue" | "settings"
+    "overview" | "moderation" | "disputes" | "cashouts" | "listings" | "users" | "messages" | "transactions" | "revenue" | "escrow" | "settings"
   >("overview");
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +86,11 @@ export default function AdminDashboard() {
   const [boostPickerModal, setBoostPickerModal] = useState<{ id: number; type: string; category_id: number | null } | null>(null);
   const [boostPickerTier, setBoostPickerTier] = useState<"homepage" | "category">("homepage");
   const [boostPickerLoading, setBoostPickerLoading] = useState(false);
+
+  // Escrow tab state
+  const [allEscrows, setAllEscrows] = useState<any[]>([]);
+  const [allEscrowsLoading, setAllEscrowsLoading] = useState(false);
+  const [escrowStatusFilter, setEscrowStatusFilter] = useState("all");
 
   // Revenue tab state
   const [revenueRange, setRevenueRange] = useState<"1d" | "7d" | "30d" | "mtd" | "all">("30d");
@@ -188,6 +193,22 @@ export default function AdminDashboard() {
       setDisputes(payload.escrows || []);
     } finally {
       setDisputeLoading(false);
+    }
+  };
+
+  const loadAllEscrows = async () => {
+    setAllEscrowsLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/admin/escrow/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await res.json();
+      if (res.ok) setAllEscrows(payload.escrows || []);
+    } finally {
+      setAllEscrowsLoading(false);
     }
   };
 
@@ -729,7 +750,7 @@ export default function AdminDashboard() {
     setRevenueLoading(false);
   };
 
-  const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "transactions", "revenue", "users", "messages", "settings"] as const;
+  const tabList = ["overview", "moderation", "disputes", "cashouts", "listings", "transactions", "revenue", "escrow", "users", "messages", "settings"] as const;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -787,6 +808,7 @@ export default function AdminDashboard() {
                   if (tab === "listings") loadListings();
                   if (tab === "transactions") loadTransactions(1, "");
                   if (tab === "revenue") loadRevenue(revenueRange);
+                  if (tab === "escrow") { loadAllEscrows(); if (users.length === 0) loadUsers(); }
                 }}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition capitalize ${
                   activeTab === tab
@@ -2099,6 +2121,86 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeTab === "escrow" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">All Escrows</h2>
+                <button onClick={loadAllEscrows} className="text-sm text-foreground/60 hover:text-foreground">↻ Refresh</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(["all", "held", "delivered", "confirmed", "released", "disputed", "refunded"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setEscrowStatusFilter(s)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${
+                      escrowStatusFilter === s ? "bg-foreground text-background" : "border border-foreground/20 hover:bg-foreground/5"
+                    }`}
+                  >
+                    {s}{s !== "all" && allEscrows.filter(e => e.status === s).length > 0 && (
+                      <span className="ml-1 opacity-50">({allEscrows.filter(e => e.status === s).length})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {allEscrowsLoading ? (
+                <p className="text-sm text-foreground/60">Loading escrows…</p>
+              ) : allEscrows.length === 0 ? (
+                <p className="text-sm text-foreground/50">No escrows found. Click Refresh to load.</p>
+              ) : (
+                <div className="space-y-3">
+                  {allEscrows
+                    .filter((e) => escrowStatusFilter === "all" || e.status === escrowStatusFilter)
+                    .map((e) => {
+                      const buyer = users.find((u: any) => u.id === e.payer_id);
+                      const seller = users.find((u: any) => u.id === e.provider_id);
+                      return (
+                        <div key={e.id} className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 flex items-start justify-between gap-4">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold">Order #{e.id}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize border ${
+                                e.status === "released" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+                                  : e.status === "disputed" ? "bg-red-500/10 text-red-700 border-red-500/20"
+                                  : e.status === "refunded" ? "bg-orange-500/10 text-orange-700 border-orange-500/20"
+                                  : e.status === "confirmed" ? "bg-blue-500/10 text-blue-700 border-blue-500/20"
+                                  : "bg-amber-500/10 text-amber-700 border-amber-500/20"
+                              }`}>{e.status}</span>
+                              {e.tracking_carrier && (
+                                <span className="text-xs bg-blue-500/10 text-blue-700 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                                  📦 {e.tracking_carrier === "local_pickup" ? "Local Pickup" : e.tracking_carrier === "service" ? "Service" : e.tracking_carrier}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-foreground/60">{e.offer_id ? `Offer #${e.offer_id}` : `Request #${e.request_id}`}</p>
+                            <p className="text-xs text-foreground/60">
+                              Buyer: <strong>{buyer?.username || e.payer_id?.slice(0, 8)}</strong>
+                              {" · "}
+                              Seller: <strong>{seller?.username || e.provider_id?.slice(0, 8)}</strong>
+                            </p>
+                            {e.tracking_number && (
+                              <p className="text-xs text-foreground/60">Tracking #: <span className="font-mono">{e.tracking_number}</span></p>
+                            )}
+                            {e.dispute_reason && (
+                              <p className="text-xs text-red-600 truncate max-w-xs">Dispute: {e.dispute_reason}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-semibold">{e.credits_held} credits</p>
+                            <p className="text-xs text-foreground/50">{new Date(e.created_at).toLocaleDateString()}</p>
+                            <a href={`/orders/${e.id}`} target="_blank" rel="noopener noreferrer"
+                              className="mt-2 inline-block text-xs text-blue-600 hover:underline">View ↗</a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  {allEscrows.filter((e) => escrowStatusFilter === "all" || e.status === escrowStatusFilter).length === 0 && (
+                    <p className="text-sm text-foreground/50">No escrows match this filter.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === "settings" && (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold">Platform Settings</h2>
@@ -2107,7 +2209,7 @@ export default function AdminDashboard() {
                   <label className="text-sm font-medium">Platform Fee (%)</label>
                   <input
                     type="number"
-                    defaultValue="15"
+                    defaultValue="10"
                     min="0"
                     max="50"
                     className="mt-2 w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm"
