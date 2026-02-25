@@ -32,6 +32,7 @@ export default function RequestForm({
   const [budgetCredits, setBudgetCredits] = useState(5);
   const [isPhysical, setIsPhysical] = useState(false);
   const [shippingCredits, setShippingCredits] = useState<number | null>(null);
+  const [shippingRegion, setShippingRegion] = useState<"domestic" | "international" | "worldwide">("domestic");
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -115,7 +116,8 @@ export default function RequestForm({
         undefined,
         undefined,
         isPhysical,
-        shippingCredits
+        shippingCredits,
+        shippingRegion
       );
 
       if (!requestData || !requestData[0]) {
@@ -156,6 +158,7 @@ export default function RequestForm({
       setBudgetCredits(5);
       setIsPhysical(false);
       setShippingCredits(null);
+      setShippingRegion("domestic");
       setImages([]);
       setFieldErrors({});
       setSuccess(true);
@@ -344,6 +347,21 @@ export default function RequestForm({
             <p className="text-xs text-amber-600/80 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
               ⚠️ You’ll need to share your shipping address with the seller via the platform message system. Living Ledger is not liable for shipping outcomes.
             </p>
+            <div>
+              <label className="text-sm font-medium" htmlFor="req-shipping-region">
+                Ship from / region
+              </label>
+              <select
+                id="req-shipping-region"
+                className="mt-1 w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm"
+                value={shippingRegion}
+                onChange={(e) => setShippingRegion(e.target.value as "domestic" | "international" | "worldwide")}
+              >
+                <option value="domestic">🇺🇸 USA only</option>
+                <option value="international">✈️ International</option>
+                <option value="worldwide">🌍 Worldwide</option>
+              </select>
+            </div>
             <div>
               <label className="text-sm font-medium" htmlFor="req-shipping-credits">
                 Expected shipping cost (credits, optional)

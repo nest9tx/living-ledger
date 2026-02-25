@@ -386,12 +386,26 @@ export default function Feed({ guestMode = false }: FeedProps) {
                 <div className="text-right">
                   {item.type === "offer" && item.price_credits !== undefined && (
                     <div className="text-sm font-semibold text-foreground">
-                      {item.price_credits} 💰
+                      {item.is_physical && item.shipping_credits
+                        ? `${item.price_credits + item.shipping_credits} 💰`
+                        : `${item.price_credits} 💰`}
+                    </div>
+                  )}
+                  {item.is_physical && item.shipping_credits && item.type === "offer" && (
+                    <div className="text-xs text-foreground/50 mt-0.5">
+                      {item.price_credits} + {item.shipping_credits} shipping
                     </div>
                   )}
                   {item.type === "request" && item.budget_credits !== undefined && (
                     <div className="text-sm font-semibold text-foreground">
-                      Budget: {item.budget_credits} 💰
+                      Budget: {item.is_physical && item.shipping_credits
+                        ? `${item.budget_credits + item.shipping_credits} 💰`
+                        : `${item.budget_credits} 💰`}
+                    </div>
+                  )}
+                  {item.is_physical && item.shipping_credits && item.type === "request" && (
+                    <div className="text-xs text-foreground/50 mt-0.5">
+                      {item.budget_credits} + {item.shipping_credits} shipping
                     </div>
                   )}
                   {item.type === "request" && (

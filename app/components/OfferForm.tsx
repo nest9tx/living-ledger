@@ -34,6 +34,7 @@ export default function OfferForm({
   const [quantity, setQuantity] = useState<number | null>(null);
   const [isPhysical, setIsPhysical] = useState(false);
   const [shippingCredits, setShippingCredits] = useState<number | null>(null);
+  const [shippingRegion, setShippingRegion] = useState<"domestic" | "international" | "worldwide">("domestic");
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -125,7 +126,8 @@ export default function OfferForm({
         quantity,
         [], // No images initially
         isPhysical,
-        shippingCredits
+        shippingCredits,
+        shippingRegion
       );
       
       if (!offerData || !offerData[0]) {
@@ -169,7 +171,7 @@ export default function OfferForm({
       setQuantity(null);
       setIsPhysical(false);
       setShippingCredits(null);
-      setImages([]);
+      setShippingRegion("domestic");
       setFieldErrors({});
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -200,7 +202,7 @@ export default function OfferForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-foreground/10 bg-foreground/2 p-4">
-      <h3 className="font-semibold">Offer your gifts</h3>
+      <h3 className="font-semibold">Post an offer</h3>
 
       <div>
         <label className="text-sm font-medium" htmlFor="offer-title">
@@ -393,6 +395,21 @@ export default function OfferForm({
             <p className="text-xs text-amber-600/80 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
               ⚠️ Buyers will send their shipping address via the platform message system. You are responsible for shipping. Living Ledger is not liable for lost, damaged, or misrepresented items.
             </p>
+            <div>
+              <label className="text-sm font-medium" htmlFor="shipping-region">
+                Ships to
+              </label>
+              <select
+                id="shipping-region"
+                className="mt-1 w-full rounded-md border border-foreground/15 bg-transparent px-3 py-2 text-sm"
+                value={shippingRegion}
+                onChange={(e) => setShippingRegion(e.target.value as "domestic" | "international" | "worldwide")}
+              >
+                <option value="domestic">🇺🇸 USA only</option>
+                <option value="international">✈️ International</option>
+                <option value="worldwide">🌍 Worldwide</option>
+              </select>
+            </div>
             <div>
               <label className="text-sm font-medium" htmlFor="shipping-credits">
                 Shipping cost (credits, optional)

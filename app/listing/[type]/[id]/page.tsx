@@ -41,6 +41,9 @@ type ListingDetail = {
   isBoosted?: boolean;
   boostTier?: "homepage" | "category" | null;
   boostExpiresAt?: string | null;
+  is_physical?: boolean;
+  shipping_credits?: number | null;
+  shipping_region?: string | null;
 };
 
 export default function ListingDetailPage() {
@@ -129,7 +132,9 @@ export default function ListingDetailPage() {
       setPurchaseLoading(true);
       setShowConfirmModal(false);
 
-      const credits = type === "offer" ? listing.price_credits : listing.budget_credits;
+      const baseCredits = type === "offer" ? listing.price_credits : listing.budget_credits;
+      const shippingCredits = listing.is_physical ? (listing.shipping_credits || 0) : 0;
+      const totalCredits = (baseCredits || 0) + shippingCredits;
 
       const res = await fetch("/api/escrow/create", {
         method: "POST",
@@ -140,7 +145,7 @@ export default function ListingDetailPage() {
         body: JSON.stringify({
           postId: listing.id,
           postType: type,
-          credits,
+          credits: totalCredits,
         }),
       });
 
@@ -421,10 +426,32 @@ export default function ListingDetailPage() {
             {/* Credits info */}
             <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-6">
               <h2 className="font-semibold mb-3">Credits</h2>
-              <div className="text-3xl font-bold text-emerald-600">{credits ?? 0}</div>
+              {listing.is_physical && listing.shipping_credits ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground/60">Item</span>
+                    <span className="font-medium">{credits ?? 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground/60">Shipping</span>
+                    <span className="font-medium">{listing.shipping_credits}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-foreground/10 pt-1 mt-1">
+                    <span className="text-sm font-semibold">Total</span>
+                    <span className="text-2xl font-bold text-emerald-600">{(credits ?? 0) + listing.shipping_credits}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-3xl font-bold text-emerald-600">{credits ?? 0}</div>
+              )}
               <p className="text-xs text-foreground/60 mt-2">
                 1 credit = $1 USD
               </p>
+              {listing.is_physical && listing.shipping_region && (
+                <p className="text-xs text-amber-700 mt-1">
+                  🌍 Ships to: <span className="font-medium capitalize">{listing.shipping_region}</span>
+                </p>
+              )}
               {listing.quantity != null && (
                 <div className={`mt-3 text-sm font-medium ${isSoldOut ? "text-red-600" : "text-amber-700"}`}>
                   {isSoldOut
@@ -496,15 +523,34 @@ export default function ListingDetailPage() {
               <div className="rounded-lg bg-foreground/5 p-4 mb-6">
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs text-foreground/60">Service</p>
+                    <p className="text-xs text-foreground/60">Item</p>
                     <p className="font-medium">{listing.title}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-foreground/60">Credits to deduct</p>
-                    <p className="text-2xl font-bold text-emerald-600">
-                      {type === "offer" ? listing.price_credits : listing.budget_credits}
-                    </p>
-                  </div>
+                  {listing.is_physical && listing.shipping_credits ? (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-foreground/60">Item price</span>
+                        <span className="font-medium">{type === "offer" ? listing.price_credits : listing.budget_credits} credits</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-foreground/60">Shipping</span>
+                        <span className="font-medium">{listing.shipping_credits} credits</span>
+                      </div>
+                      <div className="flex justify-between border-t border-foreground/10 pt-2">
+                        <span className="text-sm font-semibold">Total to escrow</span>
+                        <p className="text-2xl font-bold text-emerald-600">
+                          {(type === "offer" ? (listing.price_credits || 0) : (listing.budget_credits || 0)) + listing.shipping_credits}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="text-xs text-foreground/60">Credits to escrow</p>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {type === "offer" ? listing.price_credits : listing.budget_credits}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -418,6 +418,31 @@ export default function AdminDashboard() {
     await loadDisputes();
   };
 
+  const handleAdminCancelDispute = async (escrowId: number) => {
+    const adminNote = prompt("Reason for closing this dispute (shown in records):") || "";
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    const res = await fetch("/api/admin/escrow/cancel-dispute", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ escrowId, adminNote }),
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      alert(payload?.error || "Failed to cancel dispute");
+      return;
+    }
+
+    alert("Dispute closed. Escrow returned to held status.");
+    await loadDisputes();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6">
@@ -1015,7 +1040,12 @@ export default function AdminDashboard() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {disputes.map((item) => (
+                    {disputes.map((item) => {
+                      const buyer = users.find((u) => u.id === item.payer_id);
+                      const seller = users.find((u) => u.id === item.provider_id);
+                      const buyerDisputeCount = buyer?.open_dispute_count || 0;
+                      const sellerDisputeCount = seller?.open_dispute_count || 0;
+                      return (
                       <div
                         key={item.id}
                         className="flex flex-col gap-3 rounded-lg border border-red-500/20 p-3"
@@ -1023,11 +1053,35 @@ export default function AdminDashboard() {
                         <div className="flex flex-col gap-1">
                           <p className="font-medium">Dispute #{item.id}</p>
                           <p className="text-xs text-foreground/50">
-                            {item.credits_held} credits • Status: {item.status}
+                            {item.credits_held} credits in escrow • Status: {item.status}
                           </p>
+                          <div className="flex gap-4 text-xs mt-1">
+                            <span>
+                              🛒 Buyer:{" "}
+                              <span className="font-medium">{buyer?.username || item.payer_id?.substring(0, 8)}</span>
+                              {buyerDisputeCount > 1 && (
+                                <span className="ml-1 text-red-500">({buyerDisputeCount} open disputes)</span>
+                              )}
+                            </span>
+                            <span>
+                              🎁 Seller:{" "}
+                              <span className="font-medium">{seller?.username || item.provider_id?.substring(0, 8)}</span>
+                              {sellerDisputeCount > 1 && (
+                                <span className="ml-1 text-red-500">({sellerDisputeCount} open disputes)</span>
+                              )}
+                            </span>
+                          </div>
                           {item.dispute_reason && (
-                            <p className="text-xs text-foreground/60">
-                              Reason: {item.dispute_reason}
+                            <p className="text-xs text-foreground/60 mt-1">
+                              <span className="font-medium">Reason:</span> {item.dispute_reason}
+                            </p>
+                          )}
+                          {item.admin_note && (
+                            <p className="text-xs text-foreground/50 italic">Note: {item.admin_note}</p>
+                          )}
+                          {item.disputed_at && (
+                            <p className="text-xs text-foreground/40">
+                              Filed: {new Date(item.disputed_at).toLocaleString()}
                             </p>
                           )}
                         </div>
@@ -1044,9 +1098,16 @@ export default function AdminDashboard() {
                           >
                             Refund buyer
                           </button>
+                          <button
+                            onClick={() => handleAdminCancelDispute(item.id)}
+                            className="px-3 py-1 text-xs rounded border border-foreground/10 text-foreground/50 hover:bg-foreground/5"
+                          >
+                            Close dispute
+                          </button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1709,6 +1770,11 @@ export default function AdminDashboard() {
                                 <p className="text-xs text-foreground/60">
                                   ID: {user.id.substring(0, 8)}...
                                 </p>
+                                {user.open_dispute_count > 0 && (
+                                  <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-red-500/15 border border-red-500/25 px-2 py-0.5 text-xs font-semibold text-red-600">
+                                    ⚠️ {user.open_dispute_count} open {user.open_dispute_count === 1 ? "dispute" : "disputes"}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="py-3 px-2">

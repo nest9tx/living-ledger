@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s | Living Ledger",
   },
   description:
-    "A community marketplace for micro-acts of assistance. Post requests, offer your gifts, earn Gratitude Credits, and cash out real money via Stripe.",
+    "A community marketplace for micro-acts of assistance. Post requests, post offers, earn Gratitude Credits, and cash out real money via Stripe.",
   keywords: ["community marketplace", "micro-services", "gratitude credits", "skill sharing", "freelance", "help exchange"],
   authors: [{ name: "Living Ledger" }],
   openGraph: {
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     siteName: "Living Ledger",
     title: "Living Ledger — Give Help. Receive Help. Build Credit.",
     description:
-      "A community marketplace for micro-acts of assistance. Post requests, offer your gifts, earn Gratitude Credits, and cash out real money via Stripe.",
+      "A community marketplace for micro-acts of assistance. Post requests, post offers, earn Gratitude Credits, and cash out real money via Stripe.",
     images: [
       {
         url: "/og-image.png",

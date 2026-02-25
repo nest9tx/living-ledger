@@ -69,8 +69,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Fetch dispute counts per user (as buyer or seller in a disputed escrow)
+    const { data: disputeRows } = await supabaseAdmin
+      .from("credit_escrow")
+      .select("payer_id, provider_id")
+      .eq("status", "disputed");
+
+    const disputeCountMap: Record<string, number> = {};
+    for (const row of disputeRows || []) {
+      if (row.payer_id) disputeCountMap[row.payer_id] = (disputeCountMap[row.payer_id] || 0) + 1;
+      if (row.provider_id) disputeCountMap[row.provider_id] = (disputeCountMap[row.provider_id] || 0) + 1;
+    }
+
+    const usersWithDisputes = (users || []).map((u) => ({
+      ...u,
+      open_dispute_count: disputeCountMap[u.id] || 0,
+    }));
+
     return NextResponse.json({
-      users: users || [],
+      users: usersWithDisputes,
     });
   } catch (error) {
     console.error("Admin users list error:", error);

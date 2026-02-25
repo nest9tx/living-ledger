@@ -219,7 +219,7 @@ export default function DashboardPage() {
                 : "text-foreground/60 hover:text-foreground"
             }`}
           >
-            Offer Your Gifts
+            Post an Offer
           </button>
           <button
             onClick={() => setActiveTab("listings")}

@@ -82,7 +82,8 @@ export async function createRequest(
   quantity?: number | null,
   images?: Array<{ id: string; storage_path: string; filename: string }> | null,
   isPhysical?: boolean,
-  shippingCredits?: number | null
+  shippingCredits?: number | null,
+  shippingRegion?: string | null
 ) {
   try {
     const { data: user } = await supabase.auth.getUser();
@@ -103,6 +104,7 @@ export async function createRequest(
         quantity: quantity,
         is_physical: isPhysical ?? false,
         shipping_credits: isPhysical ? (shippingCredits ?? null) : null,
+        shipping_region: isPhysical ? (shippingRegion ?? null) : null,
         images: images ? images.map(img => ({
           id: img.id,
           storage_path: img.storage_path,
@@ -254,7 +256,8 @@ export async function createOffer(
   quantity?: number | null,
   images?: Array<{ id: string; storage_path: string; filename: string }> | null,
   isPhysical?: boolean,
-  shippingCredits?: number | null
+  shippingCredits?: number | null,
+  shippingRegion?: string | null
 ) {
   try {
     const { data: user } = await supabase.auth.getUser();
@@ -276,6 +279,7 @@ export async function createOffer(
           quantity: quantity,
           is_physical: isPhysical ?? false,
           shipping_credits: isPhysical ? (shippingCredits ?? null) : null,
+          shipping_region: isPhysical ? (shippingRegion ?? null) : null,
           images: images ? images.map(img => ({
             id: img.id,
             storage_path: img.storage_path,
