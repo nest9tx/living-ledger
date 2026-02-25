@@ -863,7 +863,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4">
-                      <p className="text-sm text-foreground/70">Platform Fees (15%)</p>
+                      <p className="text-sm text-foreground/70">Platform Fees (10%)</p>
                       <p className="text-2xl font-semibold mt-2">${revenueData.byType.platform_fee}</p>
                       <p className="text-xs text-foreground/50 mt-1">From completed transactions</p>
                     </div>
@@ -932,7 +932,7 @@ export default function AdminDashboard() {
                                       ? "bg-emerald-500/10 text-emerald-600"
                                       : "bg-yellow-500/10 text-yellow-600"
                                   }`}>
-                                    {t.transaction_type === "platform_fee" ? "Fee (15%)" : "Boost"}
+                                    {t.transaction_type === "platform_fee" ? "Fee (10%)" : "Boost"}
                                   </span>
                                 </td>
                                 <td className="px-4 py-2 text-xs text-foreground/60 max-w-xs truncate">{t.description}</td>

@@ -92,7 +92,7 @@ export default function TermsPage() {
                 <p>
                   Credits earned by providing services are held in escrow during a 7-day safety
                   window before becoming eligible for cashout. A{" "}
-                  <strong className="text-foreground">15% platform fee</strong> is deducted when
+                  <strong className="text-foreground">10% platform fee</strong> is deducted when
                   escrow releases to the provider.
                 </p>
               </div>
@@ -118,7 +118,7 @@ export default function TermsPage() {
               When a buyer agrees to a transaction, the agreed credit amount is placed into
               escrow. Credits are released to the service provider only after delivery is
               confirmed by the buyer, or after admin review if a dispute is raised. Providers
-              receive 85% of the agreed amount (15% platform fee). Credits released in error are
+              receive 90% of the agreed amount (10% platform fee). Credits released in error are
               subject to administrative correction.
             </p>
           </section>
@@ -127,7 +127,7 @@ export default function TermsPage() {
             <h2 className="text-2xl font-semibold text-foreground mb-3">6. Platform Fees</h2>
             <p>
               Living Ledger charges a{" "}
-              <strong className="text-foreground">15% platform fee</strong> on all completed
+              <strong className="text-foreground">10% platform fee</strong> on all completed
               service transactions. This fee is automatically deducted when escrow releases. No
               additional fees are charged on earned credits at the time of standard cashout.
             </p>

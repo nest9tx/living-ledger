@@ -58,7 +58,7 @@ export default function CreditsPanel() {
           </div>
         </div>
         <p className="mt-2 text-sm text-foreground/70">
-          1 credit = $1 USD. Requests are free to post. Providers receive 85% on completion (15% platform fee).
+          1 credit = $1 USD. Requests are free to post. Providers receive 90% on completion (10% platform fee).
         </p>
         <div className="mt-4 flex gap-2">
           <a

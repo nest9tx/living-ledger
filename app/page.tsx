@@ -82,7 +82,7 @@ export default async function Home() {
               {
                 step: "03",
                 title: "Complete and get paid",
-                body: "Mark delivery done. Credits release and 85% land in your account instantly. Reach 20 earned credits and cash out to USD via Stripe.",
+                body: "Mark delivery done. Credits release and 90% land in your account instantly. Reach 20 earned credits and cash out to USD via Stripe.",
               },
             ].map((item) => (
               <div key={item.step} className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5 space-y-2">
@@ -231,7 +231,7 @@ export default async function Home() {
               <li>• Escrow holds credits until delivery is confirmed.</li>
               <li>• 7-day safety window protects against disputes.</li>
               <li>• Admin dispute resolution ensures fairness.</li>
-              <li>• 15% platform fee keeps the system running.</li>
+              <li>• 10% platform fee keeps the system running.</li>
             </ul>
           </div>
         </section>

@@ -584,7 +584,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
                   </p>
                 )}
                 <p className="mt-3 text-xs text-foreground/50 text-center">
-                  💡 Buyers pay the listed price. Providers receive 85% after completion (15% platform fee).
+                  💡 Buyers pay the listed price. Providers receive 90% after completion (10% platform fee).
                 </p>
                 <p className="mt-1 text-xs text-foreground/50 text-center">
                   Credits are held in escrow and release after a 7-day safety delay.

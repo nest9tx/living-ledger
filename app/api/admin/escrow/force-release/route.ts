@@ -3,7 +3,7 @@ import supabaseAdmin from "@/lib/supabase-admin";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const PLATFORM_FEE_RATE = 0.15;
+const PLATFORM_FEE_RATE = 0.10;
 
 export async function POST(req: Request) {
   try {
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       : escrow.request_id
         ? `Request #${escrow.request_id}`
         : "Listing";
-    // Exact 15% fee — DB columns are NUMERIC(10,2) so 1.50 on a 10-credit sale stores correctly.
+    // Exact 10% fee — DB columns are NUMERIC(10,2) so 1.00 on a 10-credit sale stores correctly.
     const platformFee = Math.round(credits * PLATFORM_FEE_RATE * 100) / 100;
     const providerCredits = Math.round((credits - platformFee) * 100) / 100;
 
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
       const { error: feeError } = await supabaseAdmin.from("transactions").insert({
         user_id: escrow.provider_id,
         amount: -platformFee,
-        description: `Platform fee (15%) for ${listingLabel}`,
+        description: `Platform fee (10%) for ${listingLabel}`,
         transaction_type: "platform_fee",
         credit_source: "earned", // keeps earned_credits and balance in sync
         related_offer_id: escrow.offer_id,
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
               
               <div style="margin: 16px 0;">
                 <p><strong>Order:</strong> ${listingTitle}</p>
-                <p><strong>Credits Released:</strong> ${providerCredits} (after 15% platform fee)</p>
+                <p><strong>Credits Released:</strong> ${providerCredits} (after 10% platform fee)</p>
                 <p><strong>Platform Fee:</strong> ${platformFee} credits</p>
                 ${adminNote ? `<p><strong>Admin Note:</strong> ${adminNote}</p>` : ''}
               </div>

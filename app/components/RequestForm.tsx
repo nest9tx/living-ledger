@@ -192,7 +192,7 @@ export default function RequestForm({
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-foreground/10 bg-foreground/2 p-4">
       <h3 className="font-semibold">Post a request for help</h3>
       <p className="text-xs text-foreground/60">
-        Posting requests is free. Buyers pay the listed price; providers receive 85% after completion (15% platform fee).
+        Posting requests is free. Buyers pay the listed price; providers receive 90% after completion (10% platform fee).
       </p>
 
       <div>

@@ -356,7 +356,7 @@ export default function ListingDetailPage() {
                       <strong>After 7 days</strong> of safety delay, credits are released to the provider.
                     </p>
                     <p className="text-xs text-foreground/60 mt-3">
-                      The provider receives 85% of credits. 15% platform fee supports moderation, trust, and community.
+                      The provider receives 90% of credits. 10% platform fee supports moderation, trust, and community.
                     </p>
                   </>
                 ) : (
@@ -371,7 +371,7 @@ export default function ListingDetailPage() {
                       <strong>Credits are paid after completion</strong> when both parties agree work is done.
                     </p>
                     <p className="text-xs text-foreground/60 mt-3">
-                      You&apos;ll receive 85% of the budgeted credits. 15% platform fee supports the ecosystem.
+                      You&apos;ll receive 90% of the budgeted credits. 10% platform fee supports the ecosystem.
                     </p>
                   </>
                 )}

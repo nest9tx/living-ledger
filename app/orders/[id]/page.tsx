@@ -501,7 +501,7 @@ export default function OrderDetailPage() {
           </div>
           
           <p className="text-xs text-foreground/60">
-            Buyers pay the listed price. Providers receive 85% after completion (15% platform fee). Funds release 7 days from the order date once both parties confirm.
+            Buyers pay the listed price. Providers receive 90% after completion (10% platform fee). Funds release 7 days from the order date once both parties confirm.
           </p>
           {escrow.status === "disputed" && (
             <div className="rounded-lg bg-red-500/10 p-3 border border-red-500/20">

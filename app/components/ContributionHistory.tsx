@@ -321,7 +321,7 @@ export default function ContributionHistory() {
                       <span className="font-medium">{contrib.credits_held} credits</span>
                       {isProvider && (
                         <span className="text-foreground/60 ml-2">
-                          (you received {Math.floor(contrib.credits_held * 0.85)} after platform fee)
+                          (you received {Math.floor(contrib.credits_held * 0.90)} after platform fee)
                         </span>
                       )}
                     </div>

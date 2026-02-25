@@ -154,7 +154,7 @@ export default function GuidelinesPage() {
 
               <div>
                 <h3 className="font-semibold text-foreground mb-1">Using credits for a service</h3>
-                <p>When you agree to a transaction, credits move into escrow immediately. They are released to the provider only after delivery is confirmed — or after admin review if a dispute is opened. Providers receive <strong className="text-foreground">85%</strong> of the agreed amount (15% platform fee).</p>
+                <p>When you agree to a transaction, credits move into escrow immediately. They are released to the provider only after delivery is confirmed — or after admin review if a dispute is opened. Providers receive <strong className="text-foreground">90%</strong> of the agreed amount (10% platform fee).</p>
               </div>
 
               <div>

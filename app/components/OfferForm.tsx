@@ -364,7 +364,7 @@ export default function OfferForm({
             <p className="mt-1 text-xs text-red-600">{fieldErrors.priceCredits}</p>
           )}
           <p className="mt-1 text-xs text-foreground/50">
-            Providers receive 85% when work is completed (15% platform fee).
+            Providers receive 90% when work is completed (10% platform fee).
           </p>
         </div>
       </div>

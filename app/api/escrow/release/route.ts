@@ -6,7 +6,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PLATFORM_FEE_RATE = 0.15;
+const PLATFORM_FEE_RATE = 0.10;
 
 export async function POST(req: Request) {
   try {
@@ -135,7 +135,7 @@ async function releaseEscrow(escrowId: number, userId: string, escrow: any) {
     return NextResponse.json({ error: "Invalid escrow amount" }, { status: 400 });
   }
 
-  // Round to 2 decimal places to avoid floating-point drift (e.g. 10 * 0.15 = 1.4999999...)
+  // Round to 2 decimal places to avoid floating-point drift (e.g. 10 * 0.10 = 0.9999999...)
   const platformFee = Math.round(credits * PLATFORM_FEE_RATE * 100) / 100;
   const providerCredits = Math.round((credits - platformFee) * 100) / 100;
 
