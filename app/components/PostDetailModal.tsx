@@ -40,6 +40,9 @@ type PostDetail = {
   budget_credits?: number;
   status?: string;
   quantity?: number | null;
+  is_physical?: boolean;
+  shipping_credits?: number | null;
+  shipping_region?: string | null;
 };
 
 export default function PostDetailModal({ postId, postType, onClose, onDelete, onBoost, defaultTab = "details", guestMode = false }: PostDetailProps) {
@@ -58,6 +61,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
   const [activeTab, setActiveTab] = useState<"details" | "messages">(defaultTab);
   const [quantityRemaining, setQuantityRemaining] = useState<number | null>(null);
   const [lastBoostTier, setLastBoostTier] = useState<"homepage" | "category" | null>(null);
+  const [showPurchaseConfirm, setShowPurchaseConfirm] = useState(false);
 
   useEffect(() => {
     // Get current user
@@ -142,25 +146,27 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
     setActiveTab("messages");
   };
 
-  const handlePurchase = async () => {
+  const handleConfirmPurchase = async () => {
     try {
       setPurchaseError(null);
-      const credits = postType === "offer" ? post?.price_credits : post?.budget_credits;
-      if (!credits) {
-        alert("This listing does not have a valid credit amount.");
+      const baseCredits = postType === "offer" ? post?.price_credits : post?.budget_credits;
+      if (!baseCredits) {
+        setPurchaseError("This listing does not have a valid credit amount.");
         return;
       }
 
-      if (!confirm(`Hold ${credits} credits in escrow for this ${postType}?\n\nBuyers pay the listed price. Providers receive 85% on completion (15% platform fee).\n\nCredits release after completion, with a 7-day safety delay.`)) {
-        return;
-      }
+      const shippingCredits = post?.is_physical ? (post.shipping_credits || 0) : 0;
+      const totalCredits = baseCredits + shippingCredits;
 
       setPurchaseLoading(true);
+      setShowPurchaseConfirm(false);
+
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
 
       if (!token) {
-        alert("Please sign in again to continue.");
+        setPurchaseError("Please sign in again to continue.");
+        setPurchaseLoading(false);
         return;
       }
 
@@ -170,7 +176,7 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ postId, postType }),
+        body: JSON.stringify({ postId, postType, credits: totalCredits }),
       });
 
       const payload = await res.json();
@@ -178,20 +184,11 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
         throw new Error(payload?.error || "Failed to hold credits");
       }
 
-      alert(
-        `Credits held in escrow!\n\nRelease available on: ${new Date(
-          payload.releaseAvailableAt
-        ).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })}`
-      );
       onClose();
+      window.location.href = `/orders/${payload.escrowId}`;
     } catch (err) {
       console.error("Error purchasing:", err);
       setPurchaseError(err instanceof Error ? err.message : "Failed to process purchase.");
-      alert("Failed to process purchase. Please try again.");
     } finally {
       setPurchaseLoading(false);
     }
@@ -445,9 +442,26 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
               <div className="text-sm text-foreground/60">
                 {postType === "offer" ? "Price" : "Budget"}
               </div>
-              <div className="text-2xl font-semibold">
-                {postType === "offer" ? post.price_credits : post.budget_credits} credits
-              </div>
+              {post.is_physical && post.shipping_credits ? (
+                <>
+                  <div className="text-sm text-foreground/70 mt-0.5">
+                    <span className="font-semibold text-foreground">{postType === "offer" ? post.price_credits : post.budget_credits}</span>
+                    {" + "}
+                    <span className="font-semibold text-foreground">{post.shipping_credits}</span>
+                    {" shipping"}
+                  </div>
+                  <div className="text-2xl font-semibold">
+                    {(postType === "offer" ? (post.price_credits || 0) : (post.budget_credits || 0)) + post.shipping_credits} credits total
+                  </div>
+                  {post.shipping_region && (
+                    <div className="mt-1 text-xs text-amber-700">🌍 Ships: <span className="capitalize">{post.shipping_region === "domestic" ? "USA only" : post.shipping_region}</span></div>
+                  )}
+                </>
+              ) : (
+                <div className="text-2xl font-semibold">
+                  {postType === "offer" ? post.price_credits : post.budget_credits} credits
+                </div>
+              )}
               {post.quantity != null && (
                 quantityRemaining === 0 ? (
                   <div className="mt-1 text-sm font-medium text-red-600">🚫 Sold Out</div>
@@ -496,31 +510,72 @@ export default function PostDetailModal({ postId, postType, onClose, onDelete, o
               
               {/* Action Buttons */}
               <div className="space-y-3">
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleOpenMessages}
-                    className="flex-1 rounded-lg border border-foreground/20 bg-background px-4 py-2 text-sm font-medium hover:bg-foreground/5 transition"
-                  >
-                    💬 Message Seller
-                  </button>
-                  <button
-                    onClick={handlePurchase}
-                    disabled={purchaseLoading || (post.quantity != null && quantityRemaining === 0)}
-                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
-                      post.quantity != null && quantityRemaining === 0
-                        ? "bg-foreground/20 text-foreground/50 cursor-not-allowed"
-                        : "bg-foreground text-background hover:bg-foreground/90"
-                    }`}
-                  >
-                    {post.quantity != null && quantityRemaining === 0
-                      ? "Sold Out"
-                      : purchaseLoading
-                        ? "Holding credits..."
+                {showPurchaseConfirm ? (
+                  <div className="rounded-lg border border-foreground/15 bg-foreground/5 p-4 space-y-3">
+                    <p className="text-sm font-semibold">Confirm purchase</p>
+                    {post.is_physical && post.shipping_credits ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-foreground/60">Item</span>
+                          <span>{postType === "offer" ? post.price_credits : post.budget_credits} credits</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-foreground/60">Shipping</span>
+                          <span>{post.shipping_credits} credits</span>
+                        </div>
+                        <div className="flex justify-between border-t border-foreground/10 pt-2">
+                          <span className="text-sm font-semibold">Total to escrow</span>
+                          <span className="text-lg font-bold text-emerald-600">{(postType === "offer" ? (post.price_credits || 0) : (post.budget_credits || 0)) + post.shipping_credits}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-foreground/60">Credits to escrow</span>
+                        <span className="text-lg font-bold text-emerald-600">{postType === "offer" ? post.price_credits : post.budget_credits}</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-foreground/60">Held safely until confirmed complete. Released after 7-day delay.</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowPurchaseConfirm(false)}
+                        className="flex-1 rounded-lg border border-foreground/20 px-3 py-2 text-sm hover:bg-foreground/5 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleConfirmPurchase}
+                        disabled={purchaseLoading}
+                        className="flex-1 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background hover:bg-foreground/90 transition disabled:opacity-50"
+                      >
+                        {purchaseLoading ? "Processing..." : "Confirm"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleOpenMessages}
+                      className="flex-1 rounded-lg border border-foreground/20 bg-background px-4 py-2 text-sm font-medium hover:bg-foreground/5 transition"
+                    >
+                      💬 Message Seller
+                    </button>
+                    <button
+                      onClick={() => setShowPurchaseConfirm(true)}
+                      disabled={purchaseLoading || (post.quantity != null && quantityRemaining === 0)}
+                      className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                        post.quantity != null && quantityRemaining === 0
+                          ? "bg-foreground/20 text-foreground/50 cursor-not-allowed"
+                          : "bg-foreground text-background hover:bg-foreground/90"
+                      }`}
+                    >
+                      {post.quantity != null && quantityRemaining === 0
+                        ? "Sold Out"
                         : postType === "offer"
                           ? "Purchase"
                           : "Accept & Pay"}
-                  </button>
-                </div>
+                    </button>
+                  </div>
+                )}
               </div>
 
                 {purchaseError && (
