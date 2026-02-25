@@ -153,6 +153,20 @@ export async function POST(req: Request) {
       return Response.json({ error: "Failed to hold credits" }, { status: 500 });
     }
 
+    // Mark the listing as sold out if all quantity slots are now filled
+    if (post.quantity != null) {
+      const escrowField = postType === "offer" ? "offer_id" : "request_id";
+      const table = postType === "offer" ? "offers" : "requests";
+      const { count: newSoldCount } = await supabaseAdmin
+        .from("credit_escrow")
+        .select("id", { count: "exact", head: true })
+        .eq(escrowField, postId)
+        .not("status", "in", '("refunded","cancelled")');
+      if ((newSoldCount || 0) >= post.quantity) {
+        await supabaseAdmin.from(table).update({ is_sold_out: true }).eq("id", postId);
+      }
+    }
+
     const { error: txError } = await supabaseAdmin.from("transactions").insert({
       user_id: userData.user.id,
       amount: -credits,

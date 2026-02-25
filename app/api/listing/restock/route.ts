@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     const currentQty = listing.quantity ?? 0;
     const newQty = currentQty + addQuantity;
 
-    const updates: Record<string, unknown> = { quantity: newQty };
+    const updates: Record<string, unknown> = { quantity: newQty, is_sold_out: false };
 
     if (extendDays > 0) {
       const base = listing.expires_at
