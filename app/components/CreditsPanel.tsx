@@ -84,6 +84,11 @@ export default function CreditsPanel() {
             Minimum cashout: $20 earned credits. {earnedCredits > 0 ? `You have $${earnedCredits} — earn $${20 - earnedCredits} more to cash out.` : 'Complete services to earn credits that can be cashed out.'}
           </p>
         )}
+        {earnedCredits > 0 && (
+          <p className="mt-2 text-xs text-emerald-700/80">
+            💡 <strong>Earned credits spend just like purchased ones</strong> — use them on any request, offer, or boost, or cash out to Stripe once you hit $20.
+          </p>
+        )}
         {balance === 0 && (
           <p className="mt-3 text-xs text-foreground/50">
             💡 Requests are free to post. You only need credits to purchase services. Processing fees are added at checkout.
