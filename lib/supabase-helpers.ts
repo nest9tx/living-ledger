@@ -34,6 +34,7 @@ export async function fetchCategories() {
 
 export async function seedDefaultCategories() {
   const defaultCategories = [
+    // Digital / Services
     { name: "Skills & Learning", icon: "📚" },
     { name: "Creative Work", icon: "🎨" },
     { name: "Emotional Support", icon: "💙" },
@@ -43,6 +44,15 @@ export async function seedDefaultCategories() {
     { name: "Healing & Wellness", icon: "🧘" },
     { name: "Spirituality & Energy Work", icon: "✨" },
     { name: "Community & Activism", icon: "🌍" },
+    // Physical Goods
+    { name: "Collectibles", icon: "🏆" },
+    { name: "Custom & Made-to-Order", icon: "🛠️" },
+    { name: "Pre-made Goods", icon: "📦" },
+    { name: "Antiques", icon: "🏛️" },
+    { name: "Toys & Games", icon: "🧸" },
+    { name: "Art & Prints", icon: "🖼️" },
+    { name: "Crafts & DIY", icon: "🧵" },
+    { name: "Misc Physical", icon: "📫" },
   ];
 
   try {
@@ -70,7 +80,9 @@ export async function createRequest(
   categoryId: number,
   budgetCredits: number,
   quantity?: number | null,
-  images?: Array<{ id: string; storage_path: string; filename: string }> | null
+  images?: Array<{ id: string; storage_path: string; filename: string }> | null,
+  isPhysical?: boolean,
+  shippingCredits?: number | null
 ) {
   try {
     const { data: user } = await supabase.auth.getUser();
@@ -89,6 +101,8 @@ export async function createRequest(
         category_id: categoryId, 
         budget_credits: budgetCredits,
         quantity: quantity,
+        is_physical: isPhysical ?? false,
+        shipping_credits: isPhysical ? (shippingCredits ?? null) : null,
         images: images ? images.map(img => ({
           id: img.id,
           storage_path: img.storage_path,
@@ -123,6 +137,8 @@ export async function fetchRequests() {
          description, 
          status, 
          budget_credits,
+         is_physical,
+         shipping_credits,
          created_at, 
          user_id, 
          category_id`
@@ -236,7 +252,9 @@ export async function createOffer(
   categoryId: number,
   priceCredits: number,
   quantity?: number | null,
-  images?: Array<{ id: string; storage_path: string; filename: string }> | null
+  images?: Array<{ id: string; storage_path: string; filename: string }> | null,
+  isPhysical?: boolean,
+  shippingCredits?: number | null
 ) {
   try {
     const { data: user } = await supabase.auth.getUser();
@@ -256,6 +274,8 @@ export async function createOffer(
           category_id: categoryId,
           price_credits: priceCredits,
           quantity: quantity,
+          is_physical: isPhysical ?? false,
+          shipping_credits: isPhysical ? (shippingCredits ?? null) : null,
           images: images ? images.map(img => ({
             id: img.id,
             storage_path: img.storage_path,
@@ -290,6 +310,8 @@ export async function fetchOffers() {
          title, 
          description, 
          price_credits,
+         is_physical,
+         shipping_credits,
          created_at, 
          user_id, 
          category_id`

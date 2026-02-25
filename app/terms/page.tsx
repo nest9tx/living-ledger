@@ -184,7 +184,38 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-foreground mb-3">10. Disclaimers</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-3">
+              10. Physical Goods &amp; Shipping
+            </h2>
+            <div className="space-y-4">
+              <p>
+                Living Ledger supports listings for physical goods (handmade items, art, collectibles, crafts, and similar tangible products) in addition to digital services. When a listing is marked as a physical item, the following terms apply:
+              </p>
+              <ul className="space-y-2 list-disc list-inside">
+                <li>
+                  <strong className="text-foreground">Shipping is the seller&apos;s responsibility.</strong> The seller must package and ship the item in a timely manner after a transaction is agreed. Shipping costs, if any, are set by the seller and displayed separately on the listing.
+                </li>
+                <li>
+                  <strong className="text-foreground">Buyers must provide a shipping address.</strong> Buyers are responsible for sending a valid shipping address to the seller via the platform&apos;s message system before or immediately after a transaction is confirmed. Living Ledger does not store or process shipping addresses.
+                </li>
+                <li>
+                  <strong className="text-foreground">Living Ledger is not liable for shipping.</strong> We are not responsible for lost, stolen, damaged, delayed, or undelivered items. Any issues with shipping are between the buyer and seller, and may be escalated through the dispute system if evidence of misrepresentation exists.
+                </li>
+                <li>
+                  <strong className="text-foreground">Item condition.</strong> Sellers must accurately represent the condition and description of physical items. Misrepresentation may result in a dispute, admin review, and potential account action. Buyers are encouraged to request photos and ask questions via messaging before completing a transaction.
+                </li>
+                <li>
+                  <strong className="text-foreground">Disputes for physical goods.</strong> If an item arrives significantly not as described, buyers may open a dispute from the order page and provide photographic evidence. Admin decisions in these cases are final.
+                </li>
+                <li>
+                  <strong className="text-foreground">Prohibited physical goods.</strong> Physical listings are subject to the same conduct rules as all listings. You may not sell illegal items, counterfeit goods, weapons, hazardous materials, or any products that violate applicable law.
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-foreground mb-3">11. Disclaimers</h2>
             <p>
               Living Ledger is provided &ldquo;as is&rdquo; without warranties of any kind,
               express or implied. We do not guarantee the quality, safety, legality, or timely
@@ -194,7 +225,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-3">
-              11. Limitation of Liability
+              12. Limitation of Liability
             </h2>
             <p>
               To the maximum extent permitted by applicable law, Living Ledger and its operators
@@ -207,7 +238,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-3">
-              12. Indemnification
+              13. Indemnification
             </h2>
             <p>
               You agree to indemnify and hold Living Ledger and its operators harmless from any
@@ -218,7 +249,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-3">
-              13. Changes &amp; Termination
+              14. Changes &amp; Termination
             </h2>
             <p>
               We may update these Terms at any time. Material changes will be communicated by
@@ -230,7 +261,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-foreground mb-3">14. Contact</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-3">15. Contact</h2>
             <p>
               Questions about these Terms?{" "}
               <a

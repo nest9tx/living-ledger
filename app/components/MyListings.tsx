@@ -23,6 +23,8 @@ type MyListing = {
   boostExpiresAt?: string | null;
   hasHomepageBoost?: boolean;
   hasCategoryBoost?: boolean;
+  is_physical?: boolean;
+  shipping_credits?: number | null;
 };
 
 export default function MyListings() {
@@ -129,6 +131,8 @@ export default function MyListings() {
             status,
             budget_credits,
             quantity,
+            is_physical,
+            shipping_credits,
             created_at,
             expires_at,
             category_id,
@@ -148,6 +152,8 @@ export default function MyListings() {
             description,
             price_credits,
             quantity,
+            is_physical,
+            shipping_credits,
             created_at,
             expires_at,
             category_id,
@@ -241,6 +247,8 @@ export default function MyListings() {
               boostExpiresAt: primaryBoost(`request-${r.id}`)?.expires_at || null,
               hasHomepageBoost: (boostMap[`request-${r.id}`] || []).some(b => b.boost_tier === "homepage"),
               hasCategoryBoost: (boostMap[`request-${r.id}`] || []).some(b => b.boost_tier === "category"),
+              is_physical: r.is_physical ?? false,
+              shipping_credits: r.shipping_credits ?? null,
             };
           }),
           ...(offers || []).map(o => {
@@ -258,6 +266,8 @@ export default function MyListings() {
               boostExpiresAt: primaryBoost(`offer-${o.id}`)?.expires_at || null,
               hasHomepageBoost: (boostMap[`offer-${o.id}`] || []).some(b => b.boost_tier === "homepage"),
               hasCategoryBoost: (boostMap[`offer-${o.id}`] || []).some(b => b.boost_tier === "category"),
+              is_physical: o.is_physical ?? false,
+              shipping_credits: o.shipping_credits ?? null,
             };
           }),
         ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -393,6 +403,11 @@ export default function MyListings() {
                           </span>
                         )}
                       </>
+                    )}
+                    {listing.is_physical && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-500/25">
+                        📦 Physical
+                      </span>
                     )}
                     {listing.status && !isExpired && (
                       <span className="text-xs capitalize px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">

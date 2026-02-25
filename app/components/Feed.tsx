@@ -46,6 +46,9 @@ type FeedItem = {
   boostExpiresAt?: string | null;
   hasHomepageBoost?: boolean;
   hasCategoryBoost?: boolean;
+  is_physical?: boolean;
+  shipping_credits?: number | null;
+  quantity?: number | null;
 };
 
 type FeedProps = {
@@ -317,6 +320,11 @@ export default function Feed({ guestMode = false }: FeedProps) {
                           </span>
                         )}
                       </>
+                    )}
+                    {item.is_physical && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-500/25">
+                        📦 Physical
+                      </span>
                     )}
                   </div>
                   <h3 className="mt-2 font-semibold">{item.title}</h3>

@@ -18,6 +18,7 @@ type FormErrors = {
   categoryId?: string;
   budgetCredits?: string;
   images?: string;
+  shippingCredits?: string;
 };
 
 export default function RequestForm({
@@ -29,6 +30,8 @@ export default function RequestForm({
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [budgetCredits, setBudgetCredits] = useState(5);
+  const [isPhysical, setIsPhysical] = useState(false);
+  const [shippingCredits, setShippingCredits] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,6 +85,12 @@ export default function RequestForm({
       errors.images = "Maximum 5 images allowed";
     }
 
+    if (isPhysical && shippingCredits !== null && shippingCredits < 1) {
+      errors.shippingCredits = "Shipping cost must be at least 1 credit if set";
+    } else if (isPhysical && shippingCredits !== null && shippingCredits > 100) {
+      errors.shippingCredits = "Shipping cost cannot exceed 100 credits";
+    }
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -98,7 +107,16 @@ export default function RequestForm({
     setLoading(true);
 
     try {
-      const requestData = await createRequest(title, description, categoryId!, budgetCredits);
+      const requestData = await createRequest(
+        title,
+        description,
+        categoryId!,
+        budgetCredits,
+        undefined,
+        undefined,
+        isPhysical,
+        shippingCredits
+      );
 
       if (!requestData || !requestData[0]) {
         throw new Error("Failed to create request");
@@ -136,6 +154,8 @@ export default function RequestForm({
       setTitle("");
       setDescription("");
       setBudgetCredits(5);
+      setIsPhysical(false);
+      setShippingCredits(null);
       setImages([]);
       setFieldErrors({});
       setSuccess(true);
@@ -296,6 +316,62 @@ export default function RequestForm({
             <p className="mt-1 text-xs text-red-600">{fieldErrors.budgetCredits}</p>
           )}
         </div>
+      </div>
+
+      {/* Physical item toggle */}
+      <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div
+            onClick={() => {
+              setIsPhysical(!isPhysical);
+              if (isPhysical) setShippingCredits(null);
+              if (fieldErrors.shippingCredits) setFieldErrors({ ...fieldErrors, shippingCredits: undefined });
+            }}
+            className={`relative w-10 h-5 rounded-full transition-colors ${
+              isPhysical ? "bg-amber-500" : "bg-foreground/20"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                isPhysical ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </div>
+          <span className="text-sm font-medium">📦 Physical item (needs to be shipped)</span>
+        </label>
+        {isPhysical && (
+          <div className="space-y-2 pt-1 border-t border-foreground/10">
+            <p className="text-xs text-amber-600/80 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
+              ⚠️ You’ll need to share your shipping address with the seller via the platform message system. Living Ledger is not liable for shipping outcomes.
+            </p>
+            <div>
+              <label className="text-sm font-medium" htmlFor="req-shipping-credits">
+                Expected shipping cost (credits, optional)
+              </label>
+              <input
+                id="req-shipping-credits"
+                type="number"
+                min="1"
+                max="100"
+                placeholder="e.g. 5 — leave blank if unknown"
+                className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
+                  fieldErrors.shippingCredits
+                    ? "border-red-500/50 bg-red-500/5"
+                    : "border-foreground/15"
+                }`}
+                value={shippingCredits ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value ? parseInt(e.target.value) : null;
+                  setShippingCredits(v);
+                  if (fieldErrors.shippingCredits) setFieldErrors({ ...fieldErrors, shippingCredits: undefined });
+                }}
+              />
+              {fieldErrors.shippingCredits && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.shippingCredits}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Image Upload Section */}

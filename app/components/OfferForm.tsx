@@ -19,6 +19,7 @@ type FormErrors = {
   priceCredits?: string;
   quantity?: string;
   images?: string;
+  shippingCredits?: string;
 };
 
 export default function OfferForm({
@@ -31,6 +32,8 @@ export default function OfferForm({
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [priceCredits, setPriceCredits] = useState(5);
   const [quantity, setQuantity] = useState<number | null>(null);
+  const [isPhysical, setIsPhysical] = useState(false);
+  const [shippingCredits, setShippingCredits] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -87,6 +90,12 @@ export default function OfferForm({
       errors.quantity = "Quantity cannot exceed 1,000";
     }
 
+    if (isPhysical && shippingCredits !== null && shippingCredits < 1) {
+      errors.shippingCredits = "Shipping cost must be at least 1 credit if set";
+    } else if (isPhysical && shippingCredits !== null && shippingCredits > 100) {
+      errors.shippingCredits = "Shipping cost cannot exceed 100 credits";
+    }
+
     if (images.length > 5) {
       errors.images = "Maximum 5 images allowed";
     }
@@ -114,7 +123,9 @@ export default function OfferForm({
         categoryId!, 
         priceCredits,
         quantity,
-        [] // No images initially
+        [], // No images initially
+        isPhysical,
+        shippingCredits
       );
       
       if (!offerData || !offerData[0]) {
@@ -156,6 +167,8 @@ export default function OfferForm({
       setDescription("");
       setPriceCredits(5);
       setQuantity(null);
+      setIsPhysical(false);
+      setShippingCredits(null);
       setImages([]);
       setFieldErrors({});
       setSuccess(true);
@@ -352,6 +365,63 @@ export default function OfferForm({
             Providers receive 85% when work is completed (15% platform fee).
           </p>
         </div>
+      </div>
+
+      {/* Physical item toggle */}
+      <div className="rounded-lg border border-foreground/10 bg-foreground/2 p-4 space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div
+            onClick={() => {
+              setIsPhysical(!isPhysical);
+              if (isPhysical) setShippingCredits(null);
+              if (fieldErrors.shippingCredits) setFieldErrors({ ...fieldErrors, shippingCredits: undefined });
+            }}
+            className={`relative w-10 h-5 rounded-full transition-colors ${
+              isPhysical ? "bg-amber-500" : "bg-foreground/20"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                isPhysical ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </div>
+          <span className="text-sm font-medium">📦 Physical item (ships to buyer)</span>
+        </label>
+        {isPhysical && (
+          <div className="space-y-2 pt-1 border-t border-foreground/10">
+            <p className="text-xs text-amber-600/80 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
+              ⚠️ Buyers will send their shipping address via the platform message system. You are responsible for shipping. Living Ledger is not liable for lost, damaged, or misrepresented items.
+            </p>
+            <div>
+              <label className="text-sm font-medium" htmlFor="shipping-credits">
+                Shipping cost (credits, optional)
+              </label>
+              <input
+                id="shipping-credits"
+                type="number"
+                min="1"
+                max="100"
+                placeholder="e.g. 5 — leave blank if included in price"
+                className={`mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm transition ${
+                  fieldErrors.shippingCredits
+                    ? "border-red-500/50 bg-red-500/5"
+                    : "border-foreground/15"
+                }`}
+                value={shippingCredits ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value ? parseInt(e.target.value) : null;
+                  setShippingCredits(v);
+                  if (fieldErrors.shippingCredits) setFieldErrors({ ...fieldErrors, shippingCredits: undefined });
+                }}
+              />
+              {fieldErrors.shippingCredits && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.shippingCredits}</p>
+              )}
+              <p className="mt-1 text-xs text-foreground/50">This is shown separately on your listing so buyers know the total cost.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Image Upload Section */}
