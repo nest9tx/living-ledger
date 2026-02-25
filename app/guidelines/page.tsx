@@ -57,11 +57,61 @@ export default function GuidelinesPage() {
               </div>
 
               <div>
+                <h3 className="font-semibold mb-2">✅ Physical goods (shipped):</h3>
+                <ul className="list-disc list-inside space-y-1 text-foreground/70">
+                  <li>Handmade and artisan items (art, crafts, ceramics, textiles)</li>
+                  <li>Collectibles, prints, and limited-edition objects</li>
+                  <li>DIY kits, zines, and physical creative projects</li>
+                  <li>Requests for a specific physical item you need sourced or shipped</li>
+                </ul>
+              </div>
+
+              <div>
                 <h3 className="font-semibold mb-2">✅ Fair pricing:</h3>
                 <ul className="list-disc list-inside space-y-1 text-foreground/70">
                   <li>Set prices based on your time and skill level</li>
                   <li>Minimum service price: 5 credits ($5 USD)</li>
                   <li>Be clear about scope and deliverables</li>
+                  <li>For shipped goods: include shipping cost in your listing price or state it clearly in the description</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">Physical Goods &amp; Shipped Items</h2>
+            <div className="space-y-4 text-foreground/70">
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/8 px-4 py-3 text-sm">
+                <strong className="text-foreground">⚠️ Due diligence notice:</strong> Living Ledger does not possess, produce, warehouse, or guarantee any physical or digital items listed by members. All goods are sourced, made, and shipped directly by the individual seller. Before completing a transaction, ask questions, request additional photos, and verify condition and shipping terms to your satisfaction.
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">Seller responsibilities</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Accurately describe the item — condition, dimensions, materials</li>
+                  <li>Provide real photos (not stock images) in your listing</li>
+                  <li>Ship within the timeframe stated in your listing</li>
+                  <li>Provide tracking information once the item is dispatched</li>
+                  <li>Respond promptly to buyer questions before and after sale</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">Buyer responsibilities</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Confirm your shipping address before completing the transaction</li>
+                  <li>Do not confirm delivery until the item has physically arrived</li>
+                  <li>Open a dispute promptly if an item is significantly not as described or never arrives</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">What we don&apos;t allow</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Listing items you do not have in your possession or cannot ship</li>
+                  <li>Misrepresenting condition, origin, or authenticity</li>
+                  <li>Hazardous, regulated, or prohibited goods</li>
+                  <li>Drop-shipping arrangements without full disclosure</li>
                 </ul>
               </div>
             </div>

@@ -402,6 +402,7 @@ export default function RequestForm({
               <div key={image.id} className="relative group">
                 <div className="aspect-square rounded-lg border border-foreground/10 bg-foreground/5 p-2">
                   {image.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={image.url}
                       alt={image.filename}

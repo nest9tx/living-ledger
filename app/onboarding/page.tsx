@@ -169,15 +169,26 @@ export default function OnboardingPage() {
                 <li>✅ Delivering what you promised</li>
               </ul>
 
+              <h3 className="font-semibold">What&apos;s welcome:</h3>
+              <ul className="space-y-2 text-foreground/70">
+                <li>🤝 Digital services — skills, coaching, creative work, tech</li>
+                <li>📦 Physical goods — handmade items, art, crafts, collectibles</li>
+              </ul>
+
               <h3 className="font-semibold">What we don&apos;t allow:</h3>
               <ul className="space-y-2 text-foreground/70">
                 <li>❌ Illegal services or scams</li>
                 <li>❌ Harassment, hate speech, or discrimination</li>
                 <li>❌ Ghosting (disappearing after agreement)</li>
                 <li>❌ Spam or misleading claims</li>
+                <li>❌ Listing physical items you don&apos;t possess or can&apos;t ship</li>
               </ul>
 
-              <p className="text-xs text-foreground/50 pt-4">
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-foreground/70">
+                <strong className="text-foreground">⚠️ Due diligence:</strong> Living Ledger does not produce, warehouse, or guarantee any items listed by members. Verify details before transacting.
+              </div>
+
+              <p className="text-xs text-foreground/50 pt-2">
                 Read the full guidelines at /guidelines
               </p>
             </div>

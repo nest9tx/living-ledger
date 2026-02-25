@@ -341,6 +341,7 @@ export default function Feed({ guestMode = false }: FeedProps) {
                         const imageUrl = `${supabaseUrl}/storage/v1/object/public/listing-images/${image.storage_path}`;
                         return (
                           <div key={image.id} className="w-16 h-16 rounded border border-foreground/10 overflow-hidden bg-foreground/5">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={imageUrl}
                               alt={image.filename}

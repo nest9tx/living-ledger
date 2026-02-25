@@ -104,7 +104,7 @@ export default async function Home() {
             <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6 space-y-2">
               <p className="text-lg font-semibold">📋 Requests</p>
               <p className="text-sm text-foreground/70">
-                Need a second opinion, a quick design, some code reviewed, or someone to proofread your cover letter?
+                Need a second opinion, a quick design, some code reviewed, or a handmade item shipped to your door?
                 Post a request with your budget and let the community respond.
               </p>
               <p className="text-xs text-foreground/50 pt-1">You spend credits → helper earns credits</p>
@@ -112,7 +112,7 @@ export default async function Home() {
             <div className="rounded-2xl border border-foreground/10 bg-foreground/3 p-6 space-y-2">
               <p className="text-lg font-semibold">🎁 Offers</p>
               <p className="text-sm text-foreground/70">
-                Got a skill to share? List your offering — writing, tutoring, consulting, creative work — name your price
+                Got a skill or something to sell? List your offering — writing, tutoring, creative work, or handmade goods — name your price
                 and let clients come to you.
               </p>
               <p className="text-xs text-foreground/50 pt-1">Client spends credits → you earn &amp; can cash out</p>
