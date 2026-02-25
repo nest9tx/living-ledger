@@ -44,14 +44,30 @@ export async function seedDefaultCategories() {
     { name: "Healing & Wellness", icon: "🧘" },
     { name: "Spirituality & Energy Work", icon: "✨" },
     { name: "Community & Activism", icon: "🌍" },
-    // Physical Goods
+    // Physical Goods — Apparel & Accessories
+    { name: "Fashion & Apparel", icon: "👗" },
+    { name: "Jewelry & Accessories", icon: "💍" },
+    // Physical Goods — Health, Beauty & Wellness
+    { name: "Apothecary & Herbals", icon: "🌿" },
+    { name: "Health & Beauty", icon: "💄" },
+    // Physical Goods — Home & Lifestyle
+    { name: "Home Goods", icon: "🏡" },
+    { name: "Books & Media", icon: "📖" },
+    { name: "Electronics", icon: "📱" },
+    { name: "Sports & Outdoors", icon: "⛷️" },
+    { name: "Hobbies & Supplies", icon: "🎯" },
+    // Physical Goods — Specialty
+    { name: "Baby & Kids", icon: "👶" },
+    { name: "Pet Supplies", icon: "🐾" },
+    { name: "Coins & Currency", icon: "🪙" },
     { name: "Collectibles", icon: "🏆" },
-    { name: "Custom & Made-to-Order", icon: "🛠️" },
-    { name: "Pre-made Goods", icon: "📦" },
     { name: "Antiques", icon: "🏛️" },
-    { name: "Toys & Games", icon: "🧸" },
     { name: "Art & Prints", icon: "🖼️" },
+    // Physical Goods — Maker / Custom
+    { name: "Custom & Made-to-Order", icon: "🛠️" },
     { name: "Crafts & DIY", icon: "🧵" },
+    { name: "Toys & Games", icon: "🧸" },
+    { name: "Pre-made Goods", icon: "📦" },
     { name: "Misc Physical", icon: "📫" },
   ];
 
