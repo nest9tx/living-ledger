@@ -319,60 +319,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleRelease = async () => {
-    if (!escrow) return;
-    setActionLoading(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
-      const res = await fetch("/api/escrow/release", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ escrowId: escrow.id }),
-      });
-
-      const payload = await res.json();
-      if (!res.ok) {
-        // 'confirmed_pending' means both parties confirmed but the 7-day window hasn't passed
-        // — treat as an informational notice, not a page-level error
-        if (payload?.status === "confirmed_pending") {
-          const relDate3 = escrow.release_available_at;
-          const relLabel3 = relDate3
-            ? new Date(relDate3).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-            : null;
-          setNotice(
-            relLabel3
-              ? `Both parties have confirmed. Funds will be released on ${relLabel3} — the 7-day safety period must complete before funds can be released.`
-              : payload?.error || "Funds not yet available for release."
-          );
-          return;
-        }
-        throw new Error(payload?.error || "Failed to release escrow");
-      }
-
-      setEscrow({
-        ...escrow,
-        status: "released",
-        released_at: new Date().toISOString(),
-      });
-      setNotice("Funds released successfully. Provider earnings will be available for cashout.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to release escrow");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const handleReportIssue = async () => {
     if (!escrow) return;
     if (!disputeReason.trim()) {
@@ -882,17 +828,55 @@ export default function OrderDetailPage() {
           </button>
         )}
 
-        {/* Release Funds (only when both confirmed and 7 days passed OR admin approved) */}
-        {((escrow.payer_confirmed_at && escrow.provider_confirmed_at) || escrow.status === "confirmed") && 
-         escrow.status !== "released" && escrow.status !== "disputed" && (
-          <button
-            onClick={handleRelease}
-            disabled={actionLoading}
-            className="w-full rounded-md bg-emerald-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
-          >
-            {actionLoading ? "Releasing…" : "Release Funds"}
-          </button>
-        )}
+        {/* Escrow Release Status — replaces manual Release Funds button */}
+        {escrow.status !== "released" && escrow.status !== "refunded" && escrow.status !== "disputed" &&
+         (escrow.payer_confirmed_at || escrow.provider_confirmed_at || escrow.status === "confirmed") && (() => {
+           const bothConfirmed = !!(escrow.payer_confirmed_at && escrow.provider_confirmed_at);
+           const windowPassed = escrow.release_available_at
+             ? new Date() >= new Date(escrow.release_available_at)
+             : false;
+           const relLabel = escrow.release_available_at
+             ? new Date(escrow.release_available_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+             : null;
+
+           return (
+             <div className="rounded-2xl border border-foreground/10 bg-foreground/2 p-5 space-y-3">
+               <h2 className="text-xs uppercase tracking-[0.3em] text-foreground/60">Escrow Status</h2>
+               <div className="flex items-center justify-between text-sm">
+                 <span className="text-foreground/70">Buyer confirmed</span>
+                 <span className={`font-medium ${escrow.payer_confirmed_at ? "text-emerald-600" : "text-foreground/40"}`}>
+                   {escrow.payer_confirmed_at ? "✓ Confirmed" : "○ Pending"}
+                 </span>
+               </div>
+               <div className="flex items-center justify-between text-sm">
+                 <span className="text-foreground/70">Seller confirmed</span>
+                 <span className={`font-medium ${escrow.provider_confirmed_at ? "text-emerald-600" : "text-foreground/40"}`}>
+                   {escrow.provider_confirmed_at ? "✓ Confirmed" : "○ Pending"}
+                 </span>
+               </div>
+               <div className="flex items-center justify-between text-sm">
+                 <span className="text-foreground/70">Fund release</span>
+                 {bothConfirmed && windowPassed ? (
+                   <span className="font-medium text-emerald-600">✓ Processing</span>
+                 ) : bothConfirmed ? (
+                   <span className="font-medium text-amber-600">⏳ Pending — {relLabel ?? "release date TBD"}</span>
+                 ) : (
+                   <span className="font-medium text-foreground/40">○ Awaiting confirmations</span>
+                 )}
+               </div>
+               {bothConfirmed && !windowPassed && relLabel && (
+                 <p className="text-xs text-foreground/50 pt-1">
+                   Both parties have confirmed. Funds will be automatically released on {relLabel}. No further action needed.
+                 </p>
+               )}
+               {bothConfirmed && windowPassed && (
+                 <p className="text-xs text-emerald-600 pt-1">
+                   The 7-day window has passed. Funds will be released in the next daily processing cycle.
+                 </p>
+               )}
+             </div>
+           );
+         })()}
 
         {/* Dispute Button - Available to both parties when not resolved */}
         {escrow.status !== "released" && escrow.status !== "refunded" && escrow.status !== "disputed" && (
