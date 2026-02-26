@@ -84,7 +84,7 @@ export default async function Home() {
               {
                 step: "03",
                 title: "Complete and get paid",
-                body: "Mark delivery done. Credits release and 90% land in your account instantly. Reach 20 earned credits and cash out to USD via Stripe.",
+                body: "Mark delivery done. Credits release and 90% land in your account instantly. Reach 20 earned credits and cash out to USD via Stripe, or use them for items and services within the community.",
               },
             ].map((item) => (
               <div key={item.step} className="rounded-2xl border border-foreground/10 bg-foreground/3 p-5 space-y-2">
