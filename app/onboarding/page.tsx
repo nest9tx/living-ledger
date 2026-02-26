@@ -303,6 +303,9 @@ export default function OnboardingPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
+                <p className="mt-1.5 text-xs text-foreground/50">
+                  This is your public display name. Do not use your email address, full name, phone number, or any personal contact information.
+                </p>
               </div>
 
               <div>

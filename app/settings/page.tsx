@@ -347,7 +347,7 @@ export default function SettingsPage() {
               {usernameChanging ? "Saving…" : changeCount === 0 ? "Change (Free)" : "Change (5 credits)"}
             </button>
           </div>
-          <p className="text-xs text-foreground/50 mt-2">3–20 characters · letters, numbers, underscores only</p>
+          <p className="text-xs text-foreground/50 mt-2">3–20 characters · letters, numbers, underscores only · do not use your email, full name, or personal contact info</p>
           {usernameError && <p className="text-xs text-red-500 mt-2">{usernameError}</p>}
           {usernameSuccess && <p className="text-xs text-emerald-600 mt-2">{usernameSuccess}</p>}
         </div>
