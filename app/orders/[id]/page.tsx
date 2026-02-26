@@ -235,7 +235,15 @@ export default function OrderDetailPage() {
         payer_confirmed_at: new Date().toISOString(),
         release_available_at: payload.releaseAvailableAt || escrow.release_available_at,
       });
-      setNotice("Delivery confirmed! 7-day safety period started. Funds will be released when both parties confirm or after 7 days.");
+      const relDate = payload.releaseAvailableAt || escrow.release_available_at;
+      const relLabel = relDate
+        ? new Date(relDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        : null;
+      setNotice(
+        relLabel
+          ? `Delivery confirmed! Funds will be released on ${relLabel} — the 7-day safety period runs from the original order date.`
+          : "Delivery confirmed! Funds will be released on your scheduled release date."
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to confirm delivery");
     } finally {
@@ -287,10 +295,22 @@ export default function OrderDetailPage() {
         status: payload.status,
         provider_confirmed_at: new Date().toISOString(),
       });
+      const relDate2 = escrow.release_available_at;
+      const relLabel2 = relDate2
+        ? new Date(relDate2).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        : null;
       if (payload.bothConfirmed) {
-        setNotice("Both parties confirmed! Funds can be released immediately.");
+        setNotice(
+          relLabel2
+            ? `Both parties confirmed! Funds will be released on ${relLabel2}.`
+            : "Both parties confirmed! Funds will be released on your scheduled release date."
+        );
       } else {
-        setNotice("Completion confirmed! Awaiting buyer confirmation for instant release.");
+        setNotice(
+          relLabel2
+            ? `Confirmed! Awaiting buyer confirmation. Funds release on ${relLabel2}.`
+            : "Confirmed! Awaiting buyer confirmation."
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to confirm completion");
@@ -323,6 +343,20 @@ export default function OrderDetailPage() {
 
       const payload = await res.json();
       if (!res.ok) {
+        // 'confirmed_pending' means both parties confirmed but the 7-day window hasn't passed
+        // — treat as an informational notice, not a page-level error
+        if (payload?.status === "confirmed_pending") {
+          const relDate3 = escrow.release_available_at;
+          const relLabel3 = relDate3
+            ? new Date(relDate3).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+            : null;
+          setNotice(
+            relLabel3
+              ? `Both parties have confirmed. Funds will be released on ${relLabel3} — the 7-day safety period must complete before funds can be released.`
+              : payload?.error || "Funds not yet available for release."
+          );
+          return;
+        }
         throw new Error(payload?.error || "Failed to release escrow");
       }
 
