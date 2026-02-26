@@ -1,5 +1,11 @@
 import supabase from "./supabase";
 
+// Local helper types used by fetchRequests / fetchOffers
+type CategoryRow = { id: number; name: string; icon: string };
+type ProfileRow  = { id: string; username: string | null; average_rating?: number | null; total_ratings?: number | null; total_contributions?: number | null };
+type BoostRow    = { post_id: number; boost_tier: string; expires_at: string };
+type ImageRow    = { id: number; listing_id: number; storage_path: string; filename: string; file_size: number; mime_type: string; upload_order: number };
+
 // Categories
 export async function fetchCategories() {
   try {
@@ -73,7 +79,7 @@ export async function seedDefaultCategories() {
 
   try {
     for (const category of defaultCategories) {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("categories")
         .upsert([category], { onConflict: "name" })
         .select();
@@ -147,24 +153,33 @@ export async function createRequest(
 
 export async function fetchRequests() {
   try {
-    const { data, error } = await supabase
-      .from("requests")
-      .select(
-        `id, 
-         title, 
-         description, 
-         status, 
-         budget_credits,
-         is_physical,
-         shipping_credits,
-         created_at, 
-         user_id, 
-         category_id`
-      )
-      .eq("suspended", false)
-      .eq("is_sold_out", false)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-      .order("created_at", { ascending: false });
+    const now = new Date().toISOString();
+    const baseQuery = () =>
+      supabase
+        .from("requests")
+        .select(
+          `id, 
+           title, 
+           description, 
+           status, 
+           budget_credits,
+           is_physical,
+           shipping_credits,
+           created_at, 
+           user_id, 
+           category_id`
+        )
+        .eq("suspended", false)
+        .or(`expires_at.is.null,expires_at.gt.${now}`)
+        .order("created_at", { ascending: false });
+
+    let { data, error } = await baseQuery().eq("is_sold_out", false);
+
+    // Graceful fallback: if column doesn't exist yet (migration pending), fetch without that filter
+    if (error?.code === "PGRST204" || error?.message?.includes("is_sold_out")) {
+      console.warn("is_sold_out column missing — run migrations/mark-sold-out.sql in Supabase");
+      ({ data, error } = await baseQuery());
+    }
 
     if (error) {
       console.error("Supabase error fetching requests:", error);
@@ -182,7 +197,7 @@ export async function fetchRequests() {
       const categoryMap = categoryData?.reduce((map, cat) => {
         map[cat.id] = cat;
         return map;
-      }, {} as Record<number, any>) || {};
+      }, {} as Record<number, CategoryRow>) || {};
       
       // Fetch profiles
       const userIds = [...new Set(enrichedData.map(req => req.user_id))];
@@ -198,7 +213,7 @@ export async function fetchRequests() {
       const profileMap = profileData?.reduce((map, profile) => {
         map[profile.id] = profile;
         return map;
-      }, {} as Record<string, any>) || {};
+      }, {} as Record<string, ProfileRow>) || {};
 
       // Fetch boost data
       const requestIds = enrichedData.map(req => req.id);
@@ -215,13 +230,13 @@ export async function fetchRequests() {
         if (!map[boost.post_id]) map[boost.post_id] = [];
         map[boost.post_id].push(boost);
         return map;
-      }, {} as Record<number, any[]>);
+      }, {} as Record<number, BoostRow[]>);
 
       // Helper: prefer homepage tier in single-tier contexts; otherwise pick first
       const primaryBoost = (id: number) => {
         const boosts = boostMap[id];
         if (!boosts || boosts.length === 0) return null;
-        return boosts.find((b: any) => b.boost_tier === "homepage") || boosts[0];
+        return boosts.find((b: BoostRow) => b.boost_tier === "homepage") || boosts[0];
       };
 
       // Fetch listing images
@@ -242,7 +257,7 @@ export async function fetchRequests() {
         }
         map[image.listing_id].push(image);
         return map;
-      }, {} as Record<number, any[]>) || {};
+      }, {} as Record<number, ImageRow[]>) || {};
       
       enrichedData = enrichedData.map(req => ({
         ...req,
@@ -252,8 +267,8 @@ export async function fetchRequests() {
         isBoosted: (boostMap[req.id]?.length || 0) > 0,
         boostTier: primaryBoost(req.id)?.boost_tier || null,
         boostExpiresAt: primaryBoost(req.id)?.expires_at || null,
-        hasHomepageBoost: (boostMap[req.id] || []).some((b: any) => b.boost_tier === "homepage"),
-        hasCategoryBoost: (boostMap[req.id] || []).some((b: any) => b.boost_tier === "category"),
+        hasHomepageBoost: (boostMap[req.id] || []).some((b: BoostRow) => b.boost_tier === "homepage"),
+        hasCategoryBoost: (boostMap[req.id] || []).some((b: BoostRow) => b.boost_tier === "category"),
       }));
     }
 
@@ -324,23 +339,32 @@ export async function createOffer(
 
 export async function fetchOffers() {
   try {
-    const { data, error } = await supabase
-      .from("offers")
-      .select(
-        `id, 
-         title, 
-         description, 
-         price_credits,
-         is_physical,
-         shipping_credits,
-         created_at, 
-         user_id, 
-         category_id`
-      )
-      .eq("suspended", false)
-      .eq("is_sold_out", false)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-      .order("created_at", { ascending: false });
+    const now = new Date().toISOString();
+    const baseQuery = () =>
+      supabase
+        .from("offers")
+        .select(
+          `id, 
+           title, 
+           description, 
+           price_credits,
+           is_physical,
+           shipping_credits,
+           created_at, 
+           user_id, 
+           category_id`
+        )
+        .eq("suspended", false)
+        .or(`expires_at.is.null,expires_at.gt.${now}`)
+        .order("created_at", { ascending: false });
+
+    let { data, error } = await baseQuery().eq("is_sold_out", false);
+
+    // Graceful fallback: if column doesn't exist yet (migration pending), fetch without that filter
+    if (error?.code === "PGRST204" || error?.message?.includes("is_sold_out")) {
+      console.warn("is_sold_out column missing — run migrations/mark-sold-out.sql in Supabase");
+      ({ data, error } = await baseQuery());
+    }
 
     if (error) {
       console.error("Supabase error fetching offers:", error);
@@ -358,7 +382,7 @@ export async function fetchOffers() {
       const categoryMap = categoryData?.reduce((map, cat) => {
         map[cat.id] = cat;
         return map;
-      }, {} as Record<number, any>) || {};
+      }, {} as Record<number, CategoryRow>) || {};
       
       // Fetch profiles
       const userIds = [...new Set(enrichedData.map(offer => offer.user_id))];
@@ -374,7 +398,7 @@ export async function fetchOffers() {
       const profileMap = profileData?.reduce((map, profile) => {
         map[profile.id] = profile;
         return map;
-      }, {} as Record<string, any>) || {};
+      }, {} as Record<string, ProfileRow>) || {};
 
       // Fetch boost data
       const offerIds = enrichedData.map(offer => offer.id);
@@ -390,12 +414,12 @@ export async function fetchOffers() {
         if (!map[boost.post_id]) map[boost.post_id] = [];
         map[boost.post_id].push(boost);
         return map;
-      }, {} as Record<number, any[]>);
+      }, {} as Record<number, BoostRow[]>);
 
       const primaryBoost = (id: number) => {
         const boosts = boostMap[id];
         if (!boosts || boosts.length === 0) return null;
-        return boosts.find((b: any) => b.boost_tier === "homepage") || boosts[0];
+        return boosts.find((b: BoostRow) => b.boost_tier === "homepage") || boosts[0];
       };
 
       // Fetch listing images
@@ -416,7 +440,7 @@ export async function fetchOffers() {
         }
         map[image.listing_id].push(image);
         return map;
-      }, {} as Record<number, any[]>) || {};
+      }, {} as Record<number, ImageRow[]>) || {};
       
       enrichedData = enrichedData.map(offer => ({
         ...offer,
@@ -426,8 +450,8 @@ export async function fetchOffers() {
         isBoosted: (boostMap[offer.id]?.length || 0) > 0,
         boostTier: primaryBoost(offer.id)?.boost_tier || null,
         boostExpiresAt: primaryBoost(offer.id)?.expires_at || null,
-        hasHomepageBoost: (boostMap[offer.id] || []).some((b: any) => b.boost_tier === "homepage"),
-        hasCategoryBoost: (boostMap[offer.id] || []).some((b: any) => b.boost_tier === "category"),
+        hasHomepageBoost: (boostMap[offer.id] || []).some((b: BoostRow) => b.boost_tier === "homepage"),
+        hasCategoryBoost: (boostMap[offer.id] || []).some((b: BoostRow) => b.boost_tier === "category"),
       }));
     }
 

@@ -814,6 +814,29 @@ export default function OrderDetailPage() {
           </button>
         )}
 
+        {/* Physical goods notice for buyer when status is 'delivered' (= tracking uploaded, not yet in hand) */}
+        {role === "buyer" && escrow.status === "delivered" && listing?.is_physical && !escrow.payer_confirmed_at && (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/8 p-5 space-y-2">
+            <p className="text-sm font-semibold text-amber-700">📦 Your order is on its way</p>
+            {escrow.tracking_carrier && (
+              <p className="text-sm text-foreground/80">
+                <span className="font-medium">Carrier:</span>{" "}
+                {escrow.tracking_carrier === "local_pickup" ? "Local Pickup"
+                  : escrow.tracking_carrier === "service" ? "Service / No Shipment"
+                  : escrow.tracking_carrier}
+                {escrow.tracking_number && (
+                  <> · <span className="font-medium">Tracking #:</span>{" "}
+                    <span className="font-mono text-xs">{escrow.tracking_number}</span>
+                  </>
+                )}
+              </p>
+            )}
+            <p className="text-xs text-amber-700/80">
+              ⚠️ <strong>Note:</strong> &ldquo;Delivered&rdquo; status here means the seller has uploaded tracking information — it does not mean your item has physically arrived. Please check your tracking number and only click <em>Confirm Receipt</em> below once you have actually received your package.
+            </p>
+          </div>
+        )}
+
         {/* Buyer can confirm satisfaction after initial confirmation */}
         {role === "buyer" && escrow.status === "delivered" && !escrow.payer_confirmed_at && (
           <button
@@ -821,7 +844,7 @@ export default function OrderDetailPage() {
             disabled={actionLoading}
             className="w-full rounded-md bg-green-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
           >
-            {actionLoading ? "Updating…" : "Confirm Satisfaction"}
+            {actionLoading ? "Updating…" : listing?.is_physical ? "Confirm Receipt" : "Confirm Satisfaction"}
           </button>
         )}
 
