@@ -4,6 +4,16 @@ import "./globals.css";
 import NavHeader from "./components/NavHeader";
 import Footer from "./components/Footer";
 
+// Applied before React hydrates to prevent flash of wrong theme
+const themeScript = `
+  try {
+    const t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') {
+      document.documentElement.classList.add(t);
+    }
+  } catch {}
+`;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -56,6 +66,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import supabase from "@/lib/supabase";
 import { useState, useEffect } from "react";
+import ThemeToggle from "./ThemeToggle";
 
 export default function NavHeader() {
   const router = useRouter();
@@ -88,7 +89,8 @@ export default function NavHeader() {
           🌱 Living Ledger
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
           {user ? (
             <>
               <Link
