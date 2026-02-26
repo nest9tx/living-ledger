@@ -5,6 +5,8 @@ type OfferRow = {
   title: string;
   description: string | null;
   price_credits: number | null;
+  is_physical: boolean | null;
+  shipping_credits: number | null;
   category_id: number | null;
   created_at: string;
   user_id: string;
@@ -15,6 +17,8 @@ type RequestRow = {
   title: string;
   description: string | null;
   budget_credits: number | null;
+  is_physical: boolean | null;
+  shipping_credits: number | null;
   category_id: number | null;
   created_at: string;
   user_id: string;
@@ -69,13 +73,13 @@ export async function GET(req: Request) {
       offerIds.length
         ? supabaseAdmin
             .from("offers")
-            .select("id, title, description, price_credits, category_id, created_at, user_id")
+            .select("id, title, description, price_credits, is_physical, shipping_credits, category_id, created_at, user_id")
             .in("id", offerIds)
         : Promise.resolve({ data: [] as OfferRow[] }),
       requestIds.length
         ? supabaseAdmin
             .from("requests")
-            .select("id, title, description, budget_credits, category_id, created_at, user_id")
+            .select("id, title, description, budget_credits, is_physical, shipping_credits, category_id, created_at, user_id")
             .in("id", requestIds)
         : Promise.resolve({ data: [] as RequestRow[] }),
       supabaseAdmin
@@ -130,6 +134,8 @@ export async function GET(req: Request) {
             title: listing.title,
             description: listing.description,
             priceCredits: listing.price_credits,
+            shippingCredits: listing.is_physical ? (listing.shipping_credits ?? 0) : 0,
+            isPhysical: listing.is_physical ?? false,
             budgetCredits: null,
             category: category ? { name: category.name, icon: category.icon } : null,
             createdAt: listing.created_at,

@@ -14,6 +14,8 @@ type FeaturedBoost = {
   description: string;
   priceCredits?: number;
   budgetCredits?: number;
+  shippingCredits?: number;
+  isPhysical?: boolean;
   category: { name: string; icon: string } | null;
   createdAt: string;
   thumbnailPath?: string | null;
@@ -175,8 +177,12 @@ export default async function Home() {
                       )}
                       <span>
                         {boost.postType === "offer"
-                          ? `${boost.priceCredits ?? 0} credits`
-                          : `${boost.budgetCredits ?? 0} credits`}
+                          ? boost.isPhysical && boost.shippingCredits
+                            ? `${boost.priceCredits ?? 0} + ${boost.shippingCredits} shipping`
+                            : `${boost.priceCredits ?? 0} credits`
+                          : boost.isPhysical && boost.shippingCredits
+                            ? `${boost.budgetCredits ?? 0} + ${boost.shippingCredits} shipping`
+                            : `${boost.budgetCredits ?? 0} credits`}
                       </span>
                     </div>
                   </div>
