@@ -470,6 +470,13 @@ export default function OrderDetailPage() {
             <span className="font-medium">{escrow.credits_held}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
+            <span>{role === "provider" ? "You'll receive" : "Provider receives"}</span>
+            <span className="font-medium">
+              {Math.round(escrow.credits_held * 0.9 * 100) / 100} credits
+              <span className="ml-1 text-xs text-foreground/50">(after 10% fee)</span>
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
             <span>Order placed</span>
             <span className="font-medium">{new Date(escrow.created_at).toLocaleDateString()}</span>
           </div>
